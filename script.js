@@ -6402,6 +6402,17 @@ initializeTargetSettings();
 initializeDefaultDateFilter();
 V3Data.request().then(index => {
   dailyIndexPayload = index;
+  // เปิดหน้าครั้งแรกที่ยังไม่มีแคช ช่องวันที่จะว่าง ซึ่งหมายถึงทั้งชุดข้อมูล
+  // ถ้าเรนเดอร์เลย การ์ด KPI จะโชว์ยอดรวมทุกวันแวบหนึ่งก่อนหดมาเป็นวันล่าสุด
+  // จึงตั้งวันล่าสุดจาก index ที่เพิ่งได้มาก่อนเรนเดอร์ครั้งแรก
+  if (selectedRange === "latest" && !startDateInput?.value && !endDateInput?.value) {
+    const latestDateKey = getLatestDailyIndexDateKey(index);
+    if (latestDateKey) {
+      setDateFilterToSingleDay(latestDateKey);
+      syncQuickFilterActiveState();
+      updateActiveDateBanner({}, { sourceLabel: "กำลังสรุปข้อมูลวันล่าสุด..." });
+    }
+  }
   loadDashboard({ silent: false });
 }).catch(error => {
   setSyncStatus('เปิดข้อมูลไม่สำเร็จ: ' + error.message);
