@@ -229,7 +229,11 @@
     const table = $(prefix + 'MissTable');
     if (!summary || !table) return;
 
-    const items = list.map((p) => ({ p, miss: missingFor(p) })).filter((x) => x.miss.length);
+    const items = list.map((p) => {
+      const miss = missingFor(p);
+      p.missKeys = miss.map((m) => m.key);
+      return { p, miss };
+    }).filter((x) => x.miss.length);
     const affected = items.reduce((a, x) => a + x.p.stats.total, 0);
     const counts = new Map();
     items.forEach((x) => x.miss.forEach((m) => counts.set(m.label, (counts.get(m.label) || 0) + 1)));
@@ -240,13 +244,16 @@
         : 'ข้อมูลครบทุกคนในมุมมองนี้';
     }
 
-    summary.innerHTML = items.length
+    const writer = window.V3RosterWrite;
+    summary.innerHTML = (writer ? `<span class="rw-status-wrap">${writer.statusHtml()}</span>` : '')
+      + (items.length
       ? [...counts.entries()].sort((a, b) => b[1] - a[1])
         .map(([label, n]) => {
           const rule = MISS_RULES.find((r) => r.label === label);
           return `<span class="staff-miss-pill" title="${esc(rule ? rule.where : '')}">${esc(label)} <b>${fmt(n)}</b> คน</span>`;
         }).join('')
-      : '<span class="staff-miss-ok">✓ ทุกคนในมุมมองนี้มีข้อมูลครบ ไม่ต้องตามเพิ่ม</span>';
+      : '<span class="staff-miss-ok">✓ ทุกคนในมุมมองนี้มีข้อมูลครบ ไม่ต้องตามเพิ่ม</span>');
+    if (writer) writer.bind(summary, (id) => items.find((x) => x.p.id === id)?.p, renderAll);
 
     if (!window.V3Shared) return;
     window.V3Shared.table(table, prefix + '-missing', items, [
@@ -272,8 +279,15 @@
       { title: 'Total Pick', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
       { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true, html: (x) => fmt1(x.p.stats.average) },
       { title: 'วันที่มีงาน', value: (x) => x.p.workDays, num: true },
-      { title: 'ช่วงที่พบผลงาน', value: (x) => x.p.firstDate, html: (x) => `${dmy(x.p.firstDate)}<span class="sub">ถึง ${dmy(x.p.lastDate)}</span>` }
+      { title: 'ช่วงที่พบผลงาน', value: (x) => x.p.firstDate, html: (x) => `${dmy(x.p.firstDate)}<span class="sub">ถึง ${dmy(x.p.lastDate)}</span>` },
+      {
+        title: 'เติมข้อมูล', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'เติมได้'),
+        html: (x) => (window.V3RosterWrite ? window.V3RosterWrite.buttonHtml(x.p) : '—')
+      }
     ]);
+    if (window.V3RosterWrite) {
+      window.V3RosterWrite.bind(table, (id) => items.find((x) => x.p.id === id)?.p, renderAll);
+    }
   }
 
   /* ════════ หน้าพนักงานใหม่ ════════ */
