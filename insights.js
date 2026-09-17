@@ -147,6 +147,7 @@
   function issues(r){const list=[];const id=String(r[3]||'').trim();if(!id)list.push('ไม่มี User ID');else if(!roster.has(id))list.push('ไม่พบ User ID ใน 2ND');if(M.isPlaceholder(r[1]))list.push('ช่องชื่อใน Results Master ไม่ใช่ชื่อคน');if(!String(r[32]||'').trim()||/not found|#n\/a/i.test(String(r[32])))list.push('ไม่พบกะ');if(!zone(r))list.push('ไม่พบ Zone ตามกฎ V1');if(!M.type(r[36]))list.push('ไม่พบ Type Pick ที่ใช้วิเคราะห์');if(!String(r[34]||'').trim()||/not found|#n\/a/i.test(String(r[34])))list.push('ไม่พบสังกัด');return list;}
   /* รายการรายคน: เห็นแค่รหัสกับสถานะ แล้วกดเติมข้อมูลในหน้านี้เลย
      ตัวเติมอยู่ใน v2-roster-write.js ซึ่งเขียนเฉพาะชีต 2ND */
+  const draftStatus=(id)=>(window.V3RosterWrite&&window.V3RosterWrite.draftStatus?window.V3RosterWrite.draftStatus(id):null);
   function renderQualityPeople(data){
     if(!$('v3QualityPeople'))return;
     const M2=M, resigned=M2.resignedMap(source.sheets['Resigned']);
@@ -156,31 +157,39 @@
       .filter(([id])=>!roster.has(id))
       .map(([id,rs])=>{
         const st=M2.aggregate(rs);
-        const res=resigned.get(id)||null;
+        const sheetRes=resigned.get(id);
+        const res=sheetRes?{...sheetRes,source:'sheet'}
+          :(window.V3RosterWrite&&window.V3RosterWrite.resignedDraft?window.V3RosterWrite.resignedDraft(id):null);
         const dates=[...new Set(rs.map(r=>M2.date(r[2])))].sort();
         return {id,stats:st,resigned:res,rows:rs,
           name:M2.personName(rs[0],roster),
           firstDate:dates[0]||'',lastDate:dates[dates.length-1]||'',
           missKeys:res?['name']:['roster','name','start','shift','aff','bu','type','zone']};
       })
-      .sort((a,b)=>b.stats.total-a.stats.total);
+      .sort((a,b)=>(Number(Boolean(a.resigned))-Number(Boolean(b.resigned)))||(b.stats.total-a.stats.total));
 
     const writer=window.V3RosterWrite;
     const active=items.filter(x=>!x.resigned).length;
+    const webOut=items.filter(x=>x.resigned&&x.resigned.source==='web').length;
     if($('v3QualityWriteBar')){
       $('v3QualityWriteBar').innerHTML=(writer?`<span class="rw-status-wrap">${writer.statusHtml()}</span>`:'')
         +`<span class="staff-miss-pill">ยังไม่มีทะเบียน <b>${fmt(items.length)}</b> รหัส</span>`
         +`<span class="staff-miss-pill">ยังทำงานอยู่ <b>${fmt(active)}</b> รหัส</span>`
-        +`<span class="staff-miss-pill">ออกแล้ว <b>${fmt(items.length-active)}</b> รหัส</span>`;
+        +`<span class="staff-miss-pill is-out">⛔ ออกแล้ว <b>${fmt(items.length-active)}</b> รหัส</span>`
+        +(webOut?`<span class="staff-miss-pill is-out">กรอกในเว็บว่าออกแล้ว <b>${fmt(webOut)}</b> รหัส</span>`:'')
+        +`<span class="staff-miss-hint">สืบมาแล้วพบว่าลาออกไปแล้ว → กด <b>เติมข้อมูล</b> แล้วเลือก <b>⛔ ลาออกแล้ว</b> กรอกแค่ชื่อกับวันที่ออก</span>`;
       if(writer)writer.bind($('v3QualityWriteBar'),id=>items.find(x=>x.id===id),()=>qualityPage());
     }
 
     table($('v3QualityPeople'),'quality-people',items,[
       {title:'รหัสพนักงาน',value:x=>x.id,html:x=>`<b>${esc(x.id)}</b>`},
-      {title:'สถานะ',value:x=>x.resigned?'ออกแล้ว':'Not Found',
-        html:x=>x.resigned
-          ?`<span class="staff-resigned">⛔ ออกแล้ว ${x.resigned.date?x.resigned.date.split('-').reverse().join('/'):''}</span>`
-          :`<span class="v3-pill warn">Not Found — ยังไม่มีทะเบียน</span>`},
+      {title:'สถานะ',value:x=>x.resigned?(x.resigned.source==='web'?'ออกแล้ว (กรอกในเว็บ)':'ออกแล้ว (ชีต Resigned)'):(draftStatus(x.id)==='active'?'กรอกแล้ว รอใส่ใน Sheet':'Not Found'),
+        html:x=>{
+          if(x.resigned){const web=x.resigned.source==='web';const d=x.resigned.date?x.resigned.date.split('-').reverse().join('/'):'ไม่ทราบวันที่';
+            return `<span class="staff-resigned${web?' is-web':''}" title="${web?'กรอกในเว็บ ยังไม่ได้ใส่ในชีต Resigned':'อยู่ในชีต Resigned'}">⛔ ออกแล้ว ${d}${web?' · กรอกในเว็บ':''}</span>`;}
+          return draftStatus(x.id)==='active'
+            ?`<span class="v3-pill good">กรอกแล้ว รอใส่ใน Sheet</span>`
+            :`<span class="v3-pill warn">Not Found — ยังไม่มีทะเบียน</span>`;}},
       {title:'Total Pick',value:x=>x.stats.total,num:true,html:x=>fmt(x.stats.total)},
       {title:'ช่วงที่พบผลงาน',value:x=>x.firstDate,
         html:x=>`${x.firstDate?x.firstDate.split('-').reverse().join('/'):'—'}<span class="sub">ถึง ${x.lastDate?x.lastDate.split('-').reverse().join('/'):'—'}</span>`},
@@ -194,7 +203,7 @@
 
   function qualityPage(){if(!$('v3Quality'))return;const data=visible(),problem=data.filter(r=>issues(r).length);const noMaster=data.filter(r=>!roster.has(String(r[3]||'').trim()));const invalid=rows.filter(r=>!M.date(r[2]));
     $('v3Quality').innerHTML=cards([['แถวที่ต้องตรวจ',fmt(problem.length),'ไม่ตัดจากยอดอัตโนมัติ'],['Total Pick ของแถวที่ต้องตรวจ',fmt(M.aggregate(problem).total),'นับแต่ละแถวครั้งเดียว'],['ยอดที่ไม่มีทะเบียน 2ND',fmt(M.aggregate(noMaster).total),'อาจเป็นพนักงานเก่าหรือรหัสไม่ตรง'],['แถวไม่มีวันที่ทั้งไฟล์',fmt(invalid.length),'รวมแถวสูตรท้าย Sheet ไม่เข้าในวันรายงาน']])+`<div class="note v3-notice">Productivity อ้างอิง AF จริง ไม่แก้ค่าเองเมื่อพบ Not Found ส่วนทะเบียน 2ND เป็นข้อมูลปัจจุบัน การไม่พบทะเบียนไม่ได้ยืนยันว่าพนักงานลาออก</div>`
-      +`<h2 class="staff-table-title">รหัสพนักงานที่ยังไม่มีทะเบียน</h2><p class="panel-desc">เห็นรหัสแล้วกดปุ่มเติมข้อมูลเพื่อระบุว่ารหัสนี้คือใคร แก้ได้ในหน้านี้เลย · คนที่ออกแล้วกรอกแค่ชื่อพอ</p><div class="staff-miss-summary" id="v3QualityWriteBar"></div><div id="v3QualityPeople"></div>`
+      +`<h2 class="staff-table-title">รหัสพนักงานที่ยังไม่มีทะเบียน</h2><p class="panel-desc">เห็นรหัสแล้วกดปุ่มเติมข้อมูลเพื่อระบุว่ารหัสนี้คือใคร แก้ได้ในหน้านี้เลย · ถ้าสืบมาแล้วพบว่า<b>ลาออกไปแล้ว</b> ให้เลือกปุ่ม ⛔ ลาออกแล้ว ในฟอร์ม กรอกแค่ชื่อกับวันที่ออกพอ ปลายทางคือชีต Resigned ไม่ใช่ 2ND</p><div class="staff-miss-summary" id="v3QualityWriteBar"></div><div id="v3QualityPeople"></div>`
       +`<h2 class="staff-table-title">รายการแถวที่ต้องตรวจ</h2><p class="panel-desc">รายละเอียดระดับแถวสำหรับคนที่อยากไล่ดูต้นทาง</p><div id="v3QualityTable"></div>`;
     renderQualityPeople(data);
     table($('v3QualityTable'),'quality',problem,recordColumns.filter(c=>c.title!=='วันที่'),{valid:r=>M.number(r[31])>0});
@@ -202,7 +211,9 @@
   function render(){if(!source)return;try{if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();}catch(e){console.error('V3 insights:',e);}}
   V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
-    $('v3SourceStatus').textContent=`${value.index.cacheStatus==='sheet-live'?'Google Sheets ล่าสุด':'ข้อมูลสำรองจาก Google Sheets'} • อ่านเมื่อ ${new Date(source.fetchedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} • ${fmt(value.index.totalRows)} แถวมีวันที่`;
+    const warn=(source.warnings||[]);
+    $('v3SourceStatus').innerHTML=esc(`${value.index.cacheStatus==='sheet-live'?'Google Sheets ล่าสุด':'ข้อมูลสำรองจาก Google Sheets'} • อ่านเมื่อ ${new Date(source.fetchedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} • ${fmt(value.index.totalRows)} แถวมีวันที่`)
+      +(warn.length?` • <span class="v3-loadwarn" title="${esc(warn.join(' · '))}">⚠️ อ่านบางชีตไม่ได้ สถานะออกแล้วอาจหาย</span>`:'');
     render();
   });
   document.addEventListener('v3-render',e=>{payload=e.detail;render();});

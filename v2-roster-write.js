@@ -3,16 +3,22 @@
    กรอกแล้วเก็บไว้ในเครื่องนี้ (localStorage) และ Export CSV ไปกรอกใน Sheet เองได้
    ไม่มีการเรียก Apps Script และไม่มีกล่องตั้งค่า URL/โทเคนในหน้าเว็บ
 
+   สถานะการจ้างเลือกได้ 2 แบบ ปลายทางต่างกัน
+     ยังทำงานอยู่ → ชีต 2ND คอลัมน์ C–M (ทะเบียนพนักงาน)
+     ลาออกแล้ว    → ชีต Resigned คอลัมน์ A รหัส, B ชื่อ, H วันพ้นสภาพ
+   คนที่เลือกว่าลาออกแล้วจะขึ้น Remark แดงทันทีและถูกซ่อนตามปุ่ม "ซ่อนคนที่ออกแล้ว" เหมือนคนที่อยู่ในชีต Resigned
+
    ไฟล์ apps-script-roster-write.gs ยังอยู่ในโปรเจกต์เผื่อเปิดใช้ทีหลัง
-   ถ้าจะต่อของจริง ให้เพิ่มการยิง POST ในฟังก์ชัน submitForm() เท่านั้น ที่เหลือใช้ได้เลย */
+   ถ้าจะต่อของจริง ให้เพิ่มการยิง POST ในฟังก์ชัน saveDraft() เท่านั้น ที่เหลือใช้ได้เลย */
 (() => {
   'use strict';
 
   const DRAFT_KEY = 'pickProductivityRosterDraft:v1';
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
+  const dmy = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 
-  /* ช่องที่ให้กรอก พร้อมบอกว่าปลายทางคือคอลัมน์ไหนของชีต 2ND */
+  /* ช่องที่ให้กรอกเมื่อคนนั้นยังทำงานอยู่ ปลายทางคือชีต 2ND */
   const FIELDS = [
     { key: 'name', label: 'ชื่อ-นามสกุล (ไทย)', col: '2ND C' },
     { key: 'nickname', label: 'ชื่อเล่น', col: '2ND D' },
@@ -26,6 +32,16 @@
     { key: 'shift', label: 'Ship กะ', col: '2ND M', placeholder: 'เช่น A / B / C' }
   ];
 
+  /* ช่องที่ให้กรอกเมื่อคนนั้นลาออกแล้ว ปลายทางคือชีต Resigned ไม่ต้องกรอกกะ โซน สังกัด */
+  const RESIGNED_FIELDS = [
+    { key: 'name', label: 'ชื่อ-นามสกุล (ไทย)', col: 'Resigned B' },
+    { key: 'resignedDate', label: 'วันที่พ้นสภาพ (ส่งออกเป็น ปี ค.ศ.)', col: 'Resigned H', placeholder: 'เช่น 31/08/2026 (ไม่รู้วันก็เว้นไว้ได้)' },
+    { key: 'note', label: 'หมายเหตุ / ใครให้ข้อมูล', col: '—' }
+  ];
+
+  const fieldsFor = (status) => (status === 'resigned' ? RESIGNED_FIELDS : FIELDS);
+
+  /* ── เก็บร่างไว้ในเครื่อง ── */
   function loadDrafts() {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -37,14 +53,62 @@
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(all)); return true; }
     catch (e) { return false; }
   }
-  function draftCount() { return Object.keys(loadDrafts()).length; }
+  function draftOf(id) {
+    const d = loadDrafts()[id];
+    if (!d) return null;
+    // ร่างรุ่นก่อนไม่มีฟิลด์ status ให้ถือว่ายังทำงานอยู่
+    return { status: d.status === 'resigned' ? 'resigned' : 'active', fields: d.fields || {}, date: d.date || '', savedAt: d.savedAt || '' };
+  }
+  function draftList() {
+    const all = loadDrafts();
+    return Object.keys(all).map((id) => ({ id, ...draftOf(id) }));
+  }
+
+  /* วันที่พิมพ์เป็น 31/08/2026 หรือ 31/08/2569 หรือ 2026-08-31 ก็รับได้ เก็บเป็น ISO เพื่อให้หน้าอื่นใช้ต่อ */
+  function toIso(text) {
+    const t = String(text ?? '').trim();
+    if (!t) return '';
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+    let year, month, day;
+    if (m) { year = +m[1]; month = +m[2]; day = +m[3]; }
+    else {
+      m = /^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/.exec(t);
+      if (!m) return '';
+      day = +m[1]; month = +m[2]; year = +m[3];
+      if (year < 100) {
+        // ปีสองหลักกำกวม เลือกแบบ ค.ศ. ก่อน ถ้าได้ปีอนาคตเกินหนึ่งปีจึงถือว่าเป็น พ.ศ. สองหลัก
+        const gregorian = year + 2000;
+        year = gregorian > new Date().getFullYear() + 1 ? year + 1957 : gregorian;
+      }
+    }
+    if (year > 2400) year -= 543;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return '';
+    const iso = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const check = new Date(iso + 'T00:00:00');
+    return Number.isNaN(check.getTime()) ? '' : iso;
+  }
 
   function exportDrafts() {
-    const all = loadDrafts();
-    const ids = Object.keys(all);
-    if (!ids.length) return;
-    const cols = ['รหัสพนักงาน', ...FIELDS.map((f) => f.label + ' (' + f.col + ')'), 'กรอกเมื่อ'];
-    const rows = ids.map((id) => [id, ...FIELDS.map((f) => all[id].fields[f.key] || ''), all[id].savedAt || '']);
+    const list = draftList();
+    if (!list.length) return;
+    // ช่องเดียวกันที่ใช้ทั้งสองสถานะ (ชื่อ) รวมเป็นคอลัมน์เดียว แต่บอกปลายทางทั้งสองที่
+    const keys = [];
+    [...FIELDS, ...RESIGNED_FIELDS].forEach((f) => {
+      const exist = keys.find((k) => k.key === f.key);
+      if (exist) { if (!exist.cols.includes(f.col)) exist.cols.push(f.col); return; }
+      keys.push({ key: f.key, label: f.label, cols: [f.col] });
+    });
+    const cols = ['รหัสพนักงาน', 'สถานะ', 'ปลายทางที่ต้องไปกรอก',
+      ...keys.map((k) => k.label + ' (' + k.cols.join(' / ') + ')'), 'กรอกเมื่อ'];
+    const rows = list.map((d) => [
+      d.id,
+      d.status === 'resigned' ? 'ลาออกแล้ว' : 'ยังทำงานอยู่',
+      d.status === 'resigned' ? 'ชีต Resigned (A รหัส, B ชื่อ, H วันพ้นสภาพ)' : 'ชีต 2ND (C–M)',
+      // ส่งออกทุกค่าที่เก็บไว้ ไม่ตัดตามสถานะ เพื่อไม่ให้ที่กรอกไว้หายเงียบ ๆ
+      // วันที่พ้นสภาพส่งออกเป็น yyyy-mm-dd ปี ค.ศ. เพื่อให้วางลงชีตแล้วไม่เพี้ยนตามรูปแบบวันที่
+      ...keys.map((k) => (k.key === 'resignedDate' ? (d.date || d.fields[k.key] || '') : (d.fields[k.key] || ''))),
+      d.savedAt || ''
+    ]);
     const csv = [cols, ...rows]
       .map((row) => row.map((v) => {
         let t = String(v ?? '');
@@ -55,24 +119,36 @@
     const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'V3-ข้อมูลที่กรอกรอใส่ใน-2ND.csv';
+    a.download = 'V3-ข้อมูลที่กรอกรอใส่ใน-Sheet.csv';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   /* ── ฟอร์มกรอกรายคน ── */
-  function formHtml(person) {
-    // คนที่ออกแล้วไม่ต้องกรอกเยอะ ขอแค่ระบุว่ารหัสนี้คือใคร
-    const resigned = Boolean(person.resigned);
-    const list = resigned ? FIELDS.filter((f) => f.key === 'name' || f.key === 'nickname') : FIELDS;
-    const draft = loadDrafts()[person.id];
-    const val = (k) => (draft && draft.fields && draft.fields[k]) || '';
+  function panelHtml(person, state) {
+    const inSheet = Boolean(person.resigned && person.resigned.source !== 'web');
+    const resigned = state.status === 'resigned';
+    const list = fieldsFor(state.status);
+    const val = (k) => state.values[k] || '';
+    const head = inSheet
+      ? `รหัสนี้อยู่ในชีต <b>Resigned</b> อยู่แล้ว${person.resigned.date ? ' (พ้นสภาพ ' + dmy(person.resigned.date) + ')' : ''} จึงขอแค่ชื่อไว้อ้างอิงประวัติ`
+      : 'สืบมาได้แค่ไหนกรอกเท่านั้น เว้นช่องที่ไม่รู้ไว้ได้ · ถ้าคนนี้ลาออกไปแล้วให้กดปุ่ม “ลาออกแล้ว” ข้างล่าง แล้วกรอกแค่ชื่อกับวันที่ออก';
     return `<div class="rw-panel" data-rw-form data-rw-id="${esc(person.id)}">
-      <h4>${resigned ? 'ระบุชื่อของ' : 'กรอกข้อมูลของ'} ${esc(person.id)}</h4>
-      <p>${resigned
-        ? `รหัสนี้อยู่ในชีต <b>Resigned</b>${person.resigned.date ? ' (พ้นสภาพ ' + person.resigned.date.split('-').reverse().join('/') + ')' : ''} จึงขอแค่ชื่อไว้อ้างอิงประวัติ ไม่ต้องกรอกกะ โซน หรือสังกัด`
-        : 'กรอกเท่าที่ทราบ เว้นช่องที่ไม่รู้ไว้ได้'}
-        <br><b>ยังไม่ส่งเข้า Google Sheet</b> — บันทึกไว้ในเครื่องนี้ก่อน แล้ว Export CSV ไปกรอกใน 2ND เอง</p>
+      <h4>ระบุว่ารหัส ${esc(person.id)} คือใคร</h4>
+      <p>${head}
+        <br><b>ยังไม่ส่งเข้า Google Sheet</b> — บันทึกไว้ในเครื่องนี้ก่อน แล้ว Export CSV ไปกรอกใน Sheet เอง</p>
+      <div class="rw-statusrow">
+        <span class="rw-statuslabel">สถานะการจ้าง</span>
+        <div class="rw-seg" role="group" aria-label="สถานะการจ้าง">
+          <button type="button" data-rw-status="active"${resigned ? '' : ' class="active"'}>ยังทำงานอยู่</button>
+          <button type="button" data-rw-status="resigned"${resigned ? ' class="active is-out"' : ''}>⛔ ลาออกแล้ว</button>
+        </div>
+        <span class="rw-seghint">${resigned
+          ? 'ปลายทาง: ชีต <b>Resigned</b> คอลัมน์ A รหัส · B ชื่อ · H วันพ้นสภาพ'
+          : (inSheet
+            ? 'ปลายทาง: ชีต <b>2ND</b> คอลัมน์ C–M · <b>หมายเหตุ</b> ชีต Resigned บอกว่ารหัสนี้ออกแล้ว หน้าเว็บจะยังขึ้นว่าออกแล้วจนกว่าจะแก้ในชีต Resigned'
+            : 'ปลายทาง: ชีต <b>2ND</b> คอลัมน์ C–M')}</span>
+      </div>
       <div class="rw-grid">
         ${list.map((f) => `<label>${esc(f.label)} <span class="rw-col">${esc(f.col)}</span>
           <input type="text" data-rw-field="${f.key}" placeholder="${esc(f.placeholder || '')}" value="${esc(val(f.key))}">
@@ -80,29 +156,67 @@
         </label>`).join('')}
       </div>
       <div class="rw-actions">
-        <button type="button" data-rw-submit class="rw-btn rw-btn-primary">บันทึกไว้ในเครื่อง</button>
-        ${draft ? '<button type="button" data-rw-delete class="rw-btn rw-btn-ghost">ลบที่กรอกไว้</button>' : ''}
+        <button type="button" data-rw-submit class="rw-btn rw-btn-primary">${resigned ? 'บันทึกว่าออกแล้ว' : 'บันทึกไว้ในเครื่อง'}</button>
+        ${state.hasDraft ? '<button type="button" data-rw-delete class="rw-btn rw-btn-ghost">ลบที่กรอกไว้</button>' : ''}
         <button type="button" data-rw-cancel class="rw-btn">ปิด</button>
       </div>
-      <div class="rw-msg" data-rw-msg></div>
+      <div class="rw-msg" data-rw-msg>${esc(state.message || '')}</div>
     </div>`;
   }
 
-  function bindForm(panel, person, close, onRerender) {
+  function readValues(panel, state) {
+    panel.querySelectorAll('[data-rw-field]').forEach((el) => {
+      state.values[el.dataset.rwField] = el.value;
+    });
+    return state.values;
+  }
+
+  function openPanel(host, person, state, onRerender) {
+    host.innerHTML = panelHtml(person, state);
+    const panel = host.querySelector('[data-rw-form]');
     const msg = panel.querySelector('[data-rw-msg]');
     const say = (text, tone) => { msg.className = 'rw-msg' + (tone ? ' is-' + tone : ''); msg.innerHTML = text; };
+    const close = () => { host.innerHTML = ''; };
+
+    panel.querySelectorAll('[data-rw-status]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const next = b.dataset.rwStatus;
+        if (next === state.status) return;
+        readValues(panel, state);
+        state.status = next;
+        state.message = '';
+        openPanel(host, person, state, onRerender);
+      });
+    });
 
     panel.querySelector('[data-rw-submit]').addEventListener('click', () => {
+      readValues(panel, state);
+      const own = fieldsFor(state.status).map((f) => f.key);
       const fields = {};
-      panel.querySelectorAll('[data-rw-field]').forEach((el) => {
-        const v = el.value.trim();
-        if (v) fields[el.dataset.rwField] = v;
-      });
-      if (!Object.keys(fields).length) { say('ยังไม่ได้กรอกช่องใดเลย', 'warn'); return; }
+      // ค่าที่กรอกไว้ของอีกสถานะเก็บไว้ด้วย ไม่ให้หายเพราะสลับปุ่ม
+      const prev = draftOf(person.id);
+      if (prev) Object.keys(prev.fields).forEach((k) => { if (!own.includes(k)) fields[k] = prev.fields[k]; });
+      own.forEach((k) => { const v = String(state.values[k] ?? '').trim(); if (v) fields[k] = v; });
+
+      if (state.status === 'resigned') {
+        const iso = toIso(fields.resignedDate);
+        if (fields.resignedDate && !iso) {
+          say('อ่านวันที่พ้นสภาพไม่ออก กรอกแบบ <b>31/08/2026</b> หรือ <b>2026-08-31</b> (เว้นว่างก็ได้)', 'warn');
+          return;
+        }
+        const all = loadDrafts();
+        all[person.id] = { status: 'resigned', fields, date: iso, savedAt: new Date().toLocaleString('th-TH') };
+        if (!saveDrafts(all)) { say('บันทึกไม่สำเร็จ เบราว์เซอร์ปิด localStorage อยู่', 'warn'); return; }
+        say(`บันทึกว่ารหัสนี้ <b>ออกแล้ว</b>${iso ? ' (พ้นสภาพ ' + dmy(iso) + ')' : ''} · จะขึ้น Remark แดงและถูกซ่อนตามปุ่มซ่อนคนที่ออกแล้ว`, 'good');
+        if (onRerender) setTimeout(onRerender, 700);
+        return;
+      }
+
+      if (!own.some((k) => fields[k])) { say('ยังไม่ได้กรอกช่องใดเลย', 'warn'); return; }
       const all = loadDrafts();
-      all[person.id] = { fields, savedAt: new Date().toLocaleString('th-TH') };
+      all[person.id] = { status: 'active', fields, date: '', savedAt: new Date().toLocaleString('th-TH') };
       if (!saveDrafts(all)) { say('บันทึกไม่สำเร็จ เบราว์เซอร์ปิด localStorage อยู่', 'warn'); return; }
-      say(`บันทึกไว้ในเครื่องแล้ว ${Object.keys(fields).length} ช่อง · กด <b>Export CSV ที่กรอกไว้</b> ด้านบนเพื่อเอาไปใส่ใน Sheet`, 'good');
+      say(`บันทึกไว้ในเครื่องแล้ว ${own.filter((k) => fields[k]).length} ช่อง · กด <b>Export CSV ที่กรอกไว้</b> ด้านบนเพื่อเอาไปใส่ใน Sheet`, 'good');
       if (onRerender) setTimeout(onRerender, 700);
     });
 
@@ -116,6 +230,16 @@
     });
 
     panel.querySelector('[data-rw-cancel]').addEventListener('click', close);
+    host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function initialState(person) {
+    const draft = draftOf(person.id);
+    if (draft) {
+      return { status: draft.status, values: { ...draft.fields, resignedDate: draft.fields.resignedDate || dmy(draft.date) }, hasDraft: true, message: '' };
+    }
+    const inSheet = Boolean(person.resigned && person.resigned.source !== 'web');
+    return { status: inSheet ? 'resigned' : 'active', values: {}, hasDraft: false, message: '' };
   }
 
   /* ── จุดเชื่อมที่ v2-staff.js และ insights.js เรียกใช้ ── */
@@ -123,16 +247,34 @@
     /** ยังไม่ต่อ Apps Script จึงถือว่าพร้อมกรอกเสมอ */
     isConfigured() { return true; },
 
+    /** ให้หน้าอื่นรู้ว่ารหัสนี้ถูกกรอกในเว็บว่าออกแล้ว — ใช้ทำ Remark แดงและปุ่มซ่อน */
+    resignedDraft(id) {
+      const d = draftOf(id);
+      if (!d || d.status !== 'resigned') return null;
+      return { id, name: d.fields.name || '', date: d.date || '', note: d.fields.note || '', source: 'web', savedAt: d.savedAt };
+    },
+
+    /** null = ยังไม่ได้กรอก · 'active' = กรอกว่ายังทำงานอยู่ · 'resigned' = กรอกว่าออกแล้ว */
+    draftStatus(id) {
+      const d = draftOf(id);
+      return d ? d.status : null;
+    },
+
     buttonHtml(person) {
-      const has = Boolean(loadDrafts()[person.id]);
-      return `<button type="button" class="rw-open${has ? ' has-draft' : ''}" data-rw-open="${esc(person.id)}">`
-        + (has ? '✅ กรอกแล้ว' : '✏️ เติมข้อมูล') + '</button>';
+      const d = draftOf(person.id);
+      const cls = d ? (d.status === 'resigned' ? ' has-draft is-out' : ' has-draft') : '';
+      const label = d ? (d.status === 'resigned' ? '⛔ ระบุว่าออกแล้ว' : '✅ กรอกแล้ว') : '✏️ เติมข้อมูล';
+      return `<button type="button" class="rw-open${cls}" data-rw-open="${esc(person.id)}">${label}</button>`;
     },
 
     statusHtml() {
-      const n = draftCount();
+      const list = draftList();
+      const out = list.filter((d) => d.status === 'resigned').length;
       return `<span class="rw-status">📝 กรอกแล้วเก็บไว้ในเครื่องนี้ ยังไม่ส่งเข้า Sheet`
-        + (n ? ` · <b>${fmt(n)}</b> รหัส <button type="button" class="rw-link" data-rw-export>Export CSV ที่กรอกไว้</button>` : '')
+        + (list.length
+          ? ` · <b>${fmt(list.length)}</b> รหัส (ระบุว่าออกแล้ว <b>${fmt(out)}</b>)`
+            + ` <button type="button" class="rw-link" data-rw-export>Export CSV ที่กรอกไว้</button>`
+          : '')
         + '</span>';
     },
 
@@ -144,7 +286,6 @@
         host.setAttribute('data-rw-host', '');
         container.appendChild(host);
       }
-      const close = () => { host.innerHTML = ''; };
 
       container.querySelectorAll('[data-rw-export]').forEach((b) => {
         b.addEventListener('click', exportDrafts);
@@ -154,9 +295,7 @@
         b.addEventListener('click', () => {
           const person = getPerson(b.dataset.rwOpen);
           if (!person) return;
-          host.innerHTML = formHtml(person);
-          bindForm(host.querySelector('[data-rw-form]'), person, close, onRerender);
-          host.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          openPanel(host, person, initialState(person), onRerender);
         });
       });
     }

@@ -36,6 +36,20 @@
   let startMap = new Map();
   let seenMap = new Map();
   let hideResigned = false;
+  let loadWarnings = [];
+
+  const webResigned = (id) => (window.V3RosterWrite && window.V3RosterWrite.resignedDraft
+    ? window.V3RosterWrite.resignedDraft(id) : null);
+  const draftStatus = (id) => (window.V3RosterWrite && window.V3RosterWrite.draftStatus
+    ? window.V3RosterWrite.draftStatus(id) : null);
+  /* Remark แดง — แยกให้เห็นว่ามาจากชีต Resigned หรือ Operation กรอกในเว็บ (ยังไม่เข้าชีต) */
+  function resignedBadge(res) {
+    if (!res) return '';
+    const web = res.source === 'web';
+    const when = res.date ? dmy(res.date) : 'ไม่ทราบวันที่';
+    return `<span class="staff-resigned${web ? ' is-web' : ''}" title="${web ? 'กรอกในเว็บ ยังไม่ได้ใส่ในชีต Resigned' : 'อยู่ในชีต Resigned'}">`
+      + `⛔ ออกแล้ว ${when}${web ? ' · กรอกในเว็บ' : ''}</span>`;
+  }
 
   function target() {
     return (window.TARGETS && Number(window.TARGETS.overall)) || 170;
@@ -74,7 +88,9 @@
       const start = M.tenureStart(p.id, startMap, seenMap);
       const firstSeen = seenMap.get(p.id) || '';
       const hasRosterStart = startMap.has(p.id);
-      const res = resigned.get(p.id) || null;
+      // สถานะออกแล้ว มาจากชีต Resigned ก่อน ถ้าไม่มีจึงดูที่ Operation กรอกไว้ในเว็บ
+      const sheetRes = resigned.get(p.id);
+      const res = sheetRes ? { ...sheetRes, source: 'sheet' } : webResigned(p.id);
       const days = M.daysBetween(start, anchor);
       const group = start && cutoff ? (start > cutoff ? 'new' : 'old') : 'old';
       const dates = [...new Set(p.rows.map((r) => M.date(r[2])))].sort();
@@ -137,6 +153,7 @@
     const el = $(id);
     if (!el) return;
     const res = all.filter((p) => p.resigned).length;
+    const resWeb = all.filter((p) => p.resigned && p.resigned.source === 'web').length;
     el.innerHTML = `
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; background:#10b981; color:#fff; border-radius:8px; font-size:14px; flex-shrink:0;">👥</span>
@@ -146,7 +163,7 @@
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <span class="active-date-hint">แสดง ${fmt(shown.length)} คน จากทั้งกลุ่ม ${fmt(all.length)} คน${res ? ` · อยู่ในชีต Resigned ${fmt(res)} คน` : ''}</span>
+        <span class="active-date-hint">แสดง ${fmt(shown.length)} คน จากทั้งกลุ่ม ${fmt(all.length)} คน${res ? ` · ออกแล้ว ${fmt(res)} คน${resWeb ? ` (กรอกในเว็บ ${fmt(resWeb)} คน)` : ''}` : ''}</span>
         <div class="systog" data-staff-toggle>
           <button type="button" data-hide="0"${hideResigned ? '' : ' class="active"'}>แสดงทุกคน</button>
           <button type="button" data-hide="1"${hideResigned ? ' class="active"' : ''}>⛔ ซ่อนคนที่ออกแล้ว</button>
@@ -170,9 +187,7 @@
   }
 
   function nameCell(p) {
-    const mark = p.resigned
-      ? `<span class="staff-resigned">⛔ ออกแล้ว ${dmy(p.resigned.date)}</span>`
-      : '';
+    const mark = resignedBadge(p.resigned);
     const extra = [p.nick ? 'ชื่อเล่น ' + esc(p.nick) : '', p.hasRosterStart ? '' : 'ไม่มีวันเริ่มงานในทะเบียน ใช้วันแรกที่พบผลงาน']
       .filter(Boolean).join(' · ');
     return `<span class="${p.resigned ? 'staff-name-resigned' : ''}">${esc(p.name)}</span>${mark}${extra ? `<span class="sub">${extra}</span>` : ''}`;
@@ -211,6 +226,20 @@
   ];
 
   function missingFor(p) {
+    // คนที่ออกแล้วไม่ต้องตามกะ โซน สังกัด อายุงาน ขอแค่รู้ว่ารหัสนี้คือใคร
+    if (p.resigned) {
+      const out = [];
+      if (p.resigned.source === 'web') {
+        // กรอกในเว็บแล้วแต่ยังไม่ได้ใส่ในชีต Resigned จึงยังถือเป็นงานค้าง ให้ค้างในการ์ดไว้ตรวจและ Export ได้
+        out.push({ key: 'resigned-web', label: 'กรอกในเว็บว่าออกแล้ว รอใส่ใน Sheet',
+          where: 'ชีต Resigned: A รหัส · B ชื่อ · H วันพ้นสภาพ', rows: null });
+      }
+      if (p.name === 'Not Found') {
+        const rule = MISS_RULES.find((r) => r.key === 'name');
+        out.push({ ...rule, where: p.resigned.source === 'web' ? 'กรอกชื่อในเว็บได้เลย' : 'Resigned คอลัมน์ B ชื่อ', rows: null });
+      }
+      return out;
+    }
     const out = [];
     MISS_RULES.forEach((rule) => {
       if (rule.test) {
@@ -229,30 +258,44 @@
     const table = $(prefix + 'MissTable');
     if (!summary || !table) return;
 
+    // การ์ดนี้แสดงทุกคนเสมอ ไม่ตัดตามปุ่มซ่อนคนที่ออกแล้ว เพราะเป็นรายการที่ต้องตามข้อมูล
+    // คนที่ยังไม่รู้สถานะขึ้นก่อน คนที่ออกแล้วไปท้ายรายการ
     const items = list.map((p) => {
       const miss = missingFor(p);
       p.missKeys = miss.map((m) => m.key);
       return { p, miss };
-    }).filter((x) => x.miss.length);
-    const affected = items.reduce((a, x) => a + x.p.stats.total, 0);
+    }).filter((x) => x.miss.length)
+      .sort((a, b) => (Number(Boolean(a.p.resigned)) - Number(Boolean(b.p.resigned))) || (b.p.stats.total - a.p.stats.total));
+    const todo = items.filter((x) => !x.p.resigned);
+    const out = items.filter((x) => x.p.resigned);
+    const outWeb = out.filter((x) => x.p.resigned.source === 'web');
+    const affected = todo.reduce((a, x) => a + x.p.stats.total, 0);
     const counts = new Map();
-    items.forEach((x) => x.miss.forEach((m) => counts.set(m.label, (counts.get(m.label) || 0) + 1)));
+    todo.forEach((x) => x.miss.forEach((m) => counts.set(m.label, (counts.get(m.label) || 0) + 1)));
 
     if (pill) {
       pill.textContent = items.length
-        ? `${fmt(items.length)} คนต้องตามข้อมูล · กระทบ Total Pick ${fmt(affected)} ชิ้น`
+        ? `${fmt(todo.length)} คนต้องตามข้อมูล · กระทบ Total Pick ${fmt(affected)} ชิ้น`
+          + (out.length ? ` · ออกแล้ว ${fmt(out.length)} คน ไม่ต้องตาม` : '')
+          + (outWeb.length ? ` · กรอกในเว็บรอใส่ใน Sheet ${fmt(outWeb.length)} คน` : '')
         : 'ข้อมูลครบทุกคนในมุมมองนี้';
     }
 
     const writer = window.V3RosterWrite;
     summary.innerHTML = (writer ? `<span class="rw-status-wrap">${writer.statusHtml()}</span>` : '')
-      + (items.length
+      + (todo.length
       ? [...counts.entries()].sort((a, b) => b[1] - a[1])
         .map(([label, n]) => {
           const rule = MISS_RULES.find((r) => r.label === label);
           return `<span class="staff-miss-pill" title="${esc(rule ? rule.where : '')}">${esc(label)} <b>${fmt(n)}</b> คน</span>`;
         }).join('')
-      : '<span class="staff-miss-ok">✓ ทุกคนในมุมมองนี้มีข้อมูลครบ ไม่ต้องตามเพิ่ม</span>');
+      : `<span class="staff-miss-ok">✓ ไม่มีใครต้องตามข้อมูลเพิ่มในมุมมองนี้${out.length ? ' (เหลือแต่คนที่ออกแล้ว)' : ''}</span>`)
+      + (out.length ? `<span class="staff-miss-pill is-out" title="ไม่ต้องตามข้อมูลแล้ว ขอแค่ชื่อ">⛔ ออกแล้ว <b>${fmt(out.length)}</b> คน</span>` : '')
+      + (outWeb.length ? `<span class="staff-miss-pill is-out" title="กรอกในเว็บแล้ว เหลือเอาไปใส่ในชีต Resigned">กรอกในเว็บรอใส่ใน Sheet <b>${fmt(outWeb.length)}</b> คน</span>` : '')
+      + '<span class="staff-miss-hint">สืบมาแล้วพบว่าลาออกไปแล้ว → กด <b>เติมข้อมูล</b> แล้วเลือก <b>⛔ ลาออกแล้ว</b> กรอกแค่ชื่อกับวันที่ออก</span>'
+      + (loadWarnings.length
+        ? `<span class="staff-miss-warn">⚠️ อ่านข้อมูลบางชีตไม่ได้รอบนี้ (${esc(loadWarnings.join(' · '))}) สถานะ “ออกแล้ว” จากชีต Resigned จึงอาจหายไปทั้งหมด</span>`
+        : '');
     if (writer) writer.bind(summary, (id) => items.find((x) => x.p.id === id)?.p, renderAll);
 
     if (!window.V3Shared) return;
@@ -260,10 +303,15 @@
     window.V3Shared.table(table, prefix + '-missing', items, [
       { title: 'รหัสพนักงาน', value: (x) => x.p.id, html: (x) => `<b>${esc(x.p.id)}</b>` },
       {
-        title: 'สถานะ', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'Not Found'),
+        title: 'สถานะ',
+        value: (x) => (x.p.resigned
+          ? (x.p.resigned.source === 'web' ? 'ออกแล้ว (กรอกในเว็บ)' : 'ออกแล้ว (ชีต Resigned)')
+          : (draftStatus(x.p.id) === 'active' ? 'กรอกแล้ว รอใส่ใน Sheet' : 'Not Found')),
         html: (x) => (x.p.resigned
-          ? `<span class="staff-resigned">⛔ ออกแล้ว ${dmy(x.p.resigned.date)}</span>`
-          : '<span class="v3-pill warn">Not Found — ข้อมูลไม่ครบ</span>')
+          ? resignedBadge(x.p.resigned)
+          : (draftStatus(x.p.id) === 'active'
+            ? '<span class="v3-pill good">กรอกแล้ว รอใส่ใน Sheet</span>'
+            : '<span class="v3-pill warn">Not Found — ข้อมูลไม่ครบ</span>'))
       },
       { title: 'ชื่อที่พบ', value: (x) => x.p.name, html: (x) => (x.p.name === 'Not Found' ? '<span class="staff-miss-none">ไม่พบชื่อ</span>' : esc(x.p.name)) },
       { title: 'ขาดกี่ช่อง', value: (x) => x.miss.length, num: true, html: (x) => fmt(x.miss.length) + ' ช่อง' },
@@ -378,7 +426,7 @@
 
     renderPersonBar('newStaffBarChart', 'newStaffBarBox', 'newStaffBarPill', shown, t, shown.length);
     renderNewInsights(shown, newAll, g, gOld, pass, t);
-    renderMissing('newStaff', shown);
+    renderMissing('newStaff', newAll);
 
     if (window.V3Shared && $('newStaffTable')) {
       window.V3Shared.table($('newStaffTable'), 'new-staff', [...shown].sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999)), [
@@ -596,7 +644,7 @@
     renderPersonBar('oldStaffBarChart', 'oldStaffBarBox', 'oldStaffBarPill', picks, t, picks.length);
 
     renderOldInsights(shown, oldAll, g, gNew, below, improved, dropped, t, months);
-    renderMissing('oldStaff', shown);
+    renderMissing('oldStaff', oldAll);
 
     if (window.V3Shared && $('oldStaffTable')) {
       window.V3Shared.table($('oldStaffTable'), 'old-staff',
@@ -677,6 +725,7 @@
     rows = value.source.sheets['Results Master'].rows;
     roster = M.rosterMap(value.source.sheets['2ND']);
     resigned = M.resignedMap(value.source.sheets['Resigned']);
+    loadWarnings = (value.source.warnings || []).slice();
     startMap = M.startDateMap(value.source.sheets);
     seenMap = M.firstSeenMap(rows);
     schedule();
