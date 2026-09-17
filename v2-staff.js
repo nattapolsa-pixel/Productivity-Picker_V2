@@ -28,7 +28,7 @@
     const p = key.split('-').map(Number);
     return THAI_MONTH[p[1] - 1] + ' ' + (p[0] + 543);
   };
-  const dmy = (iso) => (iso ? iso.split('-').reverse().join('/') : '—');
+  const dmy = (iso) => (iso ? String(iso).split('-').reverse().join('/') : '—');
 
   let rows = [];
   let roster = new Map();

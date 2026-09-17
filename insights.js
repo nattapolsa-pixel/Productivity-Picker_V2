@@ -185,7 +185,7 @@
       {title:'รหัสพนักงาน',value:x=>x.id,html:x=>`<b>${esc(x.id)}</b>`},
       {title:'สถานะ',value:x=>x.resigned?(x.resigned.source==='web'?'ออกแล้ว (กรอกในเว็บ)':'ออกแล้ว (ชีต Resigned)'):(draftStatus(x.id)==='active'?'กรอกแล้ว รอใส่ใน Sheet':'Not Found'),
         html:x=>{
-          if(x.resigned){const web=x.resigned.source==='web';const d=x.resigned.date?x.resigned.date.split('-').reverse().join('/'):'ไม่ทราบวันที่';
+          if(x.resigned){const web=x.resigned.source==='web';const d=x.resigned.date?String(x.resigned.date).split('-').reverse().join('/'):'ไม่ทราบวันที่';
             return `<span class="staff-resigned${web?' is-web':''}" title="${web?'กรอกในเว็บ ยังไม่ได้ใส่ในชีต Resigned':'อยู่ในชีต Resigned'}">⛔ ออกแล้ว ${d}${web?' · กรอกในเว็บ':''}</span>`;}
           return draftStatus(x.id)==='active'
             ?`<span class="v3-pill good">กรอกแล้ว รอใส่ใน Sheet</span>`

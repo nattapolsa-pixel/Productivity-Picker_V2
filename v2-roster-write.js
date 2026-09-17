@@ -57,7 +57,9 @@
     const d = loadDrafts()[id];
     if (!d) return null;
     // ร่างรุ่นก่อนไม่มีฟิลด์ status ให้ถือว่ายังทำงานอยู่
-    return { status: d.status === 'resigned' ? 'resigned' : 'active', fields: d.fields || {}, date: d.date || '', savedAt: d.savedAt || '' };
+    const date = typeof d.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.date) ? d.date : '';
+    const fields = d.fields && typeof d.fields === 'object' && !Array.isArray(d.fields) ? d.fields : {};
+    return { status: d.status === 'resigned' ? 'resigned' : 'active', fields, date, savedAt: String(d.savedAt ?? '') };
   }
   function draftList() {
     const all = loadDrafts();
@@ -83,9 +85,10 @@
     }
     if (year > 2400) year -= 543;
     if (month < 1 || month > 12 || day < 1 || day > 31) return '';
-    const iso = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    const check = new Date(iso + 'T00:00:00');
-    return Number.isNaN(check.getTime()) ? '' : iso;
+    // new Date('2026-02-31') ไม่เป็น Invalid Date แต่เลื่อนไป 3 มี.ค. จึงต้องแปลงกลับมาเทียบว่าตรงวันเดิม
+    const check = new Date(Date.UTC(year, month - 1, day));
+    if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) return '';
+    return year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
   }
 
   function exportDrafts() {
@@ -224,7 +227,7 @@
     if (del) del.addEventListener('click', () => {
       const all = loadDrafts();
       delete all[person.id];
-      saveDrafts(all);
+      if (!saveDrafts(all)) { say('ลบไม่สำเร็จ เบราว์เซอร์เขียน localStorage ไม่ได้', 'warn'); return; }
       say('ลบที่กรอกไว้แล้ว', 'good');
       if (onRerender) setTimeout(onRerender, 500);
     });
@@ -278,6 +281,9 @@
         + '</span>';
     },
 
+    /* ผูกด้วย event delegation ที่ตัว container ตัวเดียว
+       เพราะตาราง (V3Shared.table) เขียน tbody.innerHTML ใหม่ทุกครั้งที่เปลี่ยนหน้า ค้นหา หรือเรียงใหม่
+       ถ้าไปผูกทีละปุ่ม ปุ่มชุดใหม่จะไม่มี listener แล้วกดไม่ติด (เคยเป็นบั๊กจริงตั้งแต่หน้า 2 ขึ้นไป) */
     bind(container, getPerson, onRerender) {
       if (!container) return;
       let host = container.querySelector('[data-rw-host]');
@@ -286,16 +292,23 @@
         host.setAttribute('data-rw-host', '');
         container.appendChild(host);
       }
+      // เก็บตัวอ่านข้อมูลล่าสุดไว้บน element เพื่อให้ listener เดิมใช้ค่าใหม่หลังเรนเดอร์ซ้ำ
+      container._rwGetPerson = getPerson;
+      container._rwRerender = onRerender;
+      if (container._rwBound) return;
+      container._rwBound = true;
 
-      container.querySelectorAll('[data-rw-export]').forEach((b) => {
-        b.addEventListener('click', exportDrafts);
-      });
-
-      container.querySelectorAll('[data-rw-open]').forEach((b) => {
-        b.addEventListener('click', () => {
-          const person = getPerson(b.dataset.rwOpen);
-          if (!person) return;
-          openPanel(host, person, initialState(person), onRerender);
+      container.addEventListener('click', (e) => {
+        const exportBtn = e.target.closest('[data-rw-export]');
+        if (exportBtn && container.contains(exportBtn)) { exportDrafts(); return; }
+        const openBtn = e.target.closest('[data-rw-open]');
+        if (!openBtn || !container.contains(openBtn)) return;
+        const fresh = container.querySelector('[data-rw-host]') || host;
+        const person = (container._rwGetPerson || getPerson)(openBtn.dataset.rwOpen);
+        if (!person) return;
+        openPanel(fresh, person, initialState(person), () => {
+          const fn = container._rwRerender || onRerender;
+          if (fn) fn();
         });
       });
     }
