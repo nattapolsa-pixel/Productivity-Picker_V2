@@ -186,6 +186,96 @@
       : `<span class="v3-pill warn">ต่ำกว่า ${fmt1(t - average)}</span>`;
   }
 
+
+  /* ── ตรวจว่าแต่ละคนขาดข้อมูลอะไร และต้องไปเติมที่ไหน ──
+     ผลงานของคนเหล่านี้ไม่ถูกตัดออกจากยอดใด ๆ ตามกฎ V1
+     แต่ KPI ที่ต้องใช้ข้อมูลนั้น (กะ, สังกัด, BU, ประเภทงาน, โซน, อายุงาน) จะเชื่อถือไม่ได้
+     ดัชนีคอลัมน์ Results Master: 32 AG กะ, 33 AH Position/Zone, 34 AI สังกัด, 35 AJ BU, 36 AK Pick Type */
+  const MISS_RULES = [
+    { key: 'roster', label: 'ไม่มีใน 2ND', where: 'เพิ่มแถวในชีต 2ND (B รหัส, C ชื่อ)',
+      test: (p) => !M.inRoster(p.rows[0], roster) },
+    { key: 'name', label: 'ไม่มีชื่อ', where: '2ND คอลัมน์ C ชื่อ-นามสกุล',
+      test: (p) => p.name === 'Not Found' },
+    { key: 'start', label: 'ไม่มีวันเริ่มงาน', where: 'Update name คอลัมน์ H (หรือ 2ND คอลัมน์ G)',
+      test: (p) => !p.hasRosterStart },
+    { key: 'shift', label: 'กะ Not Found', where: 'Results Master คอลัมน์ AG',
+      count: (p) => p.rows.filter((r) => M.shiftKey(r) === 'Not Found').length },
+    { key: 'aff', label: 'สังกัดว่าง', where: 'Results Master คอลัมน์ AI',
+      count: (p) => p.rows.filter((r) => M.isPlaceholder(r[34])).length },
+    { key: 'bu', label: 'BU ว่าง', where: 'Results Master คอลัมน์ AJ',
+      count: (p) => p.rows.filter((r) => M.isPlaceholder(r[35])).length },
+    { key: 'type', label: 'Type Pick ว่าง', where: 'Results Master คอลัมน์ AK',
+      count: (p) => p.rows.filter((r) => !M.type(r[36])).length },
+    { key: 'zone', label: 'Zone ว่าง', where: 'Results Master คอลัมน์ AH (Position)',
+      count: (p) => p.rows.filter((r) => M.isPlaceholder(r[33])).length }
+  ];
+
+  function missingFor(p) {
+    const out = [];
+    MISS_RULES.forEach((rule) => {
+      if (rule.test) {
+        if (rule.test(p)) out.push({ ...rule, rows: null });
+      } else {
+        const n = rule.count(p);
+        if (n > 0) out.push({ ...rule, rows: n });
+      }
+    });
+    return out;
+  }
+
+  function renderMissing(prefix, list) {
+    const pill = $(prefix + 'MissPill');
+    const summary = $(prefix + 'MissSummary');
+    const table = $(prefix + 'MissTable');
+    if (!summary || !table) return;
+
+    const items = list.map((p) => ({ p, miss: missingFor(p) })).filter((x) => x.miss.length);
+    const affected = items.reduce((a, x) => a + x.p.stats.total, 0);
+    const counts = new Map();
+    items.forEach((x) => x.miss.forEach((m) => counts.set(m.label, (counts.get(m.label) || 0) + 1)));
+
+    if (pill) {
+      pill.textContent = items.length
+        ? `${fmt(items.length)} คนต้องตามข้อมูล · กระทบ Total Pick ${fmt(affected)} ชิ้น`
+        : 'ข้อมูลครบทุกคนในมุมมองนี้';
+    }
+
+    summary.innerHTML = items.length
+      ? [...counts.entries()].sort((a, b) => b[1] - a[1])
+        .map(([label, n]) => {
+          const rule = MISS_RULES.find((r) => r.label === label);
+          return `<span class="staff-miss-pill" title="${esc(rule ? rule.where : '')}">${esc(label)} <b>${fmt(n)}</b> คน</span>`;
+        }).join('')
+      : '<span class="staff-miss-ok">✓ ทุกคนในมุมมองนี้มีข้อมูลครบ ไม่ต้องตามเพิ่ม</span>';
+
+    if (!window.V3Shared) return;
+    window.V3Shared.table(table, prefix + '-missing', items, [
+      { title: 'User ID', value: (x) => x.p.id, html: (x) => `<b>${esc(x.p.id)}</b>` },
+      {
+        title: 'ชื่อที่พบ', value: (x) => x.p.name,
+        html: (x) => (x.p.name === 'Not Found'
+          ? '<span class="staff-miss-none">ไม่พบชื่อ</span>'
+          : nameCell(x.p))
+      },
+      {
+        title: 'สถานะ', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'ยังอยู่'),
+        html: (x) => (x.p.resigned
+          ? `<span class="staff-resigned">⛔ ออกแล้ว ${dmy(x.p.resigned.date)}</span>`
+          : '<span class="v3-pill good">ยังอยู่</span>')
+      },
+      { title: 'จำนวนที่ขาด', value: (x) => x.miss.length, num: true },
+      {
+        title: 'สิ่งที่ขาด และต้องไปเติมที่ไหน',
+        value: (x) => x.miss.map((m) => m.label + (m.rows ? ' ' + m.rows + ' แถว' : '')).join(' / '),
+        html: (x) => x.miss.map((m) => `<span class="staff-miss-line">${esc(m.label)}${m.rows ? ` <i>${fmt(m.rows)} แถว</i>` : ''} → ${esc(m.where)}</span>`).join('')
+      },
+      { title: 'Total Pick', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
+      { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true, html: (x) => fmt1(x.p.stats.average) },
+      { title: 'วันที่มีงาน', value: (x) => x.p.workDays, num: true },
+      { title: 'ช่วงที่พบผลงาน', value: (x) => x.p.firstDate, html: (x) => `${dmy(x.p.firstDate)}<span class="sub">ถึง ${dmy(x.p.lastDate)}</span>` }
+    ]);
+  }
+
   /* ════════ หน้าพนักงานใหม่ ════════ */
   function renderNewStaff(ctx, newAll, oldAll) {
     const shown = hideResigned ? newAll.filter((p) => !p.resigned) : newAll;
@@ -286,6 +376,7 @@
 
     renderPersonBar('newStaffBarChart', 'newStaffBarBox', 'newStaffBarPill', shown, t, shown.length);
     renderNewInsights(shown, newAll, g, gOld, pass, t);
+    renderMissing('newStaff', shown);
 
     if (window.V3Shared && $('newStaffTable')) {
       window.V3Shared.table($('newStaffTable'), 'new-staff', [...shown].sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999)), [
@@ -503,6 +594,7 @@
     renderPersonBar('oldStaffBarChart', 'oldStaffBarBox', 'oldStaffBarPill', picks, t, picks.length);
 
     renderOldInsights(shown, oldAll, g, gNew, below, improved, dropped, t, months);
+    renderMissing('oldStaff', shown);
 
     if (window.V3Shared && $('oldStaffTable')) {
       window.V3Shared.table($('oldStaffTable'), 'old-staff',

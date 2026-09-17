@@ -1602,3 +1602,76 @@ th.num {
     font-size: 14.5px;
   }
 }
+
+/* ── การ์ด "รหัสที่ต้องตามข้อมูล" ── */
+.staff-miss-card {
+  border-top: 4px solid #f59e0b !important;
+}
+
+.staff-miss-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0 14px;
+}
+
+.staff-miss-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: help;
+}
+
+.staff-miss-pill b {
+  color: #b45309;
+  font-weight: 800;
+}
+
+.staff-miss-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.staff-miss-line {
+  display: block;
+  font-size: 11px;
+  line-height: 1.65;
+  color: #92400e;
+  white-space: normal;
+}
+
+.staff-miss-line i {
+  font-style: normal;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.staff-miss-none {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+#newStaffMissTable .v3-table,
+#oldStaffMissTable .v3-table {
+  white-space: normal;
+}
+
+#newStaffMissTable .v3-table td,
+#oldStaffMissTable .v3-table td {
+  vertical-align: top;
+}
