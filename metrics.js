@@ -41,7 +41,63 @@
   function personNickname(row,roster){const master=roster&&roster.get?roster.get(userId(row)):null;return master?String(master[3]??'').trim():'';}
   function inRoster(row,roster){return Boolean(roster&&roster.get&&roster.get(userId(row)));}
 
+  /* ── อายุงาน: ใช้กฎเดียวกับ V1 (buildTenuredPickerBenchmark ใน script.js)
+        เส้นแบ่งคือ anchor ลบ 90 วัน ไม่ใช่ 3 เดือนปฏิทิน
+        สัญญาณอายุงานใช้วันเริ่มงานในทะเบียนก่อน ถ้าไม่มีจึงใช้วันแรกที่พบใน Results Master
+        เหมือนที่ V1 ดูทั้ง rosterItem.startDate และ firstSeen ── */
+  const TENURE_DAYS=90;
+  function addDays(iso,days){const d=new Date(iso+'T00:00:00');if(Number.isNaN(d.getTime()))return '';d.setDate(d.getDate()+days);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function tenureCutoff(anchorIso,days){return anchorIso?addDays(anchorIso,-(days||TENURE_DAYS)):'';}
+  function daysBetween(fromIso,toIso){if(!fromIso||!toIso)return null;
+    const a=new Date(fromIso+'T00:00:00'),b=new Date(toIso+'T00:00:00');
+    if(Number.isNaN(a.getTime())||Number.isNaN(b.getTime()))return null;
+    return Math.round((b-a)/86400000);}
+  /* วันเริ่มงาน: Update name คอลัมน์ H (ดัชนี 7) และ 2ND คอลัมน์ G (ดัชนี 6) โดย 2ND เป็นทะเบียนปัจจุบันจึงทับได้ */
+  function startDateMap(sheets){
+    const map=new Map();
+    /* Update name คอลัมน์ H เป็นแหล่งที่ V1 ใช้ จึงให้มาก่อน
+       2ND คอลัมน์ G เป็นตัวสำรองสำหรับคนที่ไม่มีใน Update name (V1 ไม่ได้อ่านคอลัมน์นี้)
+       ไม่ให้ 2ND ทับค่าของ Update name เพราะพบว่าบางแถวใน 2ND เขียนปีไม่ตรงกัน */
+    ((sheets&&sheets['Update name']&&sheets['Update name'].rows)||[]).forEach(r=>{
+      const id=String(r[1]??'').trim(), d=date(r[7]); if(id&&d&&!map.has(id))map.set(id,d);});
+    ((sheets&&sheets['2ND']&&sheets['2ND'].rows)||[]).forEach(r=>{
+      const id=String(r[1]??'').trim(), d=date(r[6]); if(id&&d&&!map.has(id))map.set(id,d);});
+    return map;
+  }
+  /* วันแรกที่พบผลงานของแต่ละคน ใช้ทุกแถวที่มีวันที่ ไม่จำกัดช่วงวันที่ที่เลือก */
+  function firstSeenMap(rows){
+    const map=new Map();
+    for(const r of rows||[]){const d=date(r[2]);if(!d)continue;const id=userId(r);if(!id)continue;
+      if(!map.has(id)||d<map.get(id))map.set(id,d);}
+    return map;
+  }
+  function tenureStart(id,startMap,seenMap){
+    return (startMap&&startMap.get&&startMap.get(id))||(seenMap&&seenMap.get&&seenMap.get(id))||'';
+  }
+  function tenureGroup(id,startMap,seenMap,cutoff){
+    const s=tenureStart(id,startMap,seenMap);
+    if(!s||!cutoff)return 'old';
+    return s>cutoff?'new':'old';
+  }
+
+  /* ── ทะเบียนพนักงานที่พ้นสภาพ (ชีต Resigned อีกไฟล์)
+        A รหัสพนักงาน, B ชื่อ-นามสกุล, C ชื่อเล่น, D สังกัด, E หน้าที่, F โซน, G Team, H พ้นสภาพ ── */
+  function resignedMap(sheetResigned){
+    const map=new Map();
+    ((sheetResigned&&sheetResigned.rows)||[]).forEach(r=>{
+      const id=String(r[0]??'').trim(); if(!id)return;
+      const entry={id,name:String(r[1]??'').trim(),nickname:String(r[2]??'').trim(),
+        affiliation:String(r[3]??'').trim(),role:String(r[4]??'').trim(),
+        zone:String(r[5]??'').trim(),team:String(r[6]??'').trim(),date:date(r[7])};
+      const prev=map.get(id);
+      if(!prev||(entry.date&&(!prev.date||entry.date>prev.date)))map.set(id,entry);
+    });
+    return map;
+  }
+
   root.V3Metrics={number,date,type,system,shiftKey,matches,aggregate,
+    TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};
 })(globalThis);

@@ -158,6 +158,15 @@
   document.addEventListener('v3-render',e=>{payload=e.detail;render();});
   document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{active=btn.dataset.tab;render();window.scrollTo({top:0,behavior:'instant'});}));
   async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value;$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift});$('v3FilterStatus').textContent=system==='BPS'?'BPS เริ่มนับ 08/06/2026 ตาม V1':'กรองแล้ว • ทุกหน้าใช้ข้อมูลชุดเดียวกัน';}catch(e){$('v3FilterStatus').textContent=e.message;}}
+  // เปิด table(), cards() และตัวช่วยจัดรูปแบบให้ v2-staff.js ใช้ร่วมกัน ไม่ต้องเขียนตารางซ้ำ
+  root_V3Shared();
+  function root_V3Shared(){
+    globalThis.V3Shared={table,cards,esc,fmt,csvExport,
+      get roster(){return roster;},
+      get rows(){return rows;},
+      get source(){return source;}};
+  }
+
   if($('v3System'))$('v3System').onchange=applyFilter;
   if($('v3Shift'))$('v3Shift').onchange=applyFilter;
   if($('v3Print'))$('v3Print').onclick=()=>window.print();
