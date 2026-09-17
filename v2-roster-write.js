@@ -121,12 +121,16 @@
 
   /* ── ฟอร์มเติมข้อมูลรายคน ── */
   function formHtml(person, missKeys) {
-    const rows = FIELDS.filter((f) => missKeys.some((k) => f.missKeys.includes(k)));
-    const list = (rows.length ? rows : FIELDS);
+    // คนที่ออกแล้วไม่ต้องกรอกเยอะ ขอแค่ระบุว่ารหัสนี้คือใคร
+    const resigned = Boolean(person.resigned);
+    const pool = resigned ? FIELDS.filter((f) => f.key === 'name' || f.key === 'nickname') : FIELDS;
+    const rows = pool.filter((f) => missKeys.some((k) => f.missKeys.includes(k)));
+    const list = (rows.length ? rows : pool);
     return `<div class="rw-panel" data-rw-form data-rw-id="${esc(person.id)}">
-      <h4>เติมข้อมูลของ ${esc(person.id)}${person.name && person.name !== 'Not Found' ? ' · ' + esc(person.name) : ''}</h4>
-      <p>เขียนลงชีต <b>2ND</b> เท่านั้น แล้วสูตร XLOOKUP ใน Results Master จะอัปเดตค่า AG–AK ให้เอง
-        · เว้นช่องที่ไม่ทราบไว้ได้ ระบบจะไม่เขียนช่องว่าง</p>
+      <h4>${resigned ? 'ระบุชื่อของ' : 'เติมข้อมูลของ'} ${esc(person.id)}${person.name && person.name !== 'Not Found' ? ' · ' + esc(person.name) : ''}</h4>
+      <p>${resigned
+        ? `รหัสนี้อยู่ในชีต <b>Resigned</b> (พ้นสภาพ${person.resigned.date ? ' ' + person.resigned.date.split('-').reverse().join('/') : ''}) จึงขอแค่ชื่อไว้อ้างอิงประวัติ ไม่ต้องกรอกกะ โซน หรือสังกัด`
+        : 'เขียนลงชีต <b>2ND</b> เท่านั้น แล้วสูตร XLOOKUP ใน Results Master จะอัปเดตค่า AG–AK ให้เอง · เว้นช่องที่ไม่ทราบไว้ได้ ระบบจะไม่เขียนช่องว่าง'}</p>
       <div class="rw-grid">
         ${list.map((f) => `<label>${esc(f.label)} <span class="rw-col">${esc(f.col)}</span>
           <input type="text" data-rw-field="${f.key}" placeholder="${esc(f.placeholder || '')}">

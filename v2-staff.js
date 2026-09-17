@@ -256,32 +256,20 @@
     if (writer) writer.bind(summary, (id) => items.find((x) => x.p.id === id)?.p, renderAll);
 
     if (!window.V3Shared) return;
+    // เห็นแค่รหัสกับสถานะพอ รายละเอียดที่ขาดอยู่ในฟอร์มเติมข้อมูลและใน Export CSV แล้ว
     window.V3Shared.table(table, prefix + '-missing', items, [
-      { title: 'User ID', value: (x) => x.p.id, html: (x) => `<b>${esc(x.p.id)}</b>` },
+      { title: 'รหัสพนักงาน', value: (x) => x.p.id, html: (x) => `<b>${esc(x.p.id)}</b>` },
       {
-        title: 'ชื่อที่พบ', value: (x) => x.p.name,
-        html: (x) => (x.p.name === 'Not Found'
-          ? '<span class="staff-miss-none">ไม่พบชื่อ</span>'
-          : nameCell(x.p))
-      },
-      {
-        title: 'สถานะ', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'ยังอยู่'),
+        title: 'สถานะ', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'Not Found'),
         html: (x) => (x.p.resigned
           ? `<span class="staff-resigned">⛔ ออกแล้ว ${dmy(x.p.resigned.date)}</span>`
-          : '<span class="v3-pill good">ยังอยู่</span>')
+          : '<span class="v3-pill warn">Not Found — ข้อมูลไม่ครบ</span>')
       },
-      { title: 'จำนวนที่ขาด', value: (x) => x.miss.length, num: true },
-      {
-        title: 'สิ่งที่ขาด และต้องไปเติมที่ไหน',
-        value: (x) => x.miss.map((m) => m.label + (m.rows ? ' ' + m.rows + ' แถว' : '')).join(' / '),
-        html: (x) => x.miss.map((m) => `<span class="staff-miss-line">${esc(m.label)}${m.rows ? ` <i>${fmt(m.rows)} แถว</i>` : ''} → ${esc(m.where)}</span>`).join('')
-      },
+      { title: 'ชื่อที่พบ', value: (x) => x.p.name, html: (x) => (x.p.name === 'Not Found' ? '<span class="staff-miss-none">ไม่พบชื่อ</span>' : esc(x.p.name)) },
+      { title: 'ขาดกี่ช่อง', value: (x) => x.miss.length, num: true, html: (x) => fmt(x.miss.length) + ' ช่อง' },
       { title: 'Total Pick', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
-      { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true, html: (x) => fmt1(x.p.stats.average) },
-      { title: 'วันที่มีงาน', value: (x) => x.p.workDays, num: true },
-      { title: 'ช่วงที่พบผลงาน', value: (x) => x.p.firstDate, html: (x) => `${dmy(x.p.firstDate)}<span class="sub">ถึง ${dmy(x.p.lastDate)}</span>` },
       {
-        title: 'เติมข้อมูล', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'เติมได้'),
+        title: 'ระบุว่าใคร', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'เติมได้'),
         html: (x) => (window.V3RosterWrite ? window.V3RosterWrite.buttonHtml(x.p) : '—')
       }
     ]);

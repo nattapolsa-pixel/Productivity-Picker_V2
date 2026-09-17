@@ -31,7 +31,7 @@
     container.querySelector('[data-prev]').onclick=()=>{state.page--;paint();};container.querySelector('[data-next]').onclick=()=>{state.page++;paint();};container.querySelector('[data-export]').onclick=()=>csvExport(filtered,columns,'V3-'+key);paint();
   }
   const recordColumns=[
-    {title:'แถวใน Sheet',value:r=>r._row,num:true}, {title:'วันที่',value:r=>M.date(r[2])},
+    {title:'วันที่',value:r=>M.date(r[2])},
     {title:'User ID',value:r=>r[3]||'Not Found'}, {title:'ชื่อพนักงาน (2ND)',value:r=>M.personName(r,roster),html:r=>{const nd=M.personName(r,roster);const raw=String(r[1]||'').trim();const nick=M.personNickname(r,roster);const extra=[nick?'ชื่อเล่น '+esc(nick):'',(raw&&raw!==nd)?'ใน Results Master: '+esc(raw):'',M.inRoster(r,roster)?'':'ไม่พบใน 2ND'].filter(Boolean).join(' · ');return esc(nd)+(extra?`<span class="sub">${extra}</span>`:'');}},
     {title:'ระบบ',value:r=>M.system(r)}, {title:'กะ',value:r=>r[32]||'Not Found'},
     {title:'Zone',value:r=>r[33]||'Not Found'}, {title:'สังกัด',value:r=>r[34]||'Not Found'},
@@ -145,9 +145,59 @@
     document.dispatchEvent(new CustomEvent('v3-hours-rendered',{detail:{labels,totals,peoplePerHour:peoplePerHour.map(s=>s.size)}}));
   }
   function issues(r){const list=[];const id=String(r[3]||'').trim();if(!id)list.push('ไม่มี User ID');else if(!roster.has(id))list.push('ไม่พบ User ID ใน 2ND');if(M.isPlaceholder(r[1]))list.push('ช่องชื่อใน Results Master ไม่ใช่ชื่อคน');if(!String(r[32]||'').trim()||/not found|#n\/a/i.test(String(r[32])))list.push('ไม่พบกะ');if(!zone(r))list.push('ไม่พบ Zone ตามกฎ V1');if(!M.type(r[36]))list.push('ไม่พบ Type Pick ที่ใช้วิเคราะห์');if(!String(r[34]||'').trim()||/not found|#n\/a/i.test(String(r[34])))list.push('ไม่พบสังกัด');return list;}
+  /* รายการรายคน: เห็นแค่รหัสกับสถานะ แล้วกดเติมข้อมูลในหน้านี้เลย
+     ตัวเติมอยู่ใน v2-roster-write.js ซึ่งเขียนเฉพาะชีต 2ND */
+  function renderQualityPeople(data){
+    if(!$('v3QualityPeople'))return;
+    const M2=M, resigned=M2.resignedMap(source.sheets['Resigned']);
+    const byId=new Map();
+    data.forEach(r=>{const id=M2.userId(r);if(!id)return;if(!byId.has(id))byId.set(id,[]);byId.get(id).push(r);});
+    const items=[...byId.entries()]
+      .filter(([id])=>!roster.has(id))
+      .map(([id,rs])=>{
+        const st=M2.aggregate(rs);
+        const res=resigned.get(id)||null;
+        const dates=[...new Set(rs.map(r=>M2.date(r[2])))].sort();
+        return {id,stats:st,resigned:res,rows:rs,
+          name:M2.personName(rs[0],roster),
+          firstDate:dates[0]||'',lastDate:dates[dates.length-1]||'',
+          missKeys:res?['name']:['roster','name','start','shift','aff','bu','type','zone']};
+      })
+      .sort((a,b)=>b.stats.total-a.stats.total);
+
+    const writer=window.V3RosterWrite;
+    const active=items.filter(x=>!x.resigned).length;
+    if($('v3QualityWriteBar')){
+      $('v3QualityWriteBar').innerHTML=(writer?`<span class="rw-status-wrap">${writer.statusHtml()}</span>`:'')
+        +`<span class="staff-miss-pill">ยังไม่มีทะเบียน <b>${fmt(items.length)}</b> รหัส</span>`
+        +`<span class="staff-miss-pill">ยังทำงานอยู่ <b>${fmt(active)}</b> รหัส</span>`
+        +`<span class="staff-miss-pill">ออกแล้ว <b>${fmt(items.length-active)}</b> รหัส</span>`;
+      if(writer)writer.bind($('v3QualityWriteBar'),id=>items.find(x=>x.id===id),()=>qualityPage());
+    }
+
+    table($('v3QualityPeople'),'quality-people',items,[
+      {title:'รหัสพนักงาน',value:x=>x.id,html:x=>`<b>${esc(x.id)}</b>`},
+      {title:'สถานะ',value:x=>x.resigned?'ออกแล้ว':'Not Found',
+        html:x=>x.resigned
+          ?`<span class="staff-resigned">⛔ ออกแล้ว ${x.resigned.date?x.resigned.date.split('-').reverse().join('/'):''}</span>`
+          :`<span class="v3-pill warn">Not Found — ยังไม่มีทะเบียน</span>`},
+      {title:'Total Pick',value:x=>x.stats.total,num:true,html:x=>fmt(x.stats.total)},
+      {title:'ช่วงที่พบผลงาน',value:x=>x.firstDate,
+        html:x=>`${x.firstDate?x.firstDate.split('-').reverse().join('/'):'—'}<span class="sub">ถึง ${x.lastDate?x.lastDate.split('-').reverse().join('/'):'—'}</span>`},
+      {title:'ระบุว่าใคร',value:x=>x.resigned?'ออกแล้ว':'เติมได้',
+        html:x=>(window.V3RosterWrite?window.V3RosterWrite.buttonHtml(x):'—')}
+    ]);
+    if(window.V3RosterWrite){
+      window.V3RosterWrite.bind($('v3QualityPeople'),id=>items.find(x=>x.id===id),()=>qualityPage());
+    }
+  }
+
   function qualityPage(){if(!$('v3Quality'))return;const data=visible(),problem=data.filter(r=>issues(r).length);const noMaster=data.filter(r=>!roster.has(String(r[3]||'').trim()));const invalid=rows.filter(r=>!M.date(r[2]));
-    $('v3Quality').innerHTML=cards([['แถวที่ต้องตรวจ',fmt(problem.length),'ไม่ตัดจากยอดอัตโนมัติ'],['Total Pick ของแถวที่ต้องตรวจ',fmt(M.aggregate(problem).total),'นับแต่ละแถวครั้งเดียว'],['ยอดที่ไม่มีทะเบียน 2ND',fmt(M.aggregate(noMaster).total),'อาจเป็นพนักงานเก่าหรือรหัสไม่ตรง'],['แถวไม่มีวันที่ทั้งไฟล์',fmt(invalid.length),'รวมแถวสูตรท้าย Sheet ไม่เข้าในวันรายงาน']])+`<div class="note v3-notice">Productivity อ้างอิง AF จริง ไม่แก้ค่าเองเมื่อพบ Not Found ส่วนทะเบียน 2ND เป็นข้อมูลปัจจุบัน การไม่พบทะเบียนไม่ได้ยืนยันว่าพนักงานลาออก</div><div id="v3QualityTable"></div>`;
-    table($('v3QualityTable'),'quality',problem,[{title:'จุดที่ต้องตรวจ',value:r=>issues(r).join(' / ')},...recordColumns],{valid:r=>M.number(r[31])>0});
+    $('v3Quality').innerHTML=cards([['แถวที่ต้องตรวจ',fmt(problem.length),'ไม่ตัดจากยอดอัตโนมัติ'],['Total Pick ของแถวที่ต้องตรวจ',fmt(M.aggregate(problem).total),'นับแต่ละแถวครั้งเดียว'],['ยอดที่ไม่มีทะเบียน 2ND',fmt(M.aggregate(noMaster).total),'อาจเป็นพนักงานเก่าหรือรหัสไม่ตรง'],['แถวไม่มีวันที่ทั้งไฟล์',fmt(invalid.length),'รวมแถวสูตรท้าย Sheet ไม่เข้าในวันรายงาน']])+`<div class="note v3-notice">Productivity อ้างอิง AF จริง ไม่แก้ค่าเองเมื่อพบ Not Found ส่วนทะเบียน 2ND เป็นข้อมูลปัจจุบัน การไม่พบทะเบียนไม่ได้ยืนยันว่าพนักงานลาออก</div>`
+      +`<h2 class="staff-table-title">รหัสพนักงานที่ยังไม่มีทะเบียน</h2><p class="panel-desc">เห็นรหัสแล้วกดปุ่มเติมข้อมูลเพื่อระบุว่ารหัสนี้คือใคร แก้ได้ในหน้านี้เลย · คนที่ออกแล้วกรอกแค่ชื่อพอ</p><div class="staff-miss-summary" id="v3QualityWriteBar"></div><div id="v3QualityPeople"></div>`
+      +`<h2 class="staff-table-title">รายการแถวที่ต้องตรวจ</h2><p class="panel-desc">รายละเอียดระดับแถวสำหรับคนที่อยากไล่ดูต้นทาง</p><div id="v3QualityTable"></div>`;
+    renderQualityPeople(data);
+    table($('v3QualityTable'),'quality',problem,recordColumns.filter(c=>c.title!=='วันที่'),{valid:r=>M.number(r[31])>0});
   }
   function render(){if(!source)return;try{if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();}catch(e){console.error('V3 insights:',e);}}
   V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));
