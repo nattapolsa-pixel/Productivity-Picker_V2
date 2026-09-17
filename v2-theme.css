@@ -1876,3 +1876,14 @@ th.num {
     grid-template-columns: 1fr;
   }
 }
+
+/* ปุ่มที่กรอกไว้แล้ว */
+.rw-open.has-draft {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.rw-open.has-draft:hover {
+  background: #d1fae5;
+}
