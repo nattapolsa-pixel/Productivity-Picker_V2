@@ -104,6 +104,168 @@
     $('v3ZoneDetail')?.remove();
     table($('v3ZoneTable'),'zones',groups,[{title:'Zone',value:z=>z.label},{title:'ประเภทงาน',value:z=>labels[z.group]||'Not Found'},{title:'Total Pick',value:z=>z.stats.total,num:true},{title:'Productivity',value:z=>z.stats.average===null?'—':fmt(z.stats.average,1),num:true},{title:'แถวเข้าเฉลี่ย',value:z=>z.stats.count,num:true},{title:'ไม่เข้าเฉลี่ย',value:z=>z.stats.excluded,num:true},{title:'พนักงาน',value:z=>z.stats.people,num:true}]);
   }
+  /* ══════════ หน้าไม่ถึงเป้า (แยกตามโซน) ══════════
+     ลอกองค์ประกอบจาก V2 app.js renderBelowTargetPage()/drawBelowTargetChart()
+       การ์ดสรุป 5 ใบ (.zone-summary/.zone-stat) → กราฟแท่งซ้อนต่อโซน → โน้ตเกณฑ์ → ตารางโซน → ตารางรายคน
+     กฎที่ใช้เป็นของ V1 ทั้งหมด
+       ค่าเฉลี่ยรายคน = ผลรวมคอลัมน์ AF เฉพาะค่า > 0 ÷ จำนวนแถวนั้น (v1-engine.js:1752)
+       ไม่ถึงเป้า = ค่าเฉลี่ย < Target ของโซน  (เท่ากับเป้านับว่าผ่าน v1-engine.js:2111)
+       คนหนึ่งคนนับครั้งเดียว โดยยึดโซนหลัก = โซนที่มีแถวเข้าเฉลี่ยมากที่สุด เหมือน V2 ที่เทียบรายคนกับโซนหลัก */
+  function statCards(list){
+    return `<div class="zone-summary">${list.map(([label,value,unit,detail,color])=>
+      `<div class="zone-stat"><div class="zone-stat-label">${esc(label)}</div>`
+      + `<div class="zone-stat-value" style="color:${color||'#1e293b'}">${value}${unit?`<span> ${esc(unit)}</span>`:''}</div>`
+      + `<div class="zone-stat-detail">${esc(detail||'')}</div></div>`).join('')}</div>`;
+  }
+
+  function zoneTargetOf(z){
+    return z.key==='unknown'
+      ? (Number(window.TARGETS&&window.TARGETS.overall)||170)
+      : Number(getZoneTarget(z.key,z.group))||170;
+  }
+
+  /* จับกลุ่มรายคน แล้วหาโซนหลักของแต่ละคนจากจำนวนแถวที่เข้าเฉลี่ย */
+  function buildBelowTarget(data){
+    const people=new Map();
+    data.forEach(r=>{
+      const id=M.userId(r); if(!id)return;
+      let p=people.get(id);
+      if(!p){p={id,name:M.personName(r,roster),rows:[],sum:0,count:0,total:0,hours:0,zoneRows:new Map()};people.set(id,p);}
+      p.rows.push(r);
+      p.total+=M.number(r[4]);
+      p.hours+=M.number(r[6]);
+      const af=M.number(r[31]);
+      if(af>0){
+        p.sum+=af;p.count+=1;
+        const z=zone(r);
+        const key=z?z.key:'unknown';
+        p.zoneRows.set(key,(p.zoneRows.get(key)||0)+1);
+      }
+    });
+    const zoneByKey=new Map(zones.map(z=>[z.key,z]));
+    zoneByKey.set('unknown',{key:'unknown',label:'Not Found',group:''});
+    const list=[];
+    people.forEach(p=>{
+      if(!p.count)return;                                   // ไม่มีแถวเข้าเฉลี่ย ไม่ตัดสิน (กฎ V1)
+      const main=[...p.zoneRows.entries()].sort((a,b)=>b[1]-a[1]||String(a[0]).localeCompare(String(b[0])))[0];
+      const z=zoneByKey.get(main[0])||zoneByKey.get('unknown');
+      const average=p.sum/p.count;
+      const target=zoneTargetOf(z);
+      list.push({...p,zone:z,zoneRowCount:main[1],average,target,
+        gap:average-target,eff:target>0?average/target*100:0,
+        below:average<target,zoneCount:p.zoneRows.size});
+    });
+    const groups=[];
+    zoneByKey.forEach(z=>{
+      const all=list.filter(x=>x.zone.key===z.key);
+      if(!all.length)return;
+      const below=all.filter(x=>x.below);
+      const rowsOfZone=all.reduce((a,x)=>a+x.count,0);
+      groups.push({zone:z,target:zoneTargetOf(z),all,below,
+        average:all.reduce((a,x)=>a+x.sum,0)/Math.max(1,rowsOfZone),
+        total:all.reduce((a,x)=>a+x.total,0),
+        avgGap:below.length?below.reduce((a,x)=>a+Math.abs(x.gap),0)/below.length:0});
+    });
+    // แย่สุดขึ้นก่อน เหมือน V2 (จำนวนคนตกเป้ามาก→น้อย แล้วคนทั้งหมดมาก→น้อย แล้วชื่อโซน)
+    groups.sort((a,b)=>(b.below.length-a.below.length)||(b.all.length-a.all.length)||a.zone.label.localeCompare(b.zone.label));
+    return {list,groups};
+  }
+
+  function drawBelowTargetChart(groups){
+    const el=$('v3BelowTargetChart');
+    if(!el||typeof Chart==='undefined')return;
+    const old=Chart.getChart('v3BelowTargetChart'); if(old)old.destroy();
+    const list=groups.slice(0,20);
+    const maxTotal=Math.max(1,...list.map(z=>z.all.length));
+    new Chart(el,{
+      type:'bar',
+      data:{labels:list.map(z=>z.zone.label),datasets:[
+        {label:'ไม่ถึงเป้า (คน)',data:list.map(z=>z.below.length),backgroundColor:'#f43f5e',borderRadius:6,stack:'s'},
+        {label:'ถึงเป้า (คน)',data:list.map(z=>z.all.length-z.below.length),backgroundColor:'#10b981',borderRadius:6,stack:'s'}
+      ]},
+      options:{maintainAspectRatio:false,
+        plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,padding:14,font:{size:11}}},
+          datalabels:{color:'#fff',font:{size:10,weight:'700'},formatter:v=>v>0?v:''},
+          tooltip:{backgroundColor:'rgba(15,23,42,.92)',padding:10,cornerRadius:8,callbacks:{afterBody:items=>{
+            const z=list[items[0].dataIndex];
+            return [`Target โซน: ${fmt(z.target)} หยิบ/ชม.`,`ประเภท: ${labels[z.zone.group]||'ไม่พบโซนตามกฎ V1'}`,
+              `ค่าเฉลี่ยโซน: ${fmt(z.average,1)} หยิบ/ชม.`];
+          }}}},
+        scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10.5}}},
+          y:{stacked:true,beginAtZero:true,suggestedMax:Math.ceil(maxTotal*1.35),
+            ticks:{precision:0,font:{size:10.5}},grid:{color:'rgba(148,163,184,.25)'},
+            title:{display:true,text:'จำนวนคน',font:{size:10.5}}}}}
+    });
+  }
+
+  function belowTargetPage(){
+    const host=$('v3BelowTarget'); if(!host)return;
+    const data=visible();
+    const {list,groups}=buildBelowTarget(data);
+    if(!list.length){
+      host.innerHTML='<div class="card v3-card"><div class="staff-miss-ok">ยังไม่มีพนักงานที่นับ Productivity ได้ในช่วงที่เลือก</div></div>';
+      return;
+    }
+    const below=list.filter(x=>x.below);
+    const withMiss=groups.filter(z=>z.below.length);
+    const missPct=list.length?below.length/list.length*100:0;
+    const avgGap=below.length?below.reduce((a,x)=>a+Math.abs(x.gap),0)/below.length:0;
+    // "โซนที่ต้องดูก่อน" ต้องเป็นโซนจริง กอง Not Found ไม่ใช่โซน จึงรายงานแยกในโน้ตด้านล่าง
+    const worst=withMiss.find(z=>z.zone.key!=='unknown')||withMiss[0]||null;
+    const unknownGroup=groups.find(z=>z.zone.key==='unknown')||null;
+    const colorPct=missPct>=50?'#e11d48':missPct>=25?'#ea580c':'#16a34a';
+
+    host.innerHTML=statCards([
+      ['ไม่ถึงเป้า',fmt(below.length),'คน',`จากทั้งหมด ${fmt(list.length)} คนที่นับได้`,below.length?'#e11d48':'#16a34a'],
+      ['สัดส่วนที่ไม่ถึงเป้า',fmt(missPct,1)+'%','',`ถึงเป้า ${fmt(list.length-below.length)} คน`,colorPct],
+      ['ช่องว่างเฉลี่ย',fmt(avgGap,1),'หยิบ/ชม.','ต่ำกว่า Target ของโซนเฉลี่ย','#ea580c'],
+      ['โซนที่ต้องดูก่อน',worst?esc(worst.zone.label):'—','',
+        worst?`ไม่ถึงเป้า ${fmt(worst.below.length)} / ${fmt(worst.all.length)} คน`:'ทุกโซนถึงเป้า','#be123c'],
+      ['โซนที่มีคนไม่ถึงเป้า',fmt(withMiss.length),`/ ${fmt(groups.length)} โซน`,'นับจากโซนหลักที่ทำงานจริง','#7c3aed']
+    ])
+    +`<div class="card wide"><h3>⚠️ พนักงานที่ยังไม่ถึง Target ของโซน</h3>
+      <div class="sub">เทียบ Productivity รายคนกับ Target ของโซนหลักที่ทำแถวมากที่สุด · โซนไหนตั้ง Target เองไว้จะใช้ค่านั้นก่อน Target ตามประเภทงาน</div>
+      <div class="chartbox tall"><canvas id="v3BelowTargetChart"></canvas></div>
+      <div class="note v3-notice">นับเฉพาะคนที่มีแถวเข้าเฉลี่ย (คอลัมน์ AF > 0) ตามกฎ V1 · ค่าเฉลี่ยรายคนคือผลรวม AF ÷ จำนวนแถวที่ AF > 0 ไม่ได้เฉลี่ยค่าเฉลี่ยซ้ำ · เท่ากับเป้านับว่าผ่าน · คนหนึ่งคนนับครั้งเดียวที่โซนหลัก
+        ${unknownGroup?`<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownGroup.all.length)} คนที่คอลัมน์ AH ไม่ตรงกฎโซนของ V1 (ไม่ถึงเป้า ${fmt(unknownGroup.below.length)} คน) กองนี้เทียบกับ Target รวม ${fmt(unknownGroup.target)} เพราะไม่รู้ประเภทงาน ต้องเติม Zone ให้ถูกก่อนจะเชื่อเลขของกองนี้ได้`:''}</div></div>
+    <h2 class="staff-table-title">โซนที่มีคนไม่ถึงเป้า</h2>
+    <p class="panel-desc">เรียงโซนที่มีคนตกเป้ามากที่สุดขึ้นก่อน · กดหัวคอลัมน์เพื่อเรียงใหม่ได้</p>
+    <div id="v3BelowTargetZones"></div>
+    <h2 class="staff-table-title">รายคนที่ไม่ถึงเป้า</h2>
+    <p class="panel-desc">เรียงคนที่ห่างจากเป้ามากที่สุดขึ้นก่อน · Gap ติดลบคือยังขาดอีกกี่หยิบ/ชม.</p>
+    <div id="v3BelowTargetPeople"></div>`;
+
+    drawBelowTargetChart(groups);
+
+    table($('v3BelowTargetZones'),'below-zones',groups,[
+      {title:'โซน',value:z=>z.zone.label,html:z=>`<b>${esc(z.zone.label)}</b><span class="sub">${esc(labels[z.zone.group]||'ไม่พบโซนตามกฎ V1')}</span>`},
+      {title:'ไม่ถึงเป้า (คน)',value:z=>z.below.length,num:true,
+        html:z=>z.below.length?`<span class="v3-pill warn">${fmt(z.below.length)} คน</span>`:`<span class="v3-pill good">ครบทุกคน</span>`},
+      {title:'คนทั้งหมดในโซน',value:z=>z.all.length,num:true},
+      {title:'สัดส่วนที่ไม่ถึงเป้า',value:z=>z.all.length?z.below.length/z.all.length*100:0,num:true,
+        html:z=>fmt(z.all.length?z.below.length/z.all.length*100:0,1)+'%'},
+      {title:'ค่าเฉลี่ยโซน',value:z=>z.average,num:true,html:z=>fmt(z.average,1)},
+      {title:'Target โซน',value:z=>z.target,num:true},
+      {title:'ช่องว่างเฉลี่ยของคนที่ตกเป้า',value:z=>z.avgGap,num:true,sortValue:z=>z.below.length?z.avgGap:null,
+        html:z=>z.below.length?`<span class="staff-down">-${fmt(z.avgGap,1)}</span>`:'—'},
+      {title:'Total Pick',value:z=>z.total,num:true,html:z=>fmt(z.total)}
+    ]);
+
+    const ranked=[...below].sort((a,b)=>a.gap-b.gap);
+    table($('v3BelowTargetPeople'),'below-people',ranked,[
+      {title:'#',value:x=>ranked.indexOf(x)+1,num:true,html:x=>`<span class="rank">${ranked.indexOf(x)+1}</span>`},
+      {title:'รหัสพนักงาน',value:x=>x.id},
+      {title:'ชื่อ (2ND)',value:x=>x.name,html:x=>esc(x.name)+(x.zoneCount>1?`<span class="sub">ทำ ${fmt(x.zoneCount)} โซน</span>`:'')},
+      {title:'โซนหลัก',value:x=>x.zone.label,html:x=>`${esc(x.zone.label)}<span class="sub">${fmt(x.zoneRowCount)} แถวในโซนนี้</span>`},
+      {title:'Productivity',value:x=>x.average,num:true,html:x=>`<b style="color:#b91c1c">${fmt(x.average,1)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`},
+      {title:'Target โซน',value:x=>x.target,num:true},
+      {title:'Gap',value:x=>x.gap,num:true,html:x=>`<span class="staff-down">${fmt(x.gap,1)}</span>`},
+      {title:'% Efficiency',value:x=>x.eff,num:true,html:x=>fmt(x.eff,1)+'%'},
+      {title:'ชั่วโมง (คอลัมน์ G)',value:x=>x.hours,num:true,html:x=>fmt(x.hours,1)},
+      {title:'Total Pick',value:x=>x.total,num:true,html:x=>fmt(x.total)}
+    ]);
+  }
+
   function staffPage(){if(!$('v3Staff'))return;const data=visible(),activity=new Map();data.forEach(r=>{const id=String(r[3]||'Not Found').trim();if(!activity.has(id))activity.set(id,[]);activity.get(id).push(r);});
     const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=M.aggregate(work);return {id,master,work,s,name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
     if(V3Data.filters.shift!=='ALL')items=items.filter(i=>i.work.length||i.shift===V3Data.filters.shift);
@@ -254,7 +416,7 @@
     renderQualityPeople(data);
     table($('v3QualityTable'),'quality',problem,recordColumns.filter(c=>c.title!=='วันที่'),{valid:r=>M.number(r[31])>0});
   }
-  function render(){if(!source)return;try{if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();}catch(e){console.error('V3 insights:',e);}}
+  function render(){if(!source)return;try{if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
   V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
     const warn=(source.warnings||[]);

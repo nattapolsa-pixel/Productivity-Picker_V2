@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="v2-theme.css?v=20260917-v2shell-21">
+  <link rel="stylesheet" href="v2-theme.css?v=20260917-v2shell-22">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -54,6 +54,12 @@
               <line x1="8" y1="3" x2="8" y2="18" />
               <line x1="16" y1="6" x2="16" y2="21" />
             </svg> แผนผังโซน</button>
+          <button class="nav nav-item nav-alert" data-page="below-target" data-tab="below-target"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="4" />
+              <line x1="12" y1="1.5" x2="12" y2="5" />
+              <line x1="12" y1="19" x2="12" y2="22.5" />
+            </svg> ไม่ถึงเป้า</button>
           <button class="nav nav-item" data-page="hours" data-tab="hours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 3" />
@@ -172,7 +178,20 @@
       </div>
 
       <section class="tab-panel" id="tab-zone-map"><div class="panel-header"><h1 class="panel-title">แผนผังโซน & Productivity</h1></div><p class="panel-desc">ตำแหน่งงานตาม Results Master!AH จับกลุ่มตามกฎ V1 · สีเข้ม = Total Pick มาก · ค่าบนแผนผังไม่ใช่การกระจายรายการสินค้าแต่ละ Location</p><div class="card v3-card"><div id="v3ZoneMap" class="heat v3-heatmap"></div></div><div id="v3ZoneTable"></div></section>
-      <section class="tab-panel" id="tab-hours"><div class="panel-header"><h1 class="panel-title">ปริมาณงานรายชั่วโมง</h1></div><p class="panel-desc">ยอดจากคอลัมน์ H–AE ตามหัวตาราง 07:00 ถึง 06:00 · วันที่ยึดคอลัมน์ C เช่นเดียวกับ V1 · ไม่ปรับเวลาเพิ่ม</p><div id="v3Hours"></div></section>
+            <!-- TAB: ไม่ถึงเป้า — ลอกองค์ประกอบจากหน้า belowtarget ของ V2 -->
+      <section class="page tab-panel" id="tab-below-target" data-page="below-target">
+        <div class="panel-header">
+          <div>
+            <h1 class="panel-title">ไม่ถึงเป้า (แยกตามโซน)</h1>
+          </div>
+          <p class="panel-desc">โซนไหนมีคนยังไม่ถึง Target และกี่คนในโซนนั้น · Target ของแต่ละโซนมาจาก ⚙️ ตั้งค่า Target
+            (โซนไหนไม่ได้ตั้งเองจะใช้ Target ตามประเภทงาน) · ค่าเฉลี่ยรายคนคือผลรวมคอลัมน์ AF เฉพาะค่า &gt; 0 ÷ จำนวนแถวนั้น ตามสูตร V1
+            · เท่ากับเป้านับว่าผ่าน</p>
+        </div>
+        <div id="v3BelowTarget"></div>
+      </section>
+
+<section class="tab-panel" id="tab-hours"><div class="panel-header"><h1 class="panel-title">ปริมาณงานรายชั่วโมง</h1></div><p class="panel-desc">ยอดจากคอลัมน์ H–AE ตามหัวตาราง 07:00 ถึง 06:00 · วันที่ยึดคอลัมน์ C เช่นเดียวกับ V1 · ไม่ปรับเวลาเพิ่ม</p><div id="v3Hours"></div></section>
       <section class="tab-panel" id="tab-quality"><div class="panel-header"><h1 class="panel-title">Not Found & คุณภาพข้อมูล</h1></div><p class="panel-desc">รายการตรวจสอบยังอยู่ในยอดตามกฎ V1 · Not Found ไม่ได้หมายความว่าต้องลบข้อมูล</p><div id="v3Quality"></div></section>
       <section class="page tab-panel active" id="tab-overview" data-page="overview">
         <div class="panel-header">
@@ -799,8 +818,8 @@
   <script src="data-client.js?v=20260916-1"></script>
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260917-1"></script>
-  <script src="insights.js?v=20260917-7"></script>
-  <script src="v2-shell.js?v=20260916-v2shell-17"></script>
+  <script src="insights.js?v=20260917-9"></script>
+  <script src="v2-shell.js?v=20260917-v2shell-23"></script>
   <script src="v2-views.js?v=20260916-v2shell-17"></script>
   <script src="v2-roster-write.js?v=20260917-rw-7"></script>
   <script src="v2-staff.js?v=20260917-staff-9"></script>

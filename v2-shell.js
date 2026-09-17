@@ -21,6 +21,7 @@
     records: 'รายการต้นทาง',
     training: 'Training',
     tenured: 'พนักงานเกิน 3 เดือน',
+    'below-target': 'ไม่ถึงเป้า (แยกตามโซน)',
     quality: 'Not Found & ตรวจข้อมูล',
     method: 'สูตร & แหล่งข้อมูล'
   };
