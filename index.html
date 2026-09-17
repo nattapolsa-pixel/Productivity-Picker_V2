@@ -14,7 +14,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="v2-theme.css?v=20260916-v2shell-11">
+  <link rel="stylesheet" href="v2-theme.css?v=20260916-v2shell-12">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -29,7 +29,7 @@
 
       <div class="sidebar-scroll">
 
-        <!-- ══ 1. ดูก่อน: สรุปภาพรวม ══ -->
+        <!-- ══ 1. ดูก่อน · ภาพรวม ══ -->
         <div class="nav-group">
           <div class="nav-group-title"><span class="nav-group-num">1</span>ดูก่อน · ภาพรวม</div>
           <button class="nav nav-item active" data-page="overview" data-tab="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -60,6 +60,16 @@
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 3" />
             </svg> ช่วงเวลา</button>
+          <button class="nav nav-item nav-alert" data-page="quality" data-tab="quality"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg> Not Found &amp; ตรวจข้อมูล</button>
+        </div>
+
+        <!-- ══ 3. พนักงาน ══ -->
+        <div class="nav-group">
+          <div class="nav-group-title"><span class="nav-group-num">3</span>พนักงาน</div>
           <button class="nav nav-item" data-page="newstaff" data-tab="newstaff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="9" cy="8" r="4" />
               <path d="M2 21c0-3.6 3.1-5.5 7-5.5" />
@@ -70,11 +80,6 @@
               <circle cx="12" cy="8" r="6" />
               <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
             </svg> พนักงานเก่า</button>
-          <button class="nav nav-item nav-alert" data-page="quality" data-tab="quality"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg> Not Found &amp; ตรวจข้อมูล</button>
         </div>
 
         <!-- เมนูที่ถอดออกชั่วคราว (อันดับพนักงาน, ประเภทงาน & โซน, ทะเบียน, สังกัด, กะ & BU,
@@ -82,7 +87,7 @@
              พร้อมขั้นตอนนำกลับ -->
       </div>
 
-      <div class="nav-actions">
+            <div class="nav-actions">
         <a class="primary" id="openSheetLink"
           href="https://docs.google.com/spreadsheets/d/1PMnlyYHswnV0nE73Alxh-ocIFtTipB9LMzACdNM9GFs/edit#gid=0"
           target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -763,9 +768,9 @@
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260916-2"></script>
   <script src="insights.js?v=20260917-1"></script>
-  <script src="v2-shell.js?v=20260916-v2shell-11"></script>
-  <script src="v2-views.js?v=20260916-v2shell-11"></script>
-  <script src="v2-staff.js?v=20260917-staff-1"></script>
+  <script src="v2-shell.js?v=20260916-v2shell-12"></script>
+  <script src="v2-views.js?v=20260916-v2shell-12"></script>
+  <script src="v2-staff.js?v=20260917-staff-2"></script>
 </body>
 
 </html>
