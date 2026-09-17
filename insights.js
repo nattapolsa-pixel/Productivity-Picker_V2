@@ -171,13 +171,20 @@
     return {list,groups};
   }
 
+  // เก็บอินสแตนซ์กราฟไว้เอง เพราะ host.innerHTML สร้าง canvas ใบใหม่ก่อนจะวาด
+  // ทำให้ Chart.getChart('id') หาอินสแตนซ์เดิมไม่เจอ แล้วกราฟเก่าค้างสะสมทุกครั้งที่เรนเดอร์
+  let belowTargetChart=null;
+  function destroyBelowTargetChart(){
+    if(belowTargetChart){try{belowTargetChart.destroy();}catch(e){}belowTargetChart=null;}
+  }
   function drawBelowTargetChart(groups){
     const el=$('v3BelowTargetChart');
     if(!el||typeof Chart==='undefined')return;
-    const old=Chart.getChart('v3BelowTargetChart'); if(old)old.destroy();
+    destroyBelowTargetChart();
+    const old=Chart.getChart(el); if(old)old.destroy();
     const list=groups.slice(0,20);
     const maxTotal=Math.max(1,...list.map(z=>z.all.length));
-    new Chart(el,{
+    belowTargetChart=new Chart(el,{
       type:'bar',
       data:{labels:list.map(z=>z.zone.label),datasets:[
         {label:'ไม่ถึงเป้า (คน)',data:list.map(z=>z.below.length),backgroundColor:'#f43f5e',borderRadius:6,stack:'s'},
@@ -203,6 +210,7 @@
     const data=visible();
     const {list,groups}=buildBelowTarget(data);
     if(!list.length){
+      destroyBelowTargetChart();
       host.innerHTML='<div class="card v3-card"><div class="staff-miss-ok">ยังไม่มีพนักงานที่นับ Productivity ได้ในช่วงที่เลือก</div></div>';
       return;
     }
@@ -215,6 +223,7 @@
     const unknownGroup=groups.find(z=>z.zone.key==='unknown')||null;
     const colorPct=missPct>=50?'#e11d48':missPct>=25?'#ea580c':'#16a34a';
 
+    destroyBelowTargetChart();
     host.innerHTML=statCards([
       ['ไม่ถึงเป้า',fmt(below.length),'คน',`จากทั้งหมด ${fmt(list.length)} คนที่นับได้`,below.length?'#e11d48':'#16a34a'],
       ['สัดส่วนที่ไม่ถึงเป้า',fmt(missPct,1)+'%','',`ถึงเป้า ${fmt(list.length-below.length)} คน`,colorPct],
@@ -437,12 +446,16 @@
     render();
   });
   document.addEventListener('v3-render',e=>{payload=e.detail;render();});
-  document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{active=btn.dataset.tab;render();window.scrollTo({top:0,behavior:'instant'});}));
+  // หน่วงเล็กน้อยให้ v2-shell.js ใส่คลาส active ก่อน ไม่งั้นกราฟถูกวาดตอน .tab-panel ยัง display:none
+  // แล้วได้ canvas สูง 0 ซึ่ง Chart.js ไม่วัดใหม่ให้เอง (insights.js ผูก listener ก่อน v2-shell.js ตามลำดับ script)
+  document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{active=btn.dataset.tab;setTimeout(render,60);window.scrollTo({top:0,behavior:'instant'});}));
   async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value;$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift});$('v3FilterStatus').textContent=system==='BPS'?'BPS เริ่มนับ 08/06/2026 ตาม V1':'กรองแล้ว • ทุกหน้าใช้ข้อมูลชุดเดียวกัน';}catch(e){$('v3FilterStatus').textContent=e.message;}}
   // เปิด table(), cards() และตัวช่วยจัดรูปแบบให้ v2-staff.js ใช้ร่วมกัน ไม่ต้องเขียนตารางซ้ำ
   root_V3Shared();
   function root_V3Shared(){
     globalThis.V3Shared={table,cards,esc,fmt,csvExport,
+      // เปิดกฎโซนและตัวกรองร่วมให้หน้าที่แยกไฟล์ใช้ ไม่ต้องคัดลอกกฎ V1 ไปเขียนซ้ำ
+      zone,zones,zoneLabels:labels,visible,statCards,zoneTargetOf,
       get roster(){return roster;},
       get rows(){return rows;},
       get source(){return source;}};

@@ -1166,6 +1166,12 @@
     b.addEventListener('click', () => setTimeout(renderTrendPage, 60));
   });
 
+  // กลับเข้าหน้าภาพรวมแล้วต้องวาดกราฟใหม่ ถ้ามีการเปลี่ยนตัวกรองตอนอยู่หน้าอื่น
+  // กราฟจะถูกวาดตอนแท็บซ่อนอยู่ ได้ canvas สูง 0 และ Chart.js ไม่วัดใหม่ให้เอง
+  document.querySelectorAll('.nav-item[data-tab="overview"]').forEach((b) => {
+    b.addEventListener('click', () => setTimeout(renderAll, 70));
+  });
+
   document.querySelectorAll('#seg button[data-mode]').forEach((b) => {
     b.addEventListener('click', () => {
       document.querySelectorAll('#seg button[data-mode]').forEach((x) => x.classList.toggle('active', x === b));

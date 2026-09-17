@@ -19,6 +19,9 @@
     affiliation: 'สังกัด (Affiliation)',
     shift: 'กะ & BU',
     hours: 'ช่วงเวลา (Hourly)',
+    efficiency: 'Efficiency (เทียบเป้าเป็น %)',
+    individual: 'เจาะลึกรายบุคคล',
+    incentive: 'Incentive (ประมาณการเบี้ยขยัน)',
     records: 'รายการต้นทาง',
     training: 'Training',
     tenured: 'พนักงานเกิน 3 เดือน',
@@ -77,11 +80,27 @@
     ptitle.textContent = TITLES[tab] || (own ? own.textContent.trim() : 'ภาพรวม');
   }
 
+  /* กราฟที่ Chart.js วาดตอนแท็บยังซ่อนอยู่ (.tab-panel เป็น display:none) จะได้ canvas สูง 0
+     และไม่วัดใหม่เองเมื่อแท็บถูกเปิด ทำให้เห็นกราฟแบนราบ เจอจริงที่หน้าแผนผังโซน/ช่วงเวลา/ไม่ถึงเป้า
+     ตอนสลับมาจากหน้าอื่นหลังเปลี่ยนตัวกรอง จึงสั่งวัดใหม่ทุกครั้งที่เปิดหน้า (เป็นการแสดงผล ไม่ได้คิดเลขใหม่) */
+  function resizeChartsIn(tab) {
+    if (typeof Chart === 'undefined') return;
+    const panel = document.getElementById('tab-' + tab);
+    if (!panel) return;
+    requestAnimationFrame(() => {
+      panel.querySelectorAll('canvas').forEach((c) => {
+        const chart = Chart.getChart(c);
+        if (chart) { try { chart.resize(); } catch (e) { /* กราฟถูกทำลายไปแล้ว ไม่เป็นไร */ } }
+      });
+    });
+  }
+
   function activate(tab) {
     navButtons.forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     panels.forEach((p) => p.classList.toggle('active', p.id === 'tab-' + tab));
     setPageTitle(tab);
     updateDateHeader();
+    resizeChartsIn(tab);
   }
 
   navButtons.forEach((btn) => {

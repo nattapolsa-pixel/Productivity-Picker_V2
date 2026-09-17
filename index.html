@@ -62,6 +62,11 @@
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 3" />
             </svg> ช่วงเวลา</button>
+          <button class="nav nav-item" data-page="efficiency" data-tab="efficiency"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12A10 10 0 1 1 12 2" />
+              <path d="M12 12l6-4" />
+              <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+            </svg> Efficiency</button>
           <button class="nav nav-item nav-alert" data-page="quality" data-tab="quality"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
@@ -88,6 +93,16 @@
               <circle cx="12" cy="8" r="6" />
               <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
             </svg> พนักงานเก่า</button>
+          <button class="nav nav-item" data-page="individual" data-tab="individual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="3.4" />
+              <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+              <path d="M19 4.5l1.6 1.6L19 7.7" />
+            </svg> เจาะลึกรายบุคคล</button>
+          <button class="nav nav-item" data-page="incentive" data-tab="incentive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="8.5" />
+              <path d="M14.6 9.2A2.7 2.7 0 0 0 9.4 10c0 2.8 5.2 1.6 5.2 4.2a2.7 2.7 0 0 1-5.2.6" />
+              <line x1="12" y1="6.4" x2="12" y2="17.6" />
+            </svg> Incentive</button>
         </div>
 
         <!-- เมนูที่ถอดออกชั่วคราว (อันดับพนักงาน, ประเภทงาน & โซน, ทะเบียน, สังกัด, กะ & BU,
@@ -206,6 +221,45 @@
             · เท่ากับเป้านับว่าผ่าน</p>
         </div>
         <div id="v3BelowTarget"></div>
+      </section>
+
+      <!-- TAB: Efficiency — ลอกองค์ประกอบจากหน้า efficiency ของ V2 คิดเลขด้วยสูตร V1 -->
+      <section class="page tab-panel" id="tab-efficiency" data-page="efficiency">
+        <div class="panel-header">
+          <div>
+            <h1 class="panel-title">Efficiency (เทียบเป้าเป็น %)</h1>
+          </div>
+          <p class="panel-desc">ทำได้กี่เปอร์เซ็นต์ของเป้า แยกรายวัน รายกะ และรายโซน
+            · Productivity คิดด้วยสูตร V1 คือผลรวมคอลัมน์ AF เฉพาะค่า &gt; 0 ÷ จำนวนแถวนั้น รวม sum/count ครั้งเดียว
+            · Target รายโซนมาจาก ⚙️ ตั้งค่า Target · เท่ากับเป้านับว่าผ่าน</p>
+        </div>
+        <div id="v3Efficiency"></div>
+      </section>
+
+      <!-- TAB: เจาะลึกรายบุคคล — ลอกจากหน้า individual ของ V2 -->
+      <section class="page tab-panel" id="tab-individual" data-page="individual">
+        <div class="panel-header">
+          <div>
+            <h1 class="panel-title">เจาะลึกรายบุคคล</h1>
+          </div>
+          <p class="panel-desc">เทียบผลงานทุกคนกับ Target ของโซน แล้วกดดู Scorecard รายคนได้
+            · ทุกตัวเลขมาจากแถวของคนนั้นใน Results Master ตามสูตร V1
+            · ไม่มีข้อมูลระดับ SKU และโซนที่หยิบจริงรายรายการ จึงใช้โซนสังกัด (คอลัมน์ AH) เป็นตัวแทน</p>
+        </div>
+        <div id="v3Individual"></div>
+      </section>
+
+      <!-- TAB: Incentive — ลอกจากหน้า incentive ของ V2 -->
+      <section class="page tab-panel" id="tab-incentive" data-page="incentive">
+        <div class="panel-header">
+          <div>
+            <h1 class="panel-title">Incentive (ประมาณการเบี้ยขยัน)</h1>
+          </div>
+          <p class="panel-desc">ตั้งเกณฑ์แล้วดูว่าต้องใช้งบเท่าไร ใครได้เท่าไร
+            · เป็นการประมาณการบนหน้าเว็บเท่านั้น ไม่ได้ผูกกับระบบจ่ายเงินจริง และไม่เขียนกลับ Google Sheet
+            · คิดจาก Productivity รายคนตามสูตร V1 เทียบ Target ของโซนที่สังกัด</p>
+        </div>
+        <div id="v3Incentive"></div>
       </section>
 
 <section class="tab-panel" id="tab-hours"><div class="panel-header"><h1 class="panel-title">ปริมาณงานรายชั่วโมง</h1></div><p class="panel-desc">ยอดจากคอลัมน์ H–AE ตามหัวตาราง 07:00 ถึง 06:00 · วันที่ยึดคอลัมน์ C เช่นเดียวกับ V1 · ไม่ปรับเวลาเพิ่ม</p><div id="v3Hours"></div></section>
@@ -835,11 +889,14 @@
   <script src="data-client.js?v=20260916-1"></script>
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260917-1"></script>
-  <script src="insights.js?v=20260917-10"></script>
-  <script src="v2-shell.js?v=20260917-v2shell-25"></script>
-  <script src="v2-views.js?v=20260917-v2shell-26"></script>
+  <script src="insights.js?v=20260917-13"></script>
+  <script src="v2-shell.js?v=20260917-v2shell-27"></script>
+  <script src="v2-views.js?v=20260917-v2shell-28"></script>
   <script src="v2-roster-write.js?v=20260917-rw-7"></script>
   <script src="v2-staff.js?v=20260917-staff-9"></script>
+  <script src="v2-efficiency.js?v=20260917-eff-2"></script>
+  <script src="v2-individual.js?v=20260917-ind-2"></script>
+  <script src="v2-incentive.js?v=20260917-inc-2"></script>
 </body>
 
 </html>
