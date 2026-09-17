@@ -416,7 +416,19 @@
     renderQualityPeople(data);
     table($('v3QualityTable'),'quality',problem,recordColumns.filter(c=>c.title!=='วันที่'),{valid:r=>M.number(r[31])>0});
   }
-  function render(){if(!source)return;try{if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
+  /* ป้ายตัวเลขบนเมนู "ไม่ถึงเป้า" ให้เห็นทันทีว่าต้องตามกี่คน โดยไม่ต้องเปิดหน้านั้นก่อน */
+  function updateBelowTargetBadge(){
+    const badge=$('navBelowTargetBadge'); if(!badge)return;
+    try{
+      const {list}=buildBelowTarget(visible());
+      const below=list.filter(x=>x.below).length;
+      badge.textContent=fmt(below);
+      badge.hidden=!below;
+      badge.title=`ไม่ถึงเป้า ${fmt(below)} คน จากทั้งหมด ${fmt(list.length)} คนที่นับ Productivity ได้ในช่วงที่เลือก`;
+    }catch(e){badge.hidden=true;}
+  }
+
+  function render(){if(!source)return;try{updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
   V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
     const warn=(source.warnings||[]);

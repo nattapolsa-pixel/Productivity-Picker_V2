@@ -2071,3 +2071,74 @@ th.num {
   color: #64748b;
   white-space: nowrap;
 }
+
+/* ── เมนู "ไม่ถึงเป้า" ต้องเด่นกว่าเมนูอื่น เพราะเป็นรายการที่ต้องลงมือแก้ ── */
+.nav-danger {
+  position: relative;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+  font-weight: 700;
+  padding-left: 15px;
+  margin-top: 2px;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 6px -3px rgba(225, 29, 72, .35);
+}
+
+/* แถบแดงด้านซ้ายให้สะดุดตาแม้ยังไม่ได้เลือก */
+.nav-danger::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, #f43f5e, #be123c);
+}
+
+.nav-danger:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+  color: #9f1239;
+}
+
+.nav-danger.active {
+  background: linear-gradient(90deg, #f43f5e, #be123c);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 20px -8px rgba(225, 29, 72, .75);
+}
+
+.nav-danger.active::before {
+  background: rgba(255, 255, 255, .85);
+}
+
+.nav-danger.active .nav-badge {
+  background: #fff;
+  color: #be123c;
+}
+
+.nav-danger-text {
+  flex: 1;
+}
+
+/* ป้ายจำนวนคนที่ยังไม่ถึงเป้า อัปเดตตามตัวกรองด้านบน */
+.nav-badge {
+  flex-shrink: 0;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #e11d48;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .nav-danger {
+    margin-bottom: 2px;
+  }
+}

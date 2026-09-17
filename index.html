@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="v2-theme.css?v=20260917-v2shell-22">
+  <link rel="stylesheet" href="v2-theme.css?v=20260917-v2shell-24">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -54,12 +54,6 @@
               <line x1="8" y1="3" x2="8" y2="18" />
               <line x1="16" y1="6" x2="16" y2="21" />
             </svg> แผนผังโซน</button>
-          <button class="nav nav-item nav-alert" data-page="below-target" data-tab="below-target"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="9" />
-              <circle cx="12" cy="12" r="4" />
-              <line x1="12" y1="1.5" x2="12" y2="5" />
-              <line x1="12" y1="19" x2="12" y2="22.5" />
-            </svg> ไม่ถึงเป้า</button>
           <button class="nav nav-item" data-page="hours" data-tab="hours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 3" />
@@ -74,6 +68,12 @@
         <!-- ══ 3. พนักงาน ══ -->
         <div class="nav-group">
           <div class="nav-group-title"><span class="nav-group-num">3</span>พนักงาน</div>
+          <button class="nav nav-item nav-danger" data-page="below-target" data-tab="below-target"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+              <circle cx="12" cy="12" r="9" />
+              <circle cx="12" cy="12" r="4" />
+              <line x1="12" y1="1.5" x2="12" y2="5" />
+              <line x1="12" y1="19" x2="12" y2="22.5" />
+            </svg> <span class="nav-danger-text">ไม่ถึงเป้า</span><span class="nav-badge" id="navBelowTargetBadge" hidden></span></button>
           <button class="nav nav-item" data-page="newstaff" data-tab="newstaff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="9" cy="8" r="4" />
               <path d="M2 21c0-3.6 3.1-5.5 7-5.5" />
@@ -818,7 +818,7 @@
   <script src="data-client.js?v=20260916-1"></script>
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260917-1"></script>
-  <script src="insights.js?v=20260917-9"></script>
+  <script src="insights.js?v=20260917-10"></script>
   <script src="v2-shell.js?v=20260917-v2shell-23"></script>
   <script src="v2-views.js?v=20260916-v2shell-17"></script>
   <script src="v2-roster-write.js?v=20260917-rw-7"></script>
