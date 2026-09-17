@@ -131,7 +131,7 @@
         ? (lastWeek.sum / lastWeek.count) - (firstWeek.sum / firstWeek.count)
         : null;
       return {
-        ...p, stats, start, firstSeen, hasRosterStart, resigned: res, days, group,
+        ...p, stats, start, firstSeen, hasRosterStart, resigned: res, days, group, zone: zoneOf(p.rows),
         workDays: dates.length, firstDate: dates[0] || '', lastDate: dates[dates.length - 1] || '',
         months, lastMonth, prevMonth, monthDelta, weeks, weekDelta,
         firstWeekAvg: firstWeek ? firstWeek.sum / firstWeek.count : null,
@@ -140,6 +140,21 @@
     });
 
     return { people, anchor, cutoff };
+  }
+
+  /* โซนของคนคนหนึ่งมาจากคอลัมน์ AH ของแถวตัวเอง ถ้าทำหลายโซนให้เอาโซนที่มีแถวมากที่สุดขึ้นก่อน */
+  function zoneOf(rows) {
+    const counts = new Map();
+    rows.forEach((r) => {
+      const raw = String(r[33] ?? '').trim();
+      const key = M.isPlaceholder(raw) ? 'Not Found' : raw;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    const label = sorted.length ? sorted[0][0] : 'Not Found';
+    // นับเฉพาะโซนจริง แถวที่ไม่มีโซนไม่ใช่ "โซนอื่น"
+    const others = sorted.filter(([key]) => key !== 'Not Found' && key !== label).length;
+    return { label, others };
   }
 
   function groupStats(people) {
@@ -292,7 +307,7 @@
       : `<span class="staff-miss-ok">✓ ไม่มีใครต้องตามข้อมูลเพิ่มในมุมมองนี้${out.length ? ' (เหลือแต่คนที่ออกแล้ว)' : ''}</span>`)
       + (out.length ? `<span class="staff-miss-pill is-out" title="ไม่ต้องตามข้อมูลแล้ว ขอแค่ชื่อ">⛔ ออกแล้ว <b>${fmt(out.length)}</b> คน</span>` : '')
       + (outWeb.length ? `<span class="staff-miss-pill is-out" title="กรอกในเว็บแล้ว เหลือเอาไปใส่ในชีต Resigned">กรอกในเว็บรอใส่ใน Sheet <b>${fmt(outWeb.length)}</b> คน</span>` : '')
-      + '<span class="staff-miss-hint">สืบมาแล้วพบว่าลาออกไปแล้ว → กด <b>เติมข้อมูล</b> แล้วเลือก <b>⛔ ลาออกแล้ว</b> กรอกแค่ชื่อกับวันที่ออก</span>'
+      + '<span class="staff-miss-hint">สืบมาว่ารหัสนี้คือใคร → กดที่ <b>รหัสพนักงาน</b> ในตารางเพื่อเปิดฟอร์ม · ถ้าลาออกไปแล้วให้เลือก <b>⛔ ลาออกแล้ว</b> กรอกแค่ชื่อกับวันที่ออก</span>'
       + (loadWarnings.length
         ? `<span class="staff-miss-warn">⚠️ อ่านข้อมูลบางชีตไม่ได้รอบนี้ (${esc(loadWarnings.join(' · '))}) สถานะ “ออกแล้ว” จากชีต Resigned จึงอาจหายไปทั้งหมด</span>`
         : '');
@@ -301,7 +316,9 @@
     if (!window.V3Shared) return;
     // เห็นแค่รหัสกับสถานะพอ รายละเอียดที่ขาดอยู่ในฟอร์มเติมข้อมูลและใน Export CSV แล้ว
     window.V3Shared.table(table, prefix + '-missing', items, [
-      { title: 'รหัสพนักงาน', value: (x) => x.p.id, html: (x) => `<b>${esc(x.p.id)}</b>` },
+      // กดที่รหัสเพื่อเปิดฟอร์มระบุว่าคนนี้คือใคร (เดิมเป็นคอลัมน์ "ระบุว่าใคร" ที่ถอดออกไปแล้ว)
+      { title: 'รหัสพนักงาน', value: (x) => x.p.id,
+        html: (x) => `<button type="button" class="staff-id-open" data-rw-open="${esc(x.p.id)}" title="กดเพื่อระบุว่ารหัสนี้คือใคร">${esc(x.p.id)}</button>` },
       {
         title: 'สถานะ',
         value: (x) => (x.p.resigned
@@ -314,12 +331,13 @@
             : '<span class="v3-pill warn">Not Found — ข้อมูลไม่ครบ</span>'))
       },
       { title: 'ชื่อที่พบ', value: (x) => x.p.name, html: (x) => (x.p.name === 'Not Found' ? '<span class="staff-miss-none">ไม่พบชื่อ</span>' : esc(x.p.name)) },
-      { title: 'ขาดกี่ช่อง', value: (x) => x.miss.length, num: true, html: (x) => fmt(x.miss.length) + ' ช่อง' },
-      { title: 'Total Pick', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
-      {
-        title: 'ระบุว่าใคร', value: (x) => (x.p.resigned ? 'ออกแล้ว' : 'เติมได้'),
-        html: (x) => (window.V3RosterWrite ? window.V3RosterWrite.buttonHtml(x.p) : '—')
-      }
+      { title: 'ยอดหยิบทั้งหมด', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
+      { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true,
+        html: (x) => fmt1(x.p.stats.average) + `<span class="sub">${fmt(x.p.stats.count)} แถวเข้าเฉลี่ย</span>` },
+      { title: 'Zone', value: (x) => x.p.zone.label,
+        html: (x) => (x.p.zone.label === 'Not Found'
+          ? '<span class="staff-miss-none">Not Found</span>'
+          : esc(x.p.zone.label)) + (x.p.zone.others ? `<span class="sub">+${fmt(x.p.zone.others)} โซนอื่น</span>` : '') }
     ]);
     if (window.V3RosterWrite) {
       window.V3RosterWrite.bind(table, (id) => items.find((x) => x.p.id === id)?.p, renderAll);
