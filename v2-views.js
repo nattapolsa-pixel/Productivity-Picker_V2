@@ -145,6 +145,268 @@
     return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
   }
 
+  /* ══════════ หน้าเทรน สัปดาห์ / เดือน ══════════
+     ลอกองค์ประกอบจากหน้า trend ของ V2 (app.js renderTrendPage 6151-6241)
+       ตัวสลับ .seg → KPI 5 ใบ (.zone-summary/.zone-stat) → กราฟผสมแท่ง+เส้น → กราฟ % เปลี่ยนแปลง → ตารางเทียบงวด
+
+     ต่างจาก V2 ที่สูตรโดยตั้งใจ
+       V2 คิด Productivity ของงวด = เฉลี่ยของค่าเฉลี่ยรายวัน (app.js:6136 mean ของ avg_prod ซึ่งเองก็เป็น mean อีกชั้น)
+       V3 ใช้สูตร V1 = ผลรวมคอลัมน์ AF ของแถวที่ AF > 0 ÷ จำนวนแถวนั้น รวม sum/count ครั้งเดียว
+       ตัวเลขจึงไม่ตรงกับ V2 และที่ถูกคือของ V3
+
+     กางทุกงวดที่มีข้อมูลเสมอ ไม่หุบตามตัวกรองวันที่ (เหมือน V2) แต่ไฮไลต์งวดที่อยู่ในช่วงที่เลือกไว้ */
+  const TREND_PERIOD_KEY = 'pickProductivityTrendPeriod:v3';
+  let trendPeriodMode = (() => {
+    try { const v = localStorage.getItem(TREND_PERIOD_KEY); return v === 'month' ? 'month' : 'week'; }
+    catch (e) { return 'week'; }
+  })();
+
+  // สัปดาห์เริ่มวันจันทร์เหมือน V2 คีย์คือวันจันทร์ของสัปดาห์นั้น
+  function weekStartKey(iso) {
+    const d = new Date(iso + 'T00:00:00Z');
+    if (Number.isNaN(d.getTime())) return '';
+    const day = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - day);
+    return d.toISOString().slice(0, 10);
+  }
+  function weekLabel(mondayIso) {
+    const a = new Date(mondayIso + 'T00:00:00Z');
+    const b = new Date(a.getTime() + 6 * 86400000);
+    const f = (d) => d.getUTCDate() + '/' + (d.getUTCMonth() + 1);
+    return f(a) + '–' + f(b);
+  }
+
+  function buildTrendPeriods() {
+    const list = filteredRows();                   // ทุกวันที่ ผ่านตัวกรองระบบ/กะ
+    const start = $('startDate') && $('startDate').value ? $('startDate').value : '';
+    const end = $('endDate') && $('endDate').value ? $('endDate').value : '';
+    const byPeriod = groupBy(list, (r) => {
+      const d = M.date(r[2]);
+      return trendPeriodMode === 'week' ? weekStartKey(d) : d.slice(0, 7);
+    });
+    const periods = [...byPeriod.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, rowsOf]) => {
+      const s = M.aggregate(rowsOf);               // สูตร V1 ทั้งก้อน
+      const dayMap = new Map();
+      rowsOf.forEach((r) => {
+        const d = M.date(r[2]);
+        if (!dayMap.has(d)) dayMap.set(d, new Set());
+        const id = M.userId(r);
+        if (id) dayMap.get(d).add(id);
+      });
+      const days = [...dayMap.keys()].sort();
+      const first = days[0] || key;
+      const last = days[days.length - 1] || key;
+      const inFilter = (!start || last >= start) && (!end || first <= end);
+      return {
+        key, label: trendPeriodMode === 'week' ? weekLabel(key) : monthLabel(key),
+        stats: s, days: days.length, firstDate: first, lastDate: last, inFilter,
+        perDay: days.length ? s.total / days.length : 0,
+        maxPeopleDay: Math.max(0, ...[...dayMap.values()].map((set) => set.size))
+      };
+    });
+    // ส่วนต่างจากงวดก่อนหน้า
+    periods.forEach((p, i) => {
+      const prev = i > 0 ? periods[i - 1] : null;
+      const a = p.stats.average, b = prev ? prev.stats.average : null;
+      p.prodDelta = (a !== null && b !== null) ? a - b : null;
+      p.prodDeltaPct = (a !== null && b) ? (a - b) / b * 100 : null;
+      p.qtyDeltaPct = prev && prev.stats.total ? (p.stats.total - prev.stats.total) / prev.stats.total * 100 : null;
+    });
+    return periods;
+  }
+
+  function trendStatCards(cardList) {
+    return `<div class="zone-summary">${cardList.map(([label, value, unit, detail, color]) =>
+      `<div class="zone-stat"><div class="zone-stat-label">${label}</div>`
+      + `<div class="zone-stat-value" style="color:${color || '#1e293b'}">${value}${unit ? `<span> ${unit}</span>` : ''}</div>`
+      + `<div class="zone-stat-detail">${detail || ''}</div></div>`).join('')}</div>`;
+  }
+
+  function drawTrendPeriodChart(periods, target) {
+    const labelsOf = periods.map((p) => p.label);
+    draw('v3TrendPeriodChart', {
+      type: 'bar',
+      data: {
+        labels: labelsOf,
+        datasets: [
+          {
+            type: 'bar', label: 'ยอดหยิบรวม (คอลัมน์ E)', data: periods.map((p) => p.stats.total),
+            backgroundColor: periods.map((p) => (p.inFilter ? 'rgba(79,70,229,.95)' : 'rgba(99,102,241,.28)')),
+            borderRadius: 6, yAxisID: 'y', order: 2,
+            datalabels: { display: false }
+          },
+          {
+            type: 'line', label: 'Productivity (เฉลี่ย AF > 0)', data: periods.map((p) => (p.stats.average === null ? null : Number(p.stats.average.toFixed(1)))),
+            borderColor: '#f43f5e', backgroundColor: '#f43f5e', borderWidth: 2.5, pointRadius: 3.5,
+            tension: .3, fill: false, yAxisID: 'y1', order: 1,
+            datalabels: { align: 'top', color: '#be123c', font: { size: 10, weight: '700' }, formatter: (v) => (v === null ? '' : fmt1(v)) }
+          },
+          {
+            type: 'line', label: `Target ${fmt(target)}`, data: periods.map(() => target),
+            borderColor: 'rgba(245,158,11,.9)', borderWidth: 2, borderDash: [6, 4], pointRadius: 0,
+            fill: false, yAxisID: 'y1', order: 0, datalabels: { display: false }
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        layout: { padding: { top: 26, right: 10, bottom: 4, left: 2 } },
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, padding: 14, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,.92)', padding: 10, cornerRadius: 8,
+            callbacks: {
+              afterBody: (items) => {
+                const p = periods[items[0].dataIndex];
+                return [`${fmt(p.days)} วันทำการ · ${fmt(p.stats.count)} แถวเข้าเฉลี่ย`,
+                  `เฉลี่ย ${fmt(p.perDay)} หยิบ/วัน · ${fmt(p.stats.people)} คน`,
+                  p.inFilter ? 'อยู่ในช่วงวันที่ที่เลือก' : 'อยู่นอกช่วงวันที่ที่เลือก'];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10.5 }, maxRotation: 0, autoSkipPadding: 12 } },
+          y: { position: 'left', beginAtZero: true, grid: { color: 'rgba(148,163,184,.25)' },
+            ticks: { font: { size: 10.5 }, callback: (v) => fmt(v) }, title: { display: true, text: 'ยอดหยิบ (ชิ้น)', font: { size: 10.5 } } },
+          y1: { position: 'right', beginAtZero: true, grid: { display: false },
+            ticks: { font: { size: 10.5 } }, title: { display: true, text: 'หยิบ/ชม.', font: { size: 10.5 } } }
+        }
+      }
+    });
+  }
+
+  function drawTrendChangeChart(periods) {
+    const withPrev = periods.filter((p) => p.prodDeltaPct !== null);
+    draw('v3TrendChangeChart', {
+      type: 'bar',
+      data: {
+        labels: withPrev.map((p) => p.label),
+        datasets: [{
+          label: trendPeriodMode === 'week' ? 'เปลี่ยนแปลง Productivity เทียบสัปดาห์ก่อน (%)' : 'เปลี่ยนแปลง Productivity เทียบเดือนก่อน (%)',
+          data: withPrev.map((p) => Number(p.prodDeltaPct.toFixed(1))),
+          backgroundColor: withPrev.map((p) => (p.prodDeltaPct >= 0 ? 'rgba(16,185,129,.9)' : 'rgba(244,63,94,.9)')),
+          borderRadius: 5,
+          datalabels: {
+            color: '#334155', font: { size: 10, weight: '700' },
+            align: (ctx) => (ctx.dataset.data[ctx.dataIndex] >= 0 ? 'top' : 'bottom'),
+            formatter: (v) => (v >= 0 ? '+' : '') + fmt1(v) + '%'
+          }
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        layout: { padding: { top: 22, bottom: 18, right: 8, left: 2 } },
+        plugins: { legend: { display: false },
+          tooltip: { backgroundColor: 'rgba(15,23,42,.92)', padding: 10, cornerRadius: 8,
+            callbacks: { afterBody: (items) => {
+              const p = withPrev[items[0].dataIndex];
+              return [`${fmt1(p.stats.average)} หยิบ/ชม. (เดิม ${fmt1(p.stats.average - p.prodDelta)})`,
+                `ยอดหยิบเปลี่ยน ${p.qtyDeltaPct === null ? '—' : (p.qtyDeltaPct >= 0 ? '+' : '') + fmt1(p.qtyDeltaPct) + '%'}`];
+            } } } },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10.5 }, maxRotation: 0, autoSkipPadding: 12 } },
+          y: { grid: { color: 'rgba(148,163,184,.25)' }, ticks: { font: { size: 10.5 }, callback: (v) => fmt1(v) + '%' } }
+        }
+      }
+    });
+  }
+
+  function renderTrendPage() {
+    const host = $('v3Trend');
+    if (!host) return;
+    const periods = buildTrendPeriods();
+    const unit = trendPeriodMode === 'week' ? 'สัปดาห์' : 'เดือน';
+    const delta = trendPeriodMode === 'week' ? 'WoW' : 'MoM';
+    const target = Number(window.TARGETS && window.TARGETS.overall) || 170;
+    const toggle = `<div class="seg" id="v3TrendPeriodTog" style="margin-bottom:14px;">
+      <button type="button" data-tperiod="week"${trendPeriodMode === 'week' ? ' class="active"' : ''}>📅 รายสัปดาห์</button>
+      <button type="button" data-tperiod="month"${trendPeriodMode === 'month' ? ' class="active"' : ''}>🗓️ รายเดือน</button></div>`;
+
+    if (!periods.length) {
+      host.innerHTML = `<div class="card wide"><h3>📈 เทรนผลงาน</h3>${toggle}
+        <div class="staff-miss-ok">ยังไม่มีข้อมูลรายวันตามตัวกรองระบบ/กะ ที่เลือกไว้</div></div>`;
+      bindTrendPeriodButtons();
+      return;
+    }
+
+    const latest = periods[periods.length - 1];
+    const withAvg = periods.filter((p) => p.stats.average !== null);
+    const best = withAvg.length ? withAvg.reduce((a, b) => (b.stats.average > a.stats.average ? b : a)) : null;
+    const hit = withAvg.filter((p) => p.stats.average >= target).length;
+
+    host.innerHTML = `<div class="card wide">
+      <h3>📈 เทรนผลงานราย${unit}</h3>
+      <div class="sub">กางทุก${unit}ที่มีข้อมูลเสมอ ไม่หุบตามตัวกรองวันที่ · แท่งสีเข้มคือ${unit}ที่ครอบช่วงวันที่ที่เลือกไว้ด้านบน
+        · ตัวกรองระบบ (BPS/PTT) และกะ ยังมีผลตามปกติ</div>
+      ${toggle}
+      ${trendStatCards([
+        [`⚡ Productivity ${unit}ล่าสุด`, fmt1(latest.stats.average), 'หยิบ/ชม.', latest.label,
+          latest.stats.average !== null && latest.stats.average >= target ? '#16a34a' : '#e11d48'],
+        [`📊 เปลี่ยนแปลง ${delta}`,
+          latest.prodDeltaPct === null ? '—' : (latest.prodDeltaPct >= 0 ? '▲ ' : '▼ ') + fmt1(Math.abs(latest.prodDeltaPct)),
+          latest.prodDeltaPct === null ? '' : '%',
+          latest.prodDelta === null ? `ไม่มี${unit}ก่อนหน้าให้เทียบ` : `${latest.prodDelta >= 0 ? '+' : ''}${fmt1(latest.prodDelta)} หยิบ/ชม.`,
+          latest.prodDeltaPct === null ? '#64748b' : (latest.prodDeltaPct >= 0 ? '#16a34a' : '#e11d48')],
+        [`📦 ยอดหยิบ${unit}ล่าสุด`, fmt(latest.stats.total), 'ชิ้น',
+          `${fmt(latest.days)} วันทำการ · เฉลี่ย ${fmt(latest.perDay)} ชิ้น/วัน`, '#0ea5e9'],
+        [`🏆 ${unit}ที่ดีที่สุด`, best ? fmt1(best.stats.average) : '—', 'หยิบ/ชม.', best ? best.label : 'ยังไม่มีค่าเฉลี่ย', '#7c3aed'],
+        [`🎯 ${unit}ที่ถึงเป้า`, `${fmt(hit)} / ${fmt(withAvg.length)}`, unit, `Target ${fmt(target)} หยิบ/ชม.`,
+          hit === withAvg.length ? '#16a34a' : '#ea580c']
+      ])}
+      <div class="chartbox tall" style="margin-top:16px;"><canvas id="v3TrendPeriodChart"></canvas></div>
+      <div class="chartbox" style="margin-top:16px;"><canvas id="v3TrendChangeChart"></canvas></div>
+      <div class="note v3-notice"><b>สูตรที่ใช้เป็นของ V1</b> — Productivity ของ${unit} = ผลรวมคอลัมน์ AF ของแถวที่ AF &gt; 0 ÷ จำนวนแถวนั้น
+        รวม sum/count ครั้งเดียว ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำ · ยอดหยิบ = ผลรวมคอลัมน์ E ทุกแถวที่มีวันที่
+        <br>หน้าเดียวกันของ V2 คิดเป็น “เฉลี่ยของค่าเฉลี่ยรายวัน” ตัวเลขจึงอาจไม่ตรงกับหน้านี้
+        ยิ่งจำนวนแถวของแต่ละวันในงวดต่างกันมาก ยิ่งต่างกันมาก · ${trendPeriodMode === 'week' ? 'สัปดาห์เริ่มวันจันทร์' : 'เดือนตามปฏิทิน'}</div>
+    </div>
+    <h2 class="staff-table-title">ตารางเทียบราย${unit} (ใหม่ → เก่า)</h2>
+    <p class="panel-desc">กดหัวคอลัมน์เพื่อเรียงใหม่ได้ · งวดที่มีป้าย “ช่วงที่เลือก” คือ${unit}ที่ครอบช่วงวันที่ด้านบน</p>
+    <div id="v3TrendTable"></div>`;
+
+    drawTrendPeriodChart(periods, target);
+    drawTrendChangeChart(periods);
+
+    const newestFirst = [...periods].reverse();
+    if (window.V3Shared && window.V3Shared.table) {
+      const signed1 = (v) => (v === null ? '—' : (v >= 0 ? '+' : '') + fmt1(v));
+      const cls = (v) => (v === null ? '' : v >= 0 ? 'staff-up' : 'staff-down');
+      window.V3Shared.table($('v3TrendTable'), 'trend-' + trendPeriodMode, newestFirst, [
+        { title: '#', value: (p) => newestFirst.indexOf(p) + 1, num: true, html: (p) => `<span class="rank">${newestFirst.indexOf(p) + 1}</span>` },
+        { title: unit, value: (p) => p.label,
+          html: (p) => `<b>${p.label}</b>${p.inFilter ? ' <span class="pill" style="background:#4338ca;color:#fff;font-size:10px;">ช่วงที่เลือก</span>' : ''}`
+            + `<span class="sub">${fmt(p.days)} วันทำการ · ${fmt(p.stats.count)} แถวเข้าเฉลี่ย</span>` },
+        { title: 'ยอดหยิบรวม', value: (p) => p.stats.total, num: true, html: (p) => fmt(p.stats.total) },
+        { title: 'เฉลี่ย/วัน', value: (p) => p.perDay, num: true, html: (p) => fmt(p.perDay) },
+        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average,
+          html: (p) => `<b style="color:${p.stats.average !== null && p.stats.average >= target ? '#059669' : '#b91c1c'}">${fmt1(p.stats.average)}</b>` },
+        { title: `Δ Prod ${delta}`, value: (p) => (p.prodDelta === null ? 0 : p.prodDelta), num: true, sortValue: (p) => p.prodDelta,
+          html: (p) => `<span class="${cls(p.prodDelta)}">${signed1(p.prodDelta)}</span>`
+            + (p.prodDeltaPct === null ? '' : `<span class="sub">${signed1(p.prodDeltaPct)}%</span>`) },
+        { title: `Δ ยอดหยิบ ${delta}`, value: (p) => (p.qtyDeltaPct === null ? 0 : p.qtyDeltaPct), num: true, sortValue: (p) => p.qtyDeltaPct,
+          html: (p) => `<span class="${cls(p.qtyDeltaPct)}">${signed1(p.qtyDeltaPct)}${p.qtyDeltaPct === null ? '' : '%'}</span>` },
+        { title: 'ชั่วโมง (คอลัมน์ G)', value: (p) => p.stats.hours, num: true, html: (p) => fmt1(p.stats.hours) },
+        { title: 'คนมากสุด/วัน', value: (p) => p.maxPeopleDay, num: true, html: (p) => `${fmt(p.maxPeopleDay)}<span class="sub">${fmt(p.stats.people)} คนทั้ง${unit}</span>` },
+        { title: 'เทียบ Target', value: (p) => (p.stats.average === null ? 'ไม่มีค่าเฉลี่ย' : p.stats.average >= target ? 'ถึงเป้า' : 'ต่ำกว่าเป้า'),
+          html: (p) => (p.stats.average === null ? '<span class="v3-pill">ไม่มีค่าเฉลี่ย</span>'
+            : p.stats.average >= target ? '<span class="badge-status pass">ถึงเป้า</span>' : '<span class="badge-status fail">ต่ำกว่าเป้า</span>') }
+      ]);
+    }
+    bindTrendPeriodButtons();
+  }
+
+  function bindTrendPeriodButtons() {
+    document.querySelectorAll('#v3TrendPeriodTog button[data-tperiod]').forEach((b) => {
+      b.addEventListener('click', () => {
+        if (b.dataset.tperiod === trendPeriodMode) return;
+        trendPeriodMode = b.dataset.tperiod;
+        try { localStorage.setItem(TREND_PERIOD_KEY, trendPeriodMode); } catch (e) { /* โหมดส่วนตัวเขียนไม่ได้ ไม่เป็นไร */ }
+        renderTrendPage();
+      });
+    });
+  }
+
   /* ── 1. แถว KPI ที่ v2-views รับผิดชอบ (ที่เหลือ script.js เติมตามสูตร V1 เดิม) ── */
   function renderKpiExtras(list) {
     const s = M.aggregate(list);
@@ -797,6 +1059,7 @@
     try {
       renderKpiExtras(list);
       renderMonthNav();
+      if ($('tab-trend') && $('tab-trend').classList.contains('active')) renderTrendPage();
       renderTrend(list);
       renderHourly(list, headers);
       renderSystemShare(list);
@@ -820,6 +1083,10 @@
     schedule();
   });
   document.addEventListener('v3-render', schedule);
+
+  document.querySelectorAll('.nav-item[data-tab="trend"]').forEach((b) => {
+    b.addEventListener('click', () => setTimeout(renderTrendPage, 60));
+  });
 
   document.querySelectorAll('#seg button[data-mode]').forEach((b) => {
     b.addEventListener('click', () => {

@@ -11,6 +11,7 @@
     overview: 'ภาพรวมวันนี้',
     monthly: 'แนวโน้มรายเดือน',
     present: 'สรุปผล & Present',
+    trend: '📈 เทรนรายสัปดาห์ / รายเดือน',
     pickers: 'อันดับพนักงาน (Picker)',
     rack: 'ประเภทงาน & โซน',
     'zone-map': 'แผนผังโซน & Productivity',

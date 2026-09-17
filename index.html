@@ -44,6 +44,10 @@
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
               <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
             </svg> สรุปผล &amp; Present</button>
+          <button class="nav nav-item" data-page="trend" data-tab="trend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 17 9 11 13 15 21 7" />
+              <polyline points="15 7 21 7 21 13" />
+            </svg> เทรน สัปดาห์ / เดือน</button>
         </div>
 
         <!-- ══ 2. เจาะลึก & ตรวจข้อมูล ══ -->
@@ -177,7 +181,20 @@
           <b id="v3FilterStatus"></b></span>
       </div>
 
-      <section class="tab-panel" id="tab-zone-map"><div class="panel-header"><h1 class="panel-title">แผนผังโซน & Productivity</h1></div><p class="panel-desc">ตำแหน่งงานตาม Results Master!AH จับกลุ่มตามกฎ V1 · สีเข้ม = Total Pick มาก · ค่าบนแผนผังไม่ใช่การกระจายรายการสินค้าแต่ละ Location</p><div class="card v3-card"><div id="v3ZoneMap" class="heat v3-heatmap"></div></div><div id="v3ZoneTable"></div></section>
+            <!-- TAB: เทรน สัปดาห์ / เดือน — ลอกองค์ประกอบจากหน้า trend ของ V2 แต่คิดเลขด้วยสูตร V1 -->
+      <section class="page tab-panel" id="tab-trend" data-page="trend">
+        <div class="panel-header">
+          <div>
+            <h1 class="panel-title">เทรน สัปดาห์ / เดือน</h1>
+          </div>
+          <p class="panel-desc">ดูแนวโน้มผลงานเทียบงวดต่องวด สลับได้ระหว่างรายสัปดาห์กับรายเดือน
+            · Productivity คิดด้วยสูตร V1 คือผลรวมคอลัมน์ AF เฉพาะค่า &gt; 0 ÷ จำนวนแถวนั้น รวม sum/count ครั้งเดียว
+            ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำเหมือนหน้าเดียวกันของ V2</p>
+        </div>
+        <div id="v3Trend"></div>
+      </section>
+
+<section class="tab-panel" id="tab-zone-map"><div class="panel-header"><h1 class="panel-title">แผนผังโซน & Productivity</h1></div><p class="panel-desc">ตำแหน่งงานตาม Results Master!AH จับกลุ่มตามกฎ V1 · สีเข้ม = Total Pick มาก · ค่าบนแผนผังไม่ใช่การกระจายรายการสินค้าแต่ละ Location</p><div class="card v3-card"><div id="v3ZoneMap" class="heat v3-heatmap"></div></div><div id="v3ZoneTable"></div></section>
             <!-- TAB: ไม่ถึงเป้า — ลอกองค์ประกอบจากหน้า belowtarget ของ V2 -->
       <section class="page tab-panel" id="tab-below-target" data-page="below-target">
         <div class="panel-header">
@@ -819,8 +836,8 @@
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260917-1"></script>
   <script src="insights.js?v=20260917-10"></script>
-  <script src="v2-shell.js?v=20260917-v2shell-23"></script>
-  <script src="v2-views.js?v=20260916-v2shell-17"></script>
+  <script src="v2-shell.js?v=20260917-v2shell-25"></script>
+  <script src="v2-views.js?v=20260917-v2shell-25"></script>
   <script src="v2-roster-write.js?v=20260917-rw-7"></script>
   <script src="v2-staff.js?v=20260917-staff-9"></script>
 </body>
