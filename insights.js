@@ -16,17 +16,63 @@
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
   function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,1),'Pick/ชม. · เฉลี่ย AF > 0'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  /* กดหัวคอลัมน์เพื่อเรียง ครั้งแรกมาก -> น้อย ครั้งที่สองน้อย -> มาก ครั้งที่สามกลับลำดับตั้งต้น
+     ต้องเก็บลำดับตั้งต้นไว้ได้ เพราะบางตารางจัดลำดับมาก่อนแล้ว
+     (การ์ด Not Found ดันคนที่ออกแล้วไปท้าย, ตารางพนักงานเก่าเรียงตาม Productivity) */
+  const SORT_ARROW={desc:'\u2193',asc:'\u2191'};
+  function sortValue(column,item){
+    let raw;
+    try{raw=column.sortValue?column.sortValue(item):column.value(item);}catch(e){return null;}
+    if(raw===null||raw===undefined||raw==='')return null;
+    if(typeof raw==='number')return Number.isFinite(raw)?raw:null;
+    const text=String(raw).trim();
+    if(!text||text==='\u2014')return null;
+    if(column.num){const n=Number(text.replace(/[,\s]/g,''));return Number.isFinite(n)?n:null;}
+    return text;
+  }
+  function sortItems(list,column,dir){
+    const sign=dir==='asc'?1:-1;
+    return list.map((item,i)=>({item,i,v:sortValue(column,item)})).sort((a,b)=>{
+      // ค่าว่างไปท้ายรายการเสมอไม่ว่าจะเรียงทางไหน เพื่อไม่ให้ช่องว่างบังของจริง
+      if(a.v===null&&b.v===null)return a.i-b.i;
+      if(a.v===null)return 1;
+      if(b.v===null)return -1;
+      if(typeof a.v==='number'&&typeof b.v==='number')return (a.v-b.v)*sign||(a.i-b.i);
+      return String(a.v).localeCompare(String(b.v),'th')*sign||(a.i-b.i);
+    }).map(x=>x.item);
+  }
   function table(container,key,items,columns,options={}){
-    const state=tableState[key]||(tableState[key]={q:'',page:1,mode:'all'});
-    container.innerHTML=`<div class="card v3-card"><div class="v3-toolbar"><input aria-label="ค้นหา ${esc(key)}" placeholder="ค้นหารหัส ชื่อ โซน สังกัด…" value="${esc(state.q)}"><select aria-label="สถานะรายการ"><option value="all">ทั้งหมด</option><option value="valid">เข้าเฉลี่ย Productivity</option><option value="excluded">ไม่เข้าเฉลี่ย Productivity</option></select><button type="button" data-export>Export CSV</button><span data-count></span></div><div class="v3-table-wrap"><table class="affiliation-table v3-table"><thead><tr>${columns.map(c=>`<th class="${c.num?'num':''}">${esc(c.title)}</th>`).join('')}</tr></thead><tbody></tbody></table></div><div class="v3-pager"><button data-prev>← ก่อนหน้า</button><span data-page></span><button data-next>ถัดไป →</button></div></div>`;
+    const state=tableState[key]||(tableState[key]={q:'',page:1,mode:'all',sortCol:null,sortDir:'desc'});
+    if(state.sortCol!==null&&state.sortCol!==undefined&&state.sortCol>=columns.length)state.sortCol=null;
+    container.innerHTML=`<div class="card v3-card"><div class="v3-toolbar"><input aria-label="ค้นหา ${esc(key)}" placeholder="ค้นหารหัส ชื่อ โซน สังกัด…" value="${esc(state.q)}"><select aria-label="สถานะรายการ"><option value="all">ทั้งหมด</option><option value="valid">เข้าเฉลี่ย Productivity</option><option value="excluded">ไม่เข้าเฉลี่ย Productivity</option></select><button type="button" data-export>Export CSV</button><span data-count></span><span class="v3-sorthint" data-sorthint></span></div><div class="v3-table-wrap"><table class="affiliation-table v3-table"><thead><tr>${columns.map((c,i)=>`<th class="${c.num?'num ':''}v3-th-sort" data-sort-col="${i}" role="button" tabindex="0" title="กดเพื่อเรียงจากมากไปน้อย กดซ้ำเพื่อสลับ">${esc(c.title)}<span class="v3-sortmark is-off">\u21c5</span></th>`).join('')}</tr></thead><tbody></tbody></table></div><div class="v3-pager"><button data-prev>← ก่อนหน้า</button><span data-page></span><button data-next>ถัดไป →</button></div></div>`;
     const input=container.querySelector('input'),select=container.querySelector('select');select.value=state.mode;if(!options.valid)select.hidden=true;
     let filtered=[];
     function paint(){const q=state.q.toLowerCase();filtered=items.filter(item=>(!q||columns.some(c=>String(c.value(item)??'').toLowerCase().includes(q)))&&(!options.valid||state.mode==='all'||(state.mode==='valid'?options.valid(item):!options.valid(item))));
+      if(state.sortCol!==null&&state.sortCol!==undefined&&columns[state.sortCol])filtered=sortItems(filtered,columns[state.sortCol],state.sortDir);
       const pages=Math.max(1,Math.ceil(filtered.length/50));state.page=Math.min(state.page,pages);
       container.querySelector('tbody').innerHTML=filtered.slice((state.page-1)*50,state.page*50).map(item=>`<tr>${columns.map(c=>`<td class="${c.num?'num':''}">${c.html?c.html(item):esc(c.value(item))}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${columns.length}">ไม่มีรายการตามตัวกรอง</td></tr>`;
       container.querySelector('[data-page]').textContent=`หน้า ${state.page} / ${pages}`;container.querySelector('[data-count]').textContent=`${fmt(filtered.length)} รายการ`;
       container.querySelector('[data-prev]').disabled=state.page<=1;container.querySelector('[data-next]').disabled=state.page>=pages;
+      const on=state.sortCol!==null&&state.sortCol!==undefined&&columns[state.sortCol];
+      const hint=container.querySelector('[data-sorthint]');
+      if(hint)hint.textContent=on?`เรียงตาม ${columns[state.sortCol].title} ${state.sortDir==='desc'?'มาก \u2192 น้อย':'น้อย \u2192 มาก'}`:'กดหัวคอลัมน์เพื่อเรียง';
+      container.querySelectorAll('[data-sort-col]').forEach(cell=>{
+        const i=Number(cell.dataset.sortCol),active=on&&state.sortCol===i;
+        cell.classList.toggle('is-on',Boolean(active));
+        cell.setAttribute('aria-sort',active?(state.sortDir==='asc'?'ascending':'descending'):'none');
+        const mark=cell.querySelector('.v3-sortmark');
+        if(mark){mark.textContent=active?SORT_ARROW[state.sortDir]:'\u21c5';mark.classList.toggle('is-off',!active);}
+      });
     }
+    function toggleSort(i){
+      if(state.sortCol!==i){state.sortCol=i;state.sortDir='desc';}   // ครั้งแรก มาก -> น้อย
+      else if(state.sortDir==='desc')state.sortDir='asc';            // ครั้งที่สอง น้อย -> มาก
+      else{state.sortCol=null;state.sortDir='desc';}                 // ครั้งที่สาม กลับลำดับตั้งต้น
+      state.page=1;paint();
+    }
+    const head=container.querySelector('thead');
+    head.addEventListener('click',e=>{const cell=e.target.closest('[data-sort-col]');if(cell)toggleSort(Number(cell.dataset.sortCol));});
+    head.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const cell=e.target.closest('[data-sort-col]');if(cell){e.preventDefault();toggleSort(Number(cell.dataset.sortCol));}});
     input.oninput=()=>{state.q=input.value;state.page=1;paint();};select.onchange=()=>{state.mode=select.value;state.page=1;paint();};
     container.querySelector('[data-prev]').onclick=()=>{state.page--;paint();};container.querySelector('[data-next]').onclick=()=>{state.page++;paint();};container.querySelector('[data-export]').onclick=()=>csvExport(filtered,columns,'V3-'+key);paint();
   }

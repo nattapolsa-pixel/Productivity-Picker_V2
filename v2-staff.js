@@ -240,6 +240,20 @@
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[33])).length }
   ];
 
+  /* กฎเต็มทั้ง 8 ข้อ ใช้รายงานยอดที่ข้อมูลยังเชื่อถือไม่ได้ แม้คนนั้นจะออกแล้วก็ยังนับ */
+  function missingRules(p) {
+    const out = [];
+    MISS_RULES.forEach((rule) => {
+      if (rule.test) {
+        if (rule.test(p)) out.push({ ...rule, rows: null });
+      } else {
+        const n = rule.count(p);
+        if (n > 0) out.push({ ...rule, rows: n });
+      }
+    });
+    return out;
+  }
+
   function missingFor(p) {
     // คนที่ออกแล้วไม่ต้องตามกะ โซน สังกัด อายุงาน ขอแค่รู้ว่ารหัสนี้คือใคร
     if (p.resigned) {
@@ -255,16 +269,7 @@
       }
       return out;
     }
-    const out = [];
-    MISS_RULES.forEach((rule) => {
-      if (rule.test) {
-        if (rule.test(p)) out.push({ ...rule, rows: null });
-      } else {
-        const n = rule.count(p);
-        if (n > 0) out.push({ ...rule, rows: n });
-      }
-    });
-    return out;
+    return missingRules(p);
   }
 
   function renderMissing(prefix, list) {
@@ -284,6 +289,11 @@
     const todo = items.filter((x) => !x.p.resigned);
     const out = items.filter((x) => x.p.resigned);
     const outWeb = out.filter((x) => x.p.resigned.source === 'web');
+    // คนที่ออกแล้วไม่ต้องตามตัว แต่ยอดของเขายังผูกกับช่องข้อมูลที่ว่าง ต้องรายงานไว้ไม่ให้หนี้ข้อมูลหายจากหน้าจอ
+    const outDebt = out.reduce((acc, x) => {
+      if (!missingRules(x.p).length) return acc;
+      return { people: acc.people + 1, total: acc.total + x.p.stats.total };
+    }, { people: 0, total: 0 });
     const affected = todo.reduce((a, x) => a + x.p.stats.total, 0);
     const counts = new Map();
     todo.forEach((x) => x.miss.forEach((m) => counts.set(m.label, (counts.get(m.label) || 0) + 1)));
@@ -291,8 +301,7 @@
     if (pill) {
       pill.textContent = items.length
         ? `${fmt(todo.length)} คนต้องตามข้อมูล · กระทบ Total Pick ${fmt(affected)} ชิ้น`
-          + (out.length ? ` · ออกแล้ว ${fmt(out.length)} คน ไม่ต้องตาม` : '')
-          + (outWeb.length ? ` · กรอกในเว็บรอใส่ใน Sheet ${fmt(outWeb.length)} คน` : '')
+          + (out.length ? ` · ออกแล้ว ${fmt(out.length)} คน${outWeb.length ? ` (ในนั้นกรอกในเว็บ ${fmt(outWeb.length)} คน)` : ''} ไม่ต้องตาม` : '')
         : 'ข้อมูลครบทุกคนในมุมมองนี้';
     }
 
@@ -306,7 +315,8 @@
         }).join('')
       : `<span class="staff-miss-ok">✓ ไม่มีใครต้องตามข้อมูลเพิ่มในมุมมองนี้${out.length ? ' (เหลือแต่คนที่ออกแล้ว)' : ''}</span>`)
       + (out.length ? `<span class="staff-miss-pill is-out" title="ไม่ต้องตามข้อมูลแล้ว ขอแค่ชื่อ">⛔ ออกแล้ว <b>${fmt(out.length)}</b> คน</span>` : '')
-      + (outWeb.length ? `<span class="staff-miss-pill is-out" title="กรอกในเว็บแล้ว เหลือเอาไปใส่ในชีต Resigned">กรอกในเว็บรอใส่ใน Sheet <b>${fmt(outWeb.length)}</b> คน</span>` : '')
+      + (outWeb.length ? `<span class="staff-miss-pill is-out" title="กรอกในเว็บแล้ว เหลือเอาไปใส่ในชีต Resigned">ในนั้นกรอกในเว็บ รอใส่ใน Sheet <b>${fmt(outWeb.length)}</b> คน</span>` : '')
+      + (outDebt.people ? `<span class="staff-miss-pill" title="ไม่ต้องตามตัวคนแล้ว แต่ยอดของคนกลุ่มนี้ยังอ้างอิงข้อมูลที่ว่างอยู่">ออกแล้วแต่ข้อมูลยังว่าง <b>${fmt(outDebt.people)}</b> คน · <b>${fmt(outDebt.total)}</b> ชิ้น</span>` : '')
       + '<span class="staff-miss-hint">สืบมาว่ารหัสนี้คือใคร → กดที่ <b>รหัสพนักงาน</b> ในตารางเพื่อเปิดฟอร์ม · ถ้าลาออกไปแล้วให้เลือก <b>⛔ ลาออกแล้ว</b> กรอกแค่ชื่อกับวันที่ออก</span>'
       + (loadWarnings.length
         ? `<span class="staff-miss-warn">⚠️ อ่านข้อมูลบางชีตไม่ได้รอบนี้ (${esc(loadWarnings.join(' · '))}) สถานะ “ออกแล้ว” จากชีต Resigned จึงอาจหายไปทั้งหมด</span>`
@@ -333,6 +343,7 @@
       { title: 'ชื่อที่พบ', value: (x) => x.p.name, html: (x) => (x.p.name === 'Not Found' ? '<span class="staff-miss-none">ไม่พบชื่อ</span>' : esc(x.p.name)) },
       { title: 'ยอดหยิบทั้งหมด', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
       { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true,
+        sortValue: (x) => x.p.stats.average,
         html: (x) => fmt1(x.p.stats.average) + `<span class="sub">${fmt(x.p.stats.count)} แถวเข้าเฉลี่ย</span>` },
       { title: 'Zone', value: (x) => x.p.zone.label,
         html: (x) => (x.p.zone.label === 'Not Found'
@@ -455,9 +466,9 @@
         { title: 'อายุงาน (วัน)', value: (p) => p.days ?? 0, num: true },
         { title: 'วันที่มีงาน', value: (p) => p.workDays, num: true },
         { title: 'Total Pick', value: (p) => p.stats.total, num: true, html: (p) => fmt(p.stats.total) },
-        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, html: (p) => fmt1(p.stats.average) },
+        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average, html: (p) => fmt1(p.stats.average) },
         { title: 'เทียบ Target', value: (p) => (p.stats.average === null ? '' : (p.stats.average >= t ? 'ถึง' : 'ต่ำกว่า')), html: (p) => statusPill(p.stats.average) },
-        { title: 'สัปดาห์แรก → ล่าสุด', value: (p) => (p.weekDelta === null ? 0 : p.weekDelta), num: true, html: (p) => (p.weekDelta === null ? '—' : `${signed(p.weekDelta)}<span class="sub">${fmt1(p.firstWeekAvg)} → ${fmt1(p.lastWeekAvg)}</span>`) },
+        { title: 'สัปดาห์แรก → ล่าสุด', value: (p) => (p.weekDelta === null ? 0 : p.weekDelta), num: true, sortValue: (p) => p.weekDelta, html: (p) => (p.weekDelta === null ? '—' : `${signed(p.weekDelta)}<span class="sub">${fmt1(p.firstWeekAvg)} → ${fmt1(p.lastWeekAvg)}</span>`) },
         { title: 'แถวเข้าเฉลี่ย', value: (p) => p.stats.count, num: true }
       ]);
     }
@@ -544,8 +555,12 @@
     }
 
     if (resCount) {
+      const sheetOut = all.filter((p) => p.resigned && p.resigned.source !== 'web').length;
+      const webOut = resCount - sheetOut;
       cards.push(insightCard('warn', 'อัตราออกของคนใหม่',
-        `ในกลุ่มคนใหม่ <b>${fmt(all.length)}</b> คน มี <b>${fmt(resCount)}</b> คนที่พ้นสภาพแล้ว (${fmt1(resCount / all.length * 100)}%) ข้อมูลจากชีต Resigned กด “ซ่อนคนที่ออกแล้ว” เพื่อดูเฉพาะคนที่ยังอยู่`));
+        `ในกลุ่มคนใหม่ <b>${fmt(all.length)}</b> คน มี <b>${fmt(sheetOut)}</b> คนที่พ้นสภาพตามชีต Resigned (${fmt1(sheetOut / all.length * 100)}%)`
+        + (webOut ? ` และอีก <b>${fmt(webOut)}</b> คนที่กรอกในเว็บว่าออกแล้วแต่ยังไม่เข้าชีต (รวมเป็น ${fmt1(resCount / all.length * 100)}%)` : '')
+        + ` กด “ซ่อนคนที่ออกแล้ว” เพื่อดูเฉพาะคนที่ยังอยู่`));
     }
 
     $('newStaffInsights').innerHTML = cards.join('');
@@ -674,9 +689,9 @@
         { title: 'อายุงาน (วัน)', value: (p) => p.days ?? 0, num: true },
         { title: 'วันที่มีงาน', value: (p) => p.workDays, num: true },
         { title: 'Total Pick', value: (p) => p.stats.total, num: true, html: (p) => fmt(p.stats.total) },
-        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, html: (p) => fmt1(p.stats.average) },
+        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average, html: (p) => fmt1(p.stats.average) },
         { title: 'เทียบ Target', value: (p) => (p.stats.average === null ? '' : (p.stats.average >= t ? 'ถึง' : 'ต่ำกว่า')), html: (p) => statusPill(p.stats.average) },
-        { title: 'เทียบเดือนก่อน', value: (p) => (p.monthDelta === null ? 0 : p.monthDelta), num: true, html: (p) => (p.monthDelta === null ? '—' : `<span class="${p.monthDelta >= 0 ? 'staff-up' : 'staff-down'}">${signed(p.monthDelta)}</span><span class="sub">${monthLabel(p.prevMonth.key)} ${fmt1(p.prevMonth.average)} → ${monthLabel(p.lastMonth.key)} ${fmt1(p.lastMonth.average)}</span>`) },
+        { title: 'เทียบเดือนก่อน', value: (p) => (p.monthDelta === null ? 0 : p.monthDelta), num: true, sortValue: (p) => p.monthDelta, html: (p) => (p.monthDelta === null ? '—' : `<span class="${p.monthDelta >= 0 ? 'staff-up' : 'staff-down'}">${signed(p.monthDelta)}</span><span class="sub">${monthLabel(p.prevMonth.key)} ${fmt1(p.prevMonth.average)} → ${monthLabel(p.lastMonth.key)} ${fmt1(p.lastMonth.average)}</span>`) },
         { title: 'แถวเข้าเฉลี่ย', value: (p) => p.stats.count, num: true }
       ]);
     }

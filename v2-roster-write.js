@@ -78,12 +78,18 @@
       if (!m) return '';
       day = +m[1]; month = +m[2]; year = +m[3];
       if (year < 100) {
-        // ปีสองหลักกำกวม เลือกแบบ ค.ศ. ก่อน ถ้าได้ปีอนาคตเกินหนึ่งปีจึงถือว่าเป็น พ.ศ. สองหลัก
-        const gregorian = year + 2000;
-        year = gregorian > new Date().getFullYear() + 1 ? year + 1957 : gregorian;
+        // ปีสองหลักกำกวม ลองทั้งแบบ ค.ศ. และ พ.ศ. สองหลัก เอาที่ตกในช่วงที่สมเหตุสมผล
+        // ถ้าคลุมเครือทั้งคู่ให้ปฏิเสธไปเลย ดีกว่าเก็บปีที่เดาผิด (เช่น 1/1/28 เคยได้ 1985)
+        const now = new Date().getFullYear();
+        const inWindow = (y) => y >= now - 30 && y <= now + 1;
+        const gregorian = year + 2000, buddhistShort = year + 1957;
+        if (inWindow(gregorian)) year = gregorian;
+        else if (inWindow(buddhistShort)) year = buddhistShort;
+        else return '';
       }
     }
     if (year > 2400) year -= 543;
+    if (year < 1990 || year > 2100) return '';   // กันปีพิมพ์พลาดอย่าง 9/9/9999
     if (month < 1 || month > 12 || day < 1 || day > 31) return '';
     // new Date('2026-02-31') ไม่เป็น Invalid Date แต่เลื่อนไป 3 มี.ค. จึงต้องแปลงกลับมาเทียบว่าตรงวันเดิม
     const check = new Date(Date.UTC(year, month - 1, day));
@@ -109,7 +115,7 @@
       d.status === 'resigned' ? 'ชีต Resigned (A รหัส, B ชื่อ, H วันพ้นสภาพ)' : 'ชีต 2ND (C–M)',
       // ส่งออกทุกค่าที่เก็บไว้ ไม่ตัดตามสถานะ เพื่อไม่ให้ที่กรอกไว้หายเงียบ ๆ
       // วันที่พ้นสภาพส่งออกเป็น yyyy-mm-dd ปี ค.ศ. เพื่อให้วางลงชีตแล้วไม่เพี้ยนตามรูปแบบวันที่
-      ...keys.map((k) => (k.key === 'resignedDate' ? (d.date || d.fields[k.key] || '') : (d.fields[k.key] || ''))),
+      ...keys.map((k) => (k.key === 'resignedDate' ? (d.date || toIso(d.fields[k.key]) || '') : (d.fields[k.key] || ''))),
       d.savedAt || ''
     ]);
     const csv = [cols, ...rows]
@@ -208,6 +214,7 @@
           return;
         }
         const all = loadDrafts();
+        if (iso) fields.resignedDate = dmy(iso);   // เก็บให้ตรงกับ date ที่แปลงแล้ว
         all[person.id] = { status: 'resigned', fields, date: iso, savedAt: new Date().toLocaleString('th-TH') };
         if (!saveDrafts(all)) { say('บันทึกไม่สำเร็จ เบราว์เซอร์ปิด localStorage อยู่', 'warn'); return; }
         say(`บันทึกว่ารหัสนี้ <b>ออกแล้ว</b>${iso ? ' (พ้นสภาพ ' + dmy(iso) + ')' : ''} · จะขึ้น Remark แดงและถูกซ่อนตามปุ่มซ่อนคนที่ออกแล้ว`, 'good');
@@ -217,6 +224,8 @@
 
       if (!own.some((k) => fields[k])) { say('ยังไม่ได้กรอกช่องใดเลย', 'warn'); return; }
       const all = loadDrafts();
+      // กลับมาเป็น "ยังทำงานอยู่" แล้วต้องไม่มีวันพ้นสภาพค้างอยู่ ไม่งั้น CSV จะได้แถวที่ขัดกันเอง
+      delete fields.resignedDate;
       all[person.id] = { status: 'active', fields, date: '', savedAt: new Date().toLocaleString('th-TH') };
       if (!saveDrafts(all)) { say('บันทึกไม่สำเร็จ เบราว์เซอร์ปิด localStorage อยู่', 'warn'); return; }
       say(`บันทึกไว้ในเครื่องแล้ว ${own.filter((k) => fields[k]).length} ช่อง · กด <b>Export CSV ที่กรอกไว้</b> ด้านบนเพื่อเอาไปใส่ใน Sheet`, 'good');
