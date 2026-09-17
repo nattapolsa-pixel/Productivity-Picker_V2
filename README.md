@@ -206,6 +206,28 @@ node tools/refresh-snapshot.cjs
 
 ก่อนเผยแพร่ตรวจวันเวลา snapshot และพิจารณาว่า repository/เว็บไซต์ต้องเปิดให้ใครเห็น เพราะชุดข้อมูลมีชื่อและรหัสพนักงาน ไม่ใส่รหัสผ่านหรือ API key ในไฟล์
 
+## สถานะ V1 / V2 และ Apps Script เดิม (ข้อตกลง 17/09/2569)
+
+**ยังไม่ลบอะไรทั้งนั้น** แผนคือทำ V3 ให้สมบูรณ์ก่อน แล้วจึงเลิกใช้และลบ V1 ทีหลัง
+
+สิ่งที่ตรวจไว้แล้ว เพื่อให้ตอนลบไม่ต้องไล่ใหม่
+
+- **V3 ไม่เรียก Apps Script เลย** อ่าน Google Sheets ผ่าน CSV export ตรง ๆ
+  (บรรทัด `preconnect` ไป `script.google.com` ที่ค้างมาจาก V1 ถูกลบออกจาก `index.html` แล้ว)
+- **V1 และ V2 ยังเรียกอยู่** — V1 `script.js` เรียก `AKfycbyby7nOGMZe-w8p…`
+  ส่วน V2 `app.js` เรียกตัวเดียวกันบวก `AKfycbyM0IVjD6Eo867r…` ลบแล้วสองหน้านั้นพังทันที
+- **สคริปต์เดิมไม่เขียนลงชีต** ตรวจ `apps-script-api.gs` (V1/V2) และ `bigquery_to_json.gs` (V2)
+  ไม่พบ `setValue` / `setValues` / `appendRow` / `clearContent` / `deleteRow` เลย เป็น API อ่านอย่างเดียว (`doGet`)
+  → **ข้อมูลใน Results Master ไม่ได้มาจากสคริปต์** ลบแล้วข้อมูลในชีตไม่หาย
+- ของที่จะหายเมื่อลบ: trigger `syncPickMastersDaily` และ `warmDashboardCache`
+  (sync ลง CacheService/PropertiesService ไม่ใช่ลงชีต) และ **shared targets / excluded zones ของ V2**
+  ที่เก็บใน `PropertiesService` ซึ่งกู้ไม่ได้
+- ยังไม่ได้ยืนยัน: โปรเจกต์ที่ deploy อยู่จริงอาจมีโค้ด/trigger ไม่ตรงกับไฟล์ในเครื่อง
+  ก่อนลบให้เปิด Apps Script ของชีตดู **Triggers** และ **Manage deployments** อีกครั้ง
+- แนะนำลำดับตอนจะลบ: ลบ trigger → Archive deployment (URL ตายแต่โค้ดอยู่) → รอสองสามสัปดาห์ → ลบจริง
+- `apps-script-roster-write.gs` ของ V3 ควร Deploy เป็น **โปรเจกต์แยก** ไม่วางทับของเดิม
+  เพื่อให้ลบของเดิมได้อิสระ
+
 ## Deploy ภายหลัง
 
 ยังไม่ได้สร้าง Git repository หรือ push V3 ตามที่ผู้ใช้จะสร้างปลายทางใหม่หลังทดลองผ่าน สามารถใช้ static hosting เช่น GitHub Pages; วางไฟล์ให้ครบรวม data/snapshot.json ไม่มีขั้นตอน Deploy Apps Script และไม่ต้อง Run SQL ให้ Google Sheets แชร์แบบที่ผู้ชมมีสิทธิ์อ่าน export ได้ หากอ่านสดไม่ได้เว็บจะแสดง snapshot พร้อมสถานะอัปเดตไม่สำเร็จ
