@@ -1,0 +1,258 @@
+<!-- parked/sections.html — ส่วนที่ถอดออกจาก index.html ชั่วคราวตามที่ผู้ใช้สั่ง (16/09/2569)
+     เก็บไว้เพื่อค่อย ๆ นำกลับทีละหน้า ไฟล์นี้ไม่ถูกโหลดโดยเว็บ
+
+     วิธีนำกลับหนึ่งหน้า
+     1. คัดลอกบล็อก <section ...> ของหน้านั้นไปวางใน index.html ภายใน <main class="content"> (ก่อน </main>)
+     2. เพิ่มปุ่มเมนูใน <nav class="sidebar"> ให้ตรงกัน เช่น
+        <button class="nav nav-item" data-page="pickers" data-tab="pickers">…svg… อันดับพนักงาน</button>
+     3. ชื่อหน้าใน .pagehead อ่านจาก TITLES ของ v2-shell.js ซึ่งยังมีรายการของทุกหน้าอยู่แล้ว
+     4. ตัวเรนเดอร์ของแต่ละหน้ายังอยู่ครบใน script.js / insights.js / v2-views.js และมี null guard
+        จึงกลับมาทำงานเองเมื่อ element ปรากฏอีกครั้ง ไม่ต้องแก้สูตรหรือโค้ดคำนวณ
+-->
+
+<!-- ===== tab-staff ===== -->
+<section class="tab-panel" id="tab-staff"><div class="panel-header"><h1 class="panel-title">ทะเบียนพนักงาน & ผลงานรายบุคคล</h1></div><p class="panel-desc">ทะเบียนปัจจุบันจาก 2ND เชื่อม User ID กับผลงานช่วงวันที่เลือก · คนที่ไม่มีผลงานยังแสดงในทะเบียน · ไม่ทับกะ/โซน/สังกัดย้อนหลังด้วยทะเบียนปัจจุบัน</p><div id="v3Staff"></div></section>
+
+<!-- ===== tab-records ===== -->
+<section class="tab-panel" id="tab-records"><div class="panel-header"><h1 class="panel-title">รายการต้นทาง & ตรวจย้อนตัวเลข</h1></div><p class="panel-desc">ดูทุกแถวในช่วงวันที่เลือก รวมแถว Not Count ที่ไม่นำไปเฉลี่ย Productivity แต่ยังรวม Total Pick ตาม V1</p><div id="v3Records"></div></section>
+
+<!-- ===== tab-method ===== -->
+<section class="tab-panel" id="tab-method"><div class="panel-header"><h1 class="panel-title">สูตรคำนวณ & แหล่งข้อมูล V3</h1></div>
+        <div class="card v3-card v3-method"><h2>Productivity ใช้สูตร V1</h2><p>ผลรวม AVERAGE (AF) ของแถวที่ AF &gt; 0 ÷ จำนวนแถวที่ AF &gt; 0 คำนวณจากค่าจริงก่อนปัดทศนิยม 1 ตำแหน่ง ทุกกลุ่มใช้ผลรวมและจำนวนแถว ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ</p><p>สูตร AF ที่ตรวจพบใน Sheet: ถ้า User ID ว่างให้ว่าง; ถ้า Pick Type เป็น “ช่วยงานส่วนอื่น” ให้ Not Count; ถ้า Operating time &gt; 3 และ Avr/Hour &lt; 1,000 ให้ใช้ Avr/Hour มิฉะนั้น Not Count เว็บอ่านผล AF ที่ Sheet บันทึกจริง เพราะบางแถวอาจถูกแก้เป็นค่าเอง</p><h2>Total Pick และวันรายงาน</h2><p>Total Pick = ผลรวม E ของทุกแถวในช่วงวันที่เลือก รวมแถวที่ AF เป็น Not Count วันที่ใช้ C กะใช้ AG ตาม Sheet โดยตรง รองรับ A/B/C และค่าที่ต้นทางระบุ ไม่คาดเดากะจากเวลา และไม่ลบ 7 ชั่วโมงซ้ำ</p><h2>ประเภทงาน / Zone / BU</h2><p>ประเภทงานจาก AK, โซนจาก AH, สังกัดจาก AI, BU จาก AJ ใช้กฎจับกลุ่มของ V1 รวมชื่อ Haft Rack และ Micro Rack; โซน AJ–AK ใช้กลุ่ม Half Rack และ Target 170 ตามโค้ด V1 ล่าสุด แม้ Zone_V2 ใน Sheet ยังระบุ Full Rack</p><p>Pick to Sort เริ่มนับในหมวด BPS ตั้งแต่ 08/06/2026 ตาม V1 ส่วน Overall รวม AF ที่ผ่านเงื่อนไขทั้งหมด รายการที่ไม่พบประเภทงานแสดงแยกให้ตรวจสอบ</p><h2>ทะเบียนและ Training</h2><p>2ND ใช้แสดงทะเบียนปัจจุบัน ส่วน Training และอายุงานใช้ Update name คอลัมน์ B/H/M พร้อมกฎจับรหัสพนักงานและช่วงฝึกของ V1 หน้าดังกล่าวมีตัวกรองช่วงเวลาของตัวเองเช่นเดิม</p><h2>ขอบเขตข้อมูล</h2><p>V3 ไม่เรียก BigQuery เมนูสินค้า / แพ็ก UOM / นำเข้า Pick Detail / Workforce Planning ไม่อยู่ในชุดนี้ เพราะ Results Master เป็นข้อมูลพนักงานรายวัน ไม่มีรายการสินค้าและข้อมูลแผนงานเพียงพอ ค่า Operating time เป็นค่าจาก Sheet ไม่ใช่ OT ที่อนุมัติ จึงไม่สร้างยอด OT ขึ้นเอง</p><p>ข้อมูลสำรองมีวันที่กำกับ เว็บตรวจข้อมูลล่าสุดจาก Google Sheets อัตโนมัติทุก 5 นาทีและปุ่มรีเฟรช ไม่มีการเขียนแก้ Sheet การตั้ง Target เป็นการตั้งค่าของเครื่องนี้</p></div>
+      </section>
+
+          <!-- TAB: OVERVIEW — ผังตาม overview ของ V2 (source badge → .kpis 5 การ์ด → กริดการ์ดกราฟ Chart.js)
+           ตัวเลขทุกตัวยังมาจากสูตร V1 (Total Pick = Column E, Productivity = เฉลี่ย Column AF > 0) -->
+
+<!-- ===== tab-pickers ===== -->
+<section class="tab-panel" id="tab-pickers">
+        <div class="panel-header picker-panel-header" style="margin-bottom: 2rem;">
+          <div>
+            <p class="panel-eyebrow">STAFF PERFORMANCE</p>
+            <h1 class="panel-title">จัดอันดับ Productivity รายบุคคล (Staff Ranking)</h1>
+          </div>
+          <p class="panel-desc">ติดตามประสิทธิผลการทำงานรายบุคคลจากช่วงวันที่หลักของ Dashboard แยกจากหน้า Training</p>
+        </div>
+
+        <!-- 🏆 การ์ดกราฟอันดับพนักงานแบบ V2 (.card wide + .systog Top N + Chart.js) -->
+        <div class="card wide" style="margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:4px;">
+            <h3 style="font-size:16px; font-weight:700; color:#0f172a; margin:0;">🏆 จัดอันดับ Productivity รายบุคคล (Top Pickers)</h3>
+            <div class="systog" id="pickerCountTog" style="padding:2px;">
+              <button type="button" data-count="12" class="active" style="padding:4px 12px; font-size:12px;">Top 12</button>
+              <button type="button" data-count="20" style="padding:4px 12px; font-size:12px;">Top 20</button>
+              <button type="button" data-count="50" style="padding:4px 12px; font-size:12px;">Top 50</button>
+            </div>
+          </div>
+          <div class="sub" style="margin-bottom:12px;">เรียงจาก Productivity ของแต่ละ User ID = ผลรวมคอลัมน์ AF ของแถวที่ AF &gt; 0 ÷ จำนวนแถวนั้น ตามสูตร V1 · แท่งสีแดงคือคนที่ยังต่ำกว่า Target</div>
+          <div class="chartbox tall" id="pickerChartBox"><canvas id="picker"></canvas></div>
+          <div class="note" id="pickerChartNote">ค่าเฉลี่ยรายคนใช้ผลรวม/จำนวนแถวของคนนั้นโดยตรง ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ · แถวที่ AF เป็น Not Count ไม่เข้าเฉลี่ยแต่ยังนับใน Total Pick</div>
+        </div>
+
+        <!-- SECTION: PICKER RANKING -->
+        <div class="picker-ranking-section" style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">จัดอันดับพนักงาน (Picker Ranking)</h2>
+          <p class="panel-desc" style="margin-bottom: 1.25rem;">จัดอันดับจาก Average Pick/Hr Column AF ตามช่วงวันที่ที่เลือก ใช้ดูคนที่ทำได้ดีและคนที่ควรติดตามก่อน</p>
+          <div class="picker-grid" id="pickerGrid" aria-label="Top Pick and Bottom Pick ranking"></div>
+        </div>
+      </section>
+
+      <!-- TAB: TRAINING -->
+
+<!-- ===== tab-affiliation ===== -->
+<section class="tab-panel" id="tab-affiliation">
+        <div class="panel-header">
+          <div>
+            <p class="panel-eyebrow">AFFILIATION PERFORMANCE</p>
+            <h1 class="panel-title">ประสิทธิภาพการทำงานแยกตามสังกัด (Affiliation)</h1>
+          </div>
+          <p class="panel-desc">วิเคราะห์ข้อมูลผลงานรายสังกัด (จาก Column AI ใน Results Master) แสดงจำนวนคนทำงาน
+            ยอดรวมการหยิบ และเปรียบเทียบระดับผู้ปฏิบัติงานแต่ละบุคคล</p>
+        </div>
+
+        <!-- KPI SUMMARY CARDS -->
+        <div class="kpis kpi-trio" id="affiliationKpiRow">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- MAIN LAYOUT GRID -->
+        <div class="grid visual-trio"
+          style="grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+          <article class="card visual-card">
+            <div class="visual-card-head">
+              <div>
+                <p class="visual-card-eyebrow">OVERVIEW</p>
+                <h2 class="visual-card-title">สรุปผลงานแต่ละสังกัด</h2>
+              </div>
+            </div>
+            <div class="affiliation-table-wrap table-responsive">
+              <table class="affiliation-table picker-table">
+                <thead>
+                  <tr>
+                    <th>สังกัด (Affiliation)</th>
+                    <th style="text-align: right;">Avg Pick/Hr</th>
+                    <th style="text-align: right;">Target status</th>
+                    <th style="text-align: right;">ยอดรวมการหยิบ (Picks)</th>
+                    <th style="text-align: right;">จำนวนผู้ปฏิบัติงาน (คน)</th>
+                    <th style="text-align: right;">จำนวนวันที่ทำงาน (วัน)</th>
+                  </tr>
+                </thead>
+                <tbody id="affiliationTableBody">
+                  <!-- Populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card visual-card" style="display: flex; flex-direction: column;">
+            <div class="visual-card-head"
+              style="justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.50rem;">
+              <div>
+                <p class="visual-card-eyebrow">TREND ANALYSIS</p>
+                <h2 class="visual-card-title" id="affiliationChartTitle">แนวโน้ม Productivity สังกัด</h2>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div class="present-range-switch" style="padding: 0.15rem; gap: 0.15rem;"
+                  aria-label="เลือกโหมดกราฟสังกัด">
+                  <button type="button" class="present-range-btn active" id="affiliationChartTabCompare"
+                    style="padding: 0.30rem 0.60rem; font-size: 0.72rem;">เปรียบเทียบสังกัด</button>
+                  <button type="button" class="present-range-btn" id="affiliationChartTabTrend"
+                    style="padding: 0.30rem 0.60rem; font-size: 0.72rem;">แนวโน้มรายเดือน</button>
+                </div>
+                <div id="affiliationTrendBadge" class="status-pill muted" style="font-weight: 700;">—</div>
+              </div>
+            </div>
+            <!-- TREND KPI & DETAILS -->
+            <div id="affiliationTrendDetailsRow"
+              style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.15rem; flex-wrap: wrap;">
+              <div>
+                <span
+                  style="display: block; font-size: 0.68rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">เฉลี่ยเดือนล่าสุด</span>
+                <strong id="affiliationTrendCurrentValue"
+                  style="font-size: 1.45rem; font-family: var(--font-mono); color: var(--text-primary);">—</strong>
+              </div>
+              <div>
+                <span
+                  style="display: block; font-size: 0.68rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">เทียบเดือนก่อน</span>
+                <strong id="affiliationTrendDiffValue"
+                  style="font-size: 1.45rem; font-family: var(--font-mono);">—</strong>
+              </div>
+              <div style="flex: 1; min-width: 140px;">
+                <span
+                  style="display: block; font-size: 0.68rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem;">สรุปแนวโน้ม</span>
+                <span id="affiliationTrendInsightText"
+                  style="display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.45; overflow: hidden; text-overflow: ellipsis;">—</span>
+              </div>
+            </div>
+            <div class="monthly-productivity-chart" id="affiliationChartContainer"
+              style="margin-top: auto; background: rgba(0,0,0,0.12); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); overflow: hidden; padding: 0.5rem 0.2rem 0;">
+              <!-- SVG Chart populated dynamically -->
+            </div>
+          </article>
+        </div>
+
+        <!-- PICKER DETAIL BREAKDOWN SECTION -->
+        <div class="grid visual-trio" style="grid-template-columns: 1fr;">
+          <article class="card visual-card">
+            <div class="visual-card-head"
+              style="flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;">
+              <div>
+                <p class="visual-card-eyebrow">INDIVIDUAL DETAILS</p>
+                <h2 class="visual-card-title">รายชื่อผู้ปฏิบัติงานในสังกัด</h2>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.50rem;">
+                <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">เลือกสังกัด:</span>
+                <select id="affiliationPickerSelect" class="date-input"
+                  style="height: 32px; padding: 0 1rem 0 0.50rem; min-width: 140px; background: var(--bg-raised); border: 1px solid var(--border-mid); border-radius: var(--radius-sm); color: var(--text-primary);">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+            </div>
+            <div class="affiliation-table-wrap table-responsive">
+              <table class="affiliation-table picker-table">
+                <thead>
+                  <tr>
+                    <th>อันดับ (Rank)</th>
+                    <th>ชื่อผู้ปฏิบัติงาน (Name)</th>
+                    <th>User ID</th>
+                    <th style="text-align: right;">Avg Pick/Hr</th>
+                    <th style="text-align: right;">Target status</th>
+                    <th style="text-align: right;">ยอดรวมการหยิบ (Picks)</th>
+                    <th style="text-align: right;">จำนวนวันทำงาน</th>
+                    <th>กะหลัก (Shift)</th>
+                    <th>โซนหลัก (Zone)</th>
+                  </tr>
+                </thead>
+                <tbody id="affiliationPickerTableBody">
+                  <tr>
+                    <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                      กรุณาเลือกสังกัดด้านบนเพื่อดูรายละเอียดรายบุคคล</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- TAB: PRESENT -->
+
+<!-- ===== tab-rack ===== -->
+<section class="tab-panel" id="tab-rack">
+        <div class="panel-header" style="margin-bottom: 2rem;">
+          <div>
+            <p class="panel-eyebrow">WORK BREAKDOWN</p>
+            <h1 class="panel-title">ประเภทงาน & โซน (Work Breakdown)</h1>
+          </div>
+          <p class="panel-desc">วิเคราะห์ข้อมูลเจาะลึกแยกตามประเภทงานการหยิบ (Work Type), พื้นที่จัดเก็บ (Zone) และการหยิบแยกจ่าย (Pick to Sort)</p>
+        </div>
+
+        <!-- SECTION: WORK TYPE -->
+        <div class="type-section" style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">ประเภทงาน (Work Type)</h2>
+          <p class="panel-desc" style="margin-bottom: 1.25rem;">Main KPI Target: Full Rack 37% / Half Rack 48% / Micro Rack 15%</p>
+          <div class="heat category-grid" id="categoryGrid" aria-label="Category KPI"></div>
+        </div>
+
+        <!-- SECTION: PICK TO SORT -->
+        <div class="pick-to-sort-section" style="border-top: 1px solid var(--border-subtle); padding-top: 2rem; margin-bottom: 3.5rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">การหยิบแยกจ่าย (Pick to Sort)</h2>
+          <p class="panel-desc" style="margin-bottom: 1.25rem;">วิเคราะห์ความเร็วการหยิบแยกจ่ายแบบกระเช้าและกล่อง (จาก Column AK เริ่มนับ 8/6/2026)</p>
+          <div class="pick-to-sort-dashboard" id="pickToSortGrid" aria-label="Pick to Sort dashboard"></div>
+        </div>
+
+        <!-- SECTION: ZONE -->
+        <div class="zone-section" style="border-top: 1px solid var(--border-subtle); padding-top: 2rem; margin-bottom: 1.5rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">ตำแหน่งพื้นที่ทำงาน (Zone)</h2>
+          <p class="panel-desc" style="margin-bottom: 1.25rem;">แสดงผลิตภาพการหยิบแยกตามโซน (Zone) ตามผังล่าสุด Zone_V2 — Full Rack, Half Rack, Micro Rack, Pick to Sort และ Mezzanine (อ้างอิงตำแหน่งจาก Column AH)</p>
+          <div class="heat zone-grid" id="zoneBreakdownGrid" aria-label="Zone KPI"></div>
+        </div>
+      </section>
+
+
+      <!-- TAB: SHIFT -->
+
+<!-- ===== tab-shift ===== -->
+<section class="tab-panel" id="tab-shift">
+        <div class="panel-header" style="margin-bottom: 2rem;">
+          <div>
+            <p class="panel-eyebrow">SHIFT & BU BREAKDOWN</p>
+            <h1 class="panel-title">ประสิทธิภาพกะ & BU (Shift & BU)</h1>
+          </div>
+          <p class="panel-desc">เปรียบเทียบ Productivity และประสิทธิผลการทำงานแยกตามรอบเวลากะทำงาน (Shift) และประเภทกลุ่มธุรกิจ (BU)</p>
+        </div>
+
+        <!-- SECTION: SHIFT -->
+        <div class="shift-section" style="margin-bottom: 3.5rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">กะการทำงาน (Shift)</h2>
+          <p class="panel-desc" style="margin-bottom: 1.25rem;">คำนวณ Productivity และอัตราเฉลี่ยแยกกะทำงาน (Day / Night จากการแตกกลุ่มสังกัด Column AI)</p>
+          <div class="heat shift-grid" id="shiftGrid" aria-label="Shift KPI"></div>
+        </div>
+
+        <!-- SECTION: BU -->
+        <div class="bu-section" style="border-top: 1px solid var(--border-subtle); padding-top: 2rem; margin-bottom: 1.5rem;">
+          <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem;">กลุ่มธุรกิจ (Business Unit)</h2>
+          <p class="panel-desc" style="margin-bottom: 1.25rem;">เปรียบเทียบสัดส่วนระหว่าง Punthai (51/49/0) และ Mart (40/50/10) ตามประเภท Full Rack / Half Rack / EA (Column AJ)</p>
+          <div class="heat bu-grid" id="buGrid" aria-label="BU KPI"></div>
+        </div>
+      </section>

@@ -1,0 +1,1446 @@
+/* v2-theme.css — สะพานเชื่อมคอมโพเนนต์ที่ V3 สร้างจากโค้ด V1 ให้ใช้ภาษาการออกแบบของ V2
+   (การ์ดขาว มุม 18px เงานุ่ม ตัวอักษร Prompt ไล่สี indigo→violet, teal, amber)
+   ไฟล์นี้แก้เฉพาะการแสดงผล ไม่แตะสูตรหรือข้อมูลใด ๆ
+   ลำดับโหลด: styles.css (โครง V1) → v2-base.css (CSS จริงของ V2) → ไฟล์นี้ */
+
+/* ════════ 1. Map ตัวแปรของ V1 ให้เป็นชุดสีของ V2 ════════ */
+:root,
+:root.light {
+  --bg-base: #f4f7ff;
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-hover: #f1f5f9;
+  --border-subtle: #eef2f7;
+  --border-mid: #e2e8f0;
+
+  --blue: #6366f1;
+  --blue-dim: #eef2ff;
+  --blue-glow: rgba(99, 102, 241, .18);
+
+  --good: #059669;
+  --good-dim: #ecfdf5;
+  --warn: #e11d48;
+  --warn-dim: #fef2f2;
+  --danger: #e11d48;
+  --danger-dim: #fef2f2;
+  --empty: #94a3b8;
+  --empty-dim: #f8fafc;
+
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-accent: #6366f1;
+
+  --font-body: 'Prompt', system-ui, sans-serif;
+  --font-mono: 'Prompt', system-ui, sans-serif;
+
+  --radius: 18px;
+  --radius-sm: 11px;
+  --topbar-h: 0px;
+  --sidebar-w: 250px;
+}
+
+/* ════════ 2. ซ่อนเปลือกของ V1 ที่ไม่มีใน V2 ════════ */
+.dashboard-ambient,
+.warehouse-mascot,
+.topbar,
+.topbar-signal,
+.sidebar-kpi-mini,
+.panel-eyebrow,
+.tab-panel .panel-header h1.panel-title,
+.v3-source-bar,
+.sidebar-footer {
+  display: none !important;
+}
+
+/* ════════ 3. เลย์เอาต์หลัก — ใช้ .layout/.sidebar/.content ของ V2 ════════ */
+body {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.content {
+  max-width: none;
+}
+
+.sidebar .nav {
+  font-size: 13px;
+}
+
+.nav-group-title {
+  white-space: nowrap;
+}
+
+.sidebadge {
+  max-height: 96px;
+  overflow: auto;
+}
+
+.nav-actions > button,
+.nav-actions > a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, .08);
+  transition: .18s;
+  text-decoration: none;
+}
+
+.nav-actions > button:hover,
+.nav-actions > a:hover {
+  border-color: #6366f1;
+  color: #4338ca;
+  background: #f5f7ff;
+}
+
+.nav-actions > button.primary,
+.nav-actions > a.primary {
+  border: 0;
+  background: linear-gradient(90deg, #059669, #10b981);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, .3);
+}
+
+.nav-actions > button.primary:hover,
+.nav-actions > a.primary:hover {
+  color: #fff;
+  filter: brightness(1.05);
+}
+
+/* ════════ 4. หัวหน้าเพจ + แถบตัวกรอง ════════ */
+.pagehead h1 {
+  color: #0f172a;
+  letter-spacing: -.4px;
+}
+
+.sysbar select {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #f8fafc;
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.sysbar .chip {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  padding: 6px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.sysbar .chip:hover {
+  color: #1e293b;
+  background: rgba(255, 255, 255, .6);
+}
+
+.sysbar .chip.active {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 4px 12px -2px rgba(99, 102, 241, .4);
+}
+
+.sysbar .btn-apply,
+.sysbar .btn-target {
+  border: 0;
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #fff;
+  padding: 5px 11px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sysbar .freshtxt {
+  flex: 1 1 260px;
+  line-height: 1.5;
+}
+
+.sysbar .freshtxt b {
+  color: #475569;
+}
+
+.sysbar .freshtxt a {
+  color: #6366f1;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* แถบบอกวันที่ที่กำลังแสดง — ใช้รูปแบบ source-badge-bar ของ V2 */
+.active-date-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: linear-gradient(90deg, #ecfdf5, #f0fdf4);
+  border: 1px solid #a7f3d0;
+  border-radius: 14px;
+  padding: 10px 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, .08);
+}
+
+.active-date-eyebrow {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #047857;
+  letter-spacing: .4px;
+}
+
+.active-date-banner strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.active-date-hint {
+  font-size: 11.5px;
+  color: #047857;
+  max-width: 560px;
+  line-height: 1.55;
+}
+
+/* ════════ 5. การ์ด — ทุกคอนเทนเนอร์ใช้หน้าตา .card ของ V2 ════════ */
+.visual-card,
+.v3-card,
+.monthly-productivity-panel,
+.monthly-details-section,
+.training-filter-panel,
+.training-insight-card,
+.training-card,
+.training-summary-card,
+.tenured-shift-card,
+.tenured-shift-table-card,
+.tenured-table-card,
+.present-narrative-card,
+.present-brief-card,
+.present-kpi-card,
+.category-card,
+.zone-card,
+.shift-card,
+.bu-card,
+.picker-board,
+.snapshot-card,
+.p2s-mini-card,
+.p2s-section,
+.p2s-hero-card,
+.present-score-card,
+.v3-detail {
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 10px 30px -14px rgba(30, 41, 59, .18) !important;
+  padding: 20px;
+  transform: none !important;
+}
+
+.visual-card::before,
+.kpi-main::before,
+.kpi-stat::before,
+.category-card::before,
+.zone-card::before,
+.shift-card::before,
+.bu-card::before,
+.training-card::before,
+.present-kpi-card::before {
+  display: none !important;
+}
+
+.v3-card,
+.v3-detail {
+  margin: 0 0 18px;
+}
+
+.monthly-details-section,
+.training-filter-panel {
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+/* หัวการ์ด = .card h3 + .sub ของ V2 */
+.visual-card-title,
+.training-filter-head h2,
+.monthly-productivity-head h2,
+.v3-card h2 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  letter-spacing: 0;
+  margin: 0 0 2px;
+}
+
+.visual-card-eyebrow,
+.panel-desc,
+.visual-card-sub,
+.training-meta,
+.monthly-productivity-sub {
+  font-size: 12px !important;
+  color: #64748b !important;
+  line-height: 1.6;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  font-weight: 400 !important;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.panel-header > div {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+/* คำอธิบายที่อยู่ในหัวเรื่องให้ลงบรรทัดใหม่เต็มความกว้าง ไม่ถูกดันไปชิดขวา */
+.panel-header > .panel-desc,
+.panel-header > p.panel-desc {
+  flex: 0 0 100%;
+  order: 9;
+  margin: 0;
+  text-align: left;
+}
+
+.panel-desc {
+  margin: 0 0 16px;
+  max-width: 1080px;
+}
+
+.tab-panel h2.panel-title {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+.tab-panel > .type-section > h2,
+.tab-panel > .shift-section > h2,
+.tab-panel > .bu-section > h2,
+.tab-panel > .zone-section > h2,
+.tab-panel > .pick-to-sort-section > h2,
+.tab-panel > .training-section > h2,
+.tab-panel > .picker-ranking-section > h2,
+.tab-panel .tenured-section > .panel-header h2 {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  margin-bottom: 4px !important;
+}
+
+.type-section,
+.shift-section,
+.bu-section,
+.zone-section,
+.pick-to-sort-section,
+.training-section,
+.picker-ranking-section,
+.tenured-section {
+  margin-bottom: 26px !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+/* ════════ 6. KPI — ใช้รูปแบบ .kpis/.kpi ของ V2 ════════ */
+.kpi-trio,
+.snapshot-grid,
+.present-kpi-grid,
+.training-summary-grid,
+.v3-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.kpi-main,
+.kpi-stat,
+.snapshot-card,
+.present-kpi-card,
+.training-summary-card,
+.v3-kpi {
+  position: relative;
+  overflow: hidden;
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  padding: 17px !important;
+  min-height: 0 !important;
+  box-shadow: 0 10px 30px -14px rgba(30, 41, 59, .2) !important;
+  transition: transform .25s;
+}
+
+.kpi-main:hover,
+.kpi-stat:hover,
+.snapshot-card:hover,
+.present-kpi-card:hover,
+.v3-kpi:hover {
+  transform: translateY(-4px) !important;
+}
+
+.v3-zone:hover,
+.zone-card:hover {
+  transform: scale(1.04) !important;
+}
+
+.kpi-main::after,
+.kpi-stat::after,
+.present-kpi-card::after,
+.training-summary-card::after,
+.v3-kpi::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+}
+
+.kpi-stat-total::after {
+  background: linear-gradient(90deg, #14b8a6, #0ea5e9);
+}
+
+.kpi-stat-pick-to-sort::after {
+  background: linear-gradient(90deg, #f59e0b, #ea580c);
+}
+
+.kpi-main.is-good::after,
+.kpi-stat.is-good::after,
+.present-kpi-card.is-good::after,
+.training-summary-card.is-good::after {
+  background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.kpi-main.is-warning::after,
+.kpi-stat.is-warning::after,
+.present-kpi-card.is-warning::after,
+.training-summary-card.is-warning::after {
+  background: linear-gradient(90deg, #f43f5e, #e11d48);
+}
+
+.kpi-main.is-empty::after,
+.kpi-stat.is-empty::after,
+.present-kpi-card.is-empty::after,
+.training-summary-card.is-empty::after {
+  background: #e2e8f0;
+}
+
+.kpi-main-label,
+.kpi-stat-label,
+.present-kpi-card > span,
+.v3-kpi > span,
+.snapshot-card > span,
+.training-summary-card > span {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+
+.kpi-main-number,
+.kpi-stat-value,
+.present-kpi-card > strong,
+.v3-kpi > strong,
+.snapshot-card > strong,
+.training-summary-card > strong {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1.1;
+  color: #0f172a !important;
+  text-shadow: none !important;
+  letter-spacing: -.3px;
+}
+
+.kpi-main-sub,
+.kpi-stat-note,
+.present-kpi-card > small,
+.v3-kpi > small,
+.snapshot-card > small,
+.training-summary-card > small,
+.compare-note {
+  display: block;
+  font-size: 11.5px;
+  color: #64748b !important;
+  font-weight: 400;
+  line-height: 1.55;
+  margin-top: 6px;
+}
+
+.kpi-main-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kpi-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.kpi-stat-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #eef2ff !important;
+  color: #4338ca !important;
+  font-size: 12px;
+  font-weight: 800;
+  border: 0 !important;
+}
+
+.kpi-stat-total .kpi-stat-icon {
+  background: #ccfbf1 !important;
+  color: #0f766e !important;
+}
+
+.kpi-stat-pick-to-sort .kpi-stat-icon {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+}
+
+.kpi-stat-body {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Badge / pill ทุกชนิดใช้รูปแบบ V2 */
+.kpi-badge,
+.status-pill,
+.v3-pill,
+.badge-status,
+.monthly-summary-chip,
+.affiliationTrendBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #e0e7ff;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.kpi-badge.is-good,
+.status-pill.is-good,
+.v3-pill.good {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.kpi-badge.is-warning,
+.status-pill.is-warning,
+.v3-pill.warn {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.kpi-badge.is-empty,
+.status-pill.is-empty,
+.status-pill.muted {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+/* progress bar ของ V1 → mini-progress ของ V2 */
+.progress-track,
+.mini-progress-bar,
+.sidebar-progress-track {
+  height: 5px;
+  border-radius: 999px;
+  background: #f1f5f9 !important;
+  overflow: hidden;
+  margin-top: 10px;
+  border: 0 !important;
+}
+
+.progress-fill,
+.mini-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
+  transition: width .4s ease-out;
+}
+
+.is-good .progress-fill {
+  background: linear-gradient(90deg, #10b981, #059669) !important;
+}
+
+.is-warning .progress-fill {
+  background: linear-gradient(90deg, #f43f5e, #e11d48) !important;
+}
+
+/* ════════ 7. กราฟ — กรอบ .chartbox ของ V2 ════════ */
+.visual-trio,
+.training-insight-layout,
+.tenured-shift-layout,
+.present-brief-grid,
+.present-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.monthly-productivity-chart,
+.mini-chart,
+.training-stack,
+.tenured-shift-chart,
+.v3-bars {
+  position: relative;
+  min-height: 300px;
+}
+
+.monthly-productivity-chart svg,
+.mini-chart svg,
+.tenured-shift-chart svg {
+  width: 100%;
+  height: auto;
+}
+
+.monthly-productivity-panel {
+  padding: 20px !important;
+}
+
+.monthly-productivity-head,
+.visual-card-head,
+.training-filter-head,
+.training-insight-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.monthly-productivity-days {
+  max-height: 300px;
+  overflow: auto;
+}
+
+.gauge-ring {
+  border-color: #eef2ff;
+}
+
+.gauge-wrap {
+  gap: 18px;
+}
+
+/* seg / range switch → .seg ของ V2 */
+.present-range-switch,
+.quick-filters,
+.item-pagesize-group {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 11px;
+  padding: 4px;
+  gap: 2px;
+  border: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.present-range-switch button,
+.training-quick-filters .chip,
+.quick-filters .chip {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: .2s;
+}
+
+.present-range-switch button:hover,
+.quick-filters .chip:hover {
+  color: #1e293b;
+}
+
+.present-range-switch button.active,
+.quick-filters .chip.active {
+  background: linear-gradient(90deg, #6366f1, #8b5cf6) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 14px -8px rgba(99, 102, 241, .8);
+}
+
+.date-filter-row,
+.training-date-row,
+.v3-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.date-input,
+.v3-toolbar input,
+.v3-toolbar select {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #fff !important;
+}
+
+.date-input:focus,
+.v3-toolbar input:focus {
+  outline: 0;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, .15);
+}
+
+.btn-apply,
+.btn-refresh,
+.btn-target,
+.v3-toolbar button,
+.v3-pager button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0369a1;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: .18s;
+}
+
+.btn-apply:hover,
+.btn-refresh:hover,
+.btn-target:hover,
+.v3-toolbar button:hover:not(:disabled),
+.v3-pager button:hover:not(:disabled) {
+  border-color: #0284c7;
+  background: #f0fdfa;
+}
+
+.v3-toolbar button:disabled,
+.v3-pager button:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+/* ════════ 8. ตาราง — ใช้ .affiliation-table ของ V2 ════════ */
+.table-wrap,
+.table-responsive,
+.v3-table-wrap,
+.zone-breakdown-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.v3-table-wrap {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.data-table,
+.picker-table,
+.v3-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 640px;
+}
+
+.data-table th,
+.picker-table th,
+.v3-table th {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  text-align: left;
+  padding: 10px 11px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  white-space: nowrap;
+}
+
+.v3-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.data-table td,
+.picker-table td,
+.v3-table td {
+  padding: 9px 11px !important;
+  color: #1e293b !important;
+  border-bottom: 1px solid #eef2f7 !important;
+  background: transparent !important;
+}
+
+.data-table tbody tr:hover td,
+.picker-table tbody tr:hover td,
+.v3-table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+.data-table .num,
+.picker-table .num,
+.v3-table .num,
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.v3-table .sub {
+  display: block;
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.v3-table button {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 9px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v3-pager {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.v3-toolbar {
+  margin-bottom: 14px;
+}
+
+.v3-toolbar input {
+  min-width: 240px;
+}
+
+.v3-toolbar [data-count] {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+
+/* ════════ 9. Zone / Heatmap — ใช้ .heat/.tile ของ V2 ════════ */
+.v3-heatmap,
+.zone-grid,
+.category-grid,
+.shift-grid,
+.bu-grid,
+.training-grid,
+.picker-grid,
+.pick-to-sort-dashboard,
+.p2s-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  align-items: start;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.shift-grid,
+.bu-grid,
+.category-grid {
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+}
+
+.picker-grid,
+.pick-to-sort-dashboard {
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 18px;
+}
+
+.v3-zone {
+  border: 0;
+  cursor: pointer;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+  min-height: 150px;
+  font-family: inherit;
+  transition: transform .2s;
+}
+
+.v3-zone strong {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.v3-zone span {
+  display: block;
+  font-size: 13px;
+  opacity: .95;
+  margin-top: 8px;
+}
+
+.v3-zone b {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.v3-zone small {
+  display: block;
+  font-size: 11px;
+  opacity: .9;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.v3-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  min-height: 245px;
+  padding-top: 30px;
+  overflow-x: auto;
+}
+
+.v3-bar {
+  min-width: 30px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 9.5px;
+  color: #64748b;
+}
+
+.v3-bar i {
+  width: 88%;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #8b5cf6, #6366f1);
+}
+
+.v3-notice,
+.v3-method + .v3-notice,
+.training-alert {
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+  color: #92400e !important;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+
+.v3-method p {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.85;
+  margin-bottom: 14px;
+  max-width: 1040px;
+}
+
+.v3-method h2 {
+  margin-top: 18px;
+}
+
+/* ════════ 10. Skeleton / loading ════════ */
+.skeleton-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 17px;
+  box-shadow: 0 10px 30px -14px rgba(30, 41, 59, .18);
+}
+
+.skeleton-line {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%);
+  background-size: 400% 100%;
+  border-radius: 6px;
+}
+
+.loading-modal {
+  background: transparent;
+  pointer-events: none;
+}
+
+.loading-modal-backdrop {
+  display: none;
+}
+
+.loading-dialog {
+  pointer-events: auto;
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 40px -20px rgba(15, 23, 42, .4) !important;
+  color: #1e293b !important;
+}
+
+.target-modal .modal-dialog,
+.target-modal > div {
+  border-radius: 18px !important;
+}
+
+/* ════════ 11. สีสถานะที่ V1 ใช้ร่วมกันหลายหน้า ════════ */
+.muted {
+  color: #64748b !important;
+}
+
+.warn,
+.is-warning .kpi-stat-value {
+  color: #e11d48;
+}
+
+.tooltip-title,
+.tooltip-value,
+.tooltip-detail,
+.tooltip-trend {
+  font-family: inherit;
+}
+
+
+/* ── การ์ดไฮไลต์ที่ V1 ใช้ไล่สีจัด ให้กลับเป็นการ์ดขาวแบบ V2 ── */
+.p2s-hero-card {
+  background: #fff !important;
+  padding: 20px !important;
+}
+
+.p2s-hero-card h2 {
+  font-size: 40px !important;
+  font-weight: 700;
+  color: #0f172a !important;
+  letter-spacing: -1px;
+  line-height: 1.05;
+  margin: 2px 0 4px !important;
+}
+
+.p2s-hero-card > div > span,
+.p2s-hero-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.v3-pill,
+.status-pill,
+.kpi-badge,
+.badge-status,
+.monthly-summary-chip,
+.zone-section-pill {
+  white-space: nowrap;
+}
+
+.monthly-summary-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.present-narrative-card h2,
+#presentHeadline,
+#monthlyPresentHeadline {
+  font-size: 19px !important;
+  font-weight: 700;
+  color: #0f172a !important;
+  line-height: 1.5;
+}
+
+.present-card-topline {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6366f1;
+  letter-spacing: .5px;
+}
+
+.present-brief-card h2 {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+}
+
+/* ตัวเลขใหญ่ในหน้าอื่น ๆ ให้อยู่ในสเกลของ V2 */
+.category-value,
+.shift-value,
+.bu-value,
+.zone-card-num,
+.training-value,
+.training-focus-value {
+  font-family: var(--font-body) !important;
+  color: #0f172a !important;
+  text-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+.category-value,
+.shift-value,
+.bu-value {
+  font-size: 26px !important;
+}
+
+
+/* การ์ดคะแนนรวมหน้า Present ให้อยู่ในสเกล KPI ของ V2 */
+.present-score-card {
+  background: #fff !important;
+  padding: 20px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.present-score-card > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b !important;
+  letter-spacing: 0 !important;
+  text-transform: uppercase;
+}
+
+.present-score-card > strong {
+  font-size: 44px !important;
+  font-weight: 700 !important;
+  line-height: 1.05;
+  color: #0f172a !important;
+  letter-spacing: -1.5px;
+  text-shadow: none !important;
+  font-family: var(--font-body) !important;
+}
+
+.present-score-card > small {
+  font-size: 12px;
+  color: #64748b !important;
+  line-height: 1.55;
+}
+
+/* ════════ 12. Responsive — ตามจุดตัด 1200/900 ของ V2 ════════ */
+@media (max-width: 1200px) {
+  .kpi-trio,
+  .snapshot-grid,
+  .present-kpi-grid,
+  .training-summary-grid,
+  .v3-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+
+  .visual-trio,
+  .training-insight-layout,
+  .tenured-shift-layout,
+  .present-brief-grid,
+  .present-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .sysbar {
+    gap: 8px 10px;
+    margin: 0 0 14px;
+  }
+
+  .sysbar .lab {
+    font-size: 12px;
+  }
+
+  /* ปล่อยให้กฎมือถือของ V2 (systog/datebar/datepreset เต็มความกว้าง) ทำงาน
+     เพิ่มเฉพาะส่วนที่ V3 มีตัวเลือกมากกว่า V2 */
+  .sysbar .datepreset {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .sysbar .preset-range-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .sysbar .preset-range-group .chip {
+    padding: 8px 5px;
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .sysbar select,
+  .sysbar .datebar select {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+  }
+
+  .sysbar .datebar .btn-target,
+  .sysbar .datebar .btn-apply {
+    flex: 0 0 auto;
+  }
+
+  .sysbar .freshtxt {
+    flex-basis: 100%;
+  }
+
+  .kpi-trio,
+  .snapshot-grid,
+  .present-kpi-grid,
+  .training-summary-grid,
+  .v3-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .kpi-main,
+  .kpi-stat,
+  .snapshot-card,
+  .present-kpi-card,
+  .training-summary-card,
+  .v3-kpi {
+    padding: 13px 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .kpi-main-number,
+  .kpi-stat-value,
+  .present-kpi-card > strong,
+  .v3-kpi > strong,
+  .training-summary-card > strong {
+    font-size: 20px !important;
+  }
+
+  .kpi-main-label,
+  .kpi-stat-label {
+    font-size: 11px;
+  }
+
+  .kpi-stat {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .visual-card,
+  .v3-card,
+  .monthly-productivity-panel,
+  .monthly-details-section,
+  .training-filter-panel,
+  .training-insight-card,
+  .tenured-shift-card,
+  .tenured-shift-table-card,
+  .tenured-table-card,
+  .present-narrative-card,
+  .present-brief-card {
+    padding: 14px !important;
+    border-radius: 14px !important;
+  }
+
+  .v3-heatmap,
+  .zone-grid,
+  .category-grid,
+  .shift-grid,
+  .bu-grid,
+  .training-grid {
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+    gap: 8px;
+  }
+
+  .picker-grid,
+  .pick-to-sort-dashboard {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .monthly-productivity-chart,
+  .mini-chart,
+  .training-stack,
+  .tenured-shift-chart,
+  .v3-bars {
+    min-height: 240px;
+  }
+
+  .v3-toolbar input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .v3-toolbar [data-count] {
+    margin-left: 0;
+  }
+
+  .quick-filters,
+  .present-range-switch {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .active-date-banner {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .active-date-hint {
+    font-size: 11px;
+  }
+
+  .panel-desc {
+    font-size: 11.5px !important;
+  }
+
+  .v3-table-wrap {
+    max-height: 460px;
+  }
+}
+
+/* ════════ 13. พิมพ์ / PDF ════════ */
+@media print {
+  .sidebar,
+  .sysbar,
+  .nav-actions,
+  .loading-modal,
+  .target-modal,
+  .quick-filters,
+  .v3-toolbar,
+  .v3-pager {
+    display: none !important;
+  }
+
+  .layout {
+    display: block;
+  }
+
+  .content {
+    padding: 0;
+  }
+
+  .tab-panel:not(.active) {
+    display: none !important;
+  }
+
+  .visual-card,
+  .v3-card,
+  .kpi-main,
+  .kpi-stat,
+  .monthly-productivity-panel {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    break-inside: avoid;
+  }
+
+  .v3-table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .v3-table,
+  .data-table,
+  .picker-table {
+    font-size: 9.5px;
+    min-width: 0;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+}
+
+/* ── .systog ที่ไม่มี data-sys (เช่น Top N ของหน้าอันดับพนักงาน) ต้องมีพื้นหลังตอน active
+      ไม่อย่างนั้นตัวอักษรขาวจะจมไปกับพื้นเทา ── */
+.systog button.active:not([data-sys]):not([data-sh]) {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+}
+
+/* ── กันคลาสของ V1 ทับค่า display ของแอตทริบิวต์ hidden (เช่น .btn-apply ที่ซ่อนไว้) ── */
+[hidden] {
+  display: none !important;
+}
+
+/* ── ปุ่มกะบนจอแคบ: Sheet มีค่ากะได้หลายค่า (A/B/C/Training/รายวัน/Not Found)
+      ถ้าเรียงแถวเดียวแบบ V2 จะเบียดกัน จึงจัดเป็นตารางให้ตกบรรทัดอ่านได้ ── */
+@media (max-width: 900px) {
+  .sysbar .shiftog {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .sysbar .shiftog button {
+    flex: none;
+    padding: 8px 4px;
+    font-size: 10.5px;
+    line-height: 1.3;
+    white-space: normal;
+  }
+}
