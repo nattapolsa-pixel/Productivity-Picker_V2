@@ -49,6 +49,56 @@
     catch (e) { return 'split'; }
   })();
 
+  /* วาดเส้นเป้าและเส้นค่าเฉลี่ยรวมเองหลังแท่งวาดเสร็จ เพื่อให้เส้นอยู่บนแท่งแน่นอน
+     (Chart.js วาดชุดข้อมูลย้อนลำดับ order จึงคุมยาก ปลั๊กอินนี้ตัดปัญหาไปเลย) */
+  const OVERLAY = {
+    id: 'v3MonthlyOverlay',
+    afterDatasetsDraw(chart) {
+      const o = chart.options.plugins && chart.options.plugins.v3MonthlyOverlay;
+      if (!o) return;
+      const ctx = chart.ctx;
+      const xs = chart.scales.x;
+      const ys = chart.scales[o.axis || 'y'];
+      if (!ctx || !xs || !ys) return;
+      ctx.save();
+      if (o.target !== null && o.target !== undefined) {
+        const y = ys.getPixelForValue(o.target);
+        ctx.setLineDash([7, 5]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(245,158,11,.95)';
+        ctx.beginPath();
+        ctx.moveTo(xs.left, y);
+        ctx.lineTo(xs.right, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      const pts = [];
+      (o.values || []).forEach((v, i) => {
+        if (v === null || v === undefined || !Number.isFinite(Number(v))) return;
+        pts.push({ x: xs.getPixelForValue(i), y: ys.getPixelForValue(Number(v)) });
+      });
+      if (pts.length) {
+        ctx.lineWidth = o.width || 3.5;
+        ctx.strokeStyle = o.color || '#f43f5e';
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.stroke();
+        pts.forEach((p) => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, o.point || 5.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.lineWidth = o.pointWidth || 3;
+          ctx.strokeStyle = o.color || '#f43f5e';
+          ctx.stroke();
+        });
+      }
+      ctx.restore();
+    }
+  };
+
   function target() {
     return Number(window.TARGETS && window.TARGETS.overall) || 170;
   }
@@ -98,8 +148,8 @@
           },
           {
             type: 'line', label: 'ค่าเฉลี่ยต่อชั่วโมงของเดือน', data: months.map((m) => Number(m.average) || 0),
-            borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3,
-            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2.5,
+            borderColor: '#f43f5e', backgroundColor: '#fff',
+            borderWidth: 0, pointRadius: 0, showLine: false,   // ปลั๊กอิน OVERLAY วาดเส้นจริงทับบนแท่ง
             tension: .32, fill: false, yAxisID: 'y1', order: 3,   // เส้นค่าเฉลี่ยวาดท้ายสุด อยู่บนสุด
             datalabels: {
               // ตัวเลขลอยเหนือจุดเสมอ มีขอบขาวรอบตัวอักษร จึงไม่จมกับเส้นหรือแท่ง
@@ -117,11 +167,16 @@
           }
         ]
       },
+      plugins: [OVERLAY],
       options: {
         maintainAspectRatio: false,
         // เว้นที่ด้านบนให้ตัวเลขของเส้นมีที่ยืน ไม่ต้องเบียดกับขอบกราฟ
         layout: { padding: { top: 44, right: 16, bottom: 4, left: 4 } },
         plugins: {
+          v3MonthlyOverlay: {
+            axis: 'y1', target: t, color: '#f43f5e', width: 3.5, point: 5.5, pointWidth: 3,
+            values: months.map((m) => Number(m.average) || 0)
+          },
           legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 9, padding: 16, font: { size: 11.5 } } },
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 12, cornerRadius: 10, displayColors: true,
@@ -200,8 +255,8 @@
             // เส้นค่าเฉลี่ยรวมของเดือน ให้เห็นแนวโน้มทั้งเดือนคู่กับแท่งรายประเภท
             type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน',
             data: months.map((m) => Number(m.average) || 0),
-            borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3.5,
-            pointRadius: 5.5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 3,
+            borderColor: '#f43f5e', backgroundColor: '#fff',
+            borderWidth: 0, pointRadius: 0, showLine: false,   // ปลั๊กอิน OVERLAY วาดเส้นจริงทับบนแท่ง
             tension: .3, fill: false, order: 3,   // ทับบนแท่ง
             datalabels: {
               // ชิปพื้นขาวขอบแดง อ่านออกแม้พาดอยู่บนแท่งสีเข้ม และเป็นป้ายชั้นเดียวในกราฟนี้
@@ -220,10 +275,15 @@
           }
         ])
       },
+      plugins: [OVERLAY],
       options: {
         maintainAspectRatio: false,
         layout: { padding: { top: 40, right: 16, bottom: 4, left: 4 } },
         plugins: {
+          v3MonthlyOverlay: {
+            axis: 'y', target: t, color: '#f43f5e', width: 3.5, point: 5.5, pointWidth: 3,
+            values: months.map((m) => Number(m.average) || 0)
+          },
           legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 9, padding: 14, font: { size: 11.5 } } },
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 11, cornerRadius: 10,
@@ -280,8 +340,8 @@
           },
           {
             type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน', data: months.map((m) => Number(m.average) || 0),
-            borderColor: '#f43f5e', borderWidth: 2.5, pointRadius: 3.5,
-            pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2,
+            borderColor: '#f43f5e',
+            borderWidth: 0, pointRadius: 0, showLine: false,   // ปลั๊กอิน OVERLAY วาดเส้นจริงทับบนแท่ง
             tension: .3, fill: false, order: 3, datalabels: { display: false }   // เส้นค่าเฉลี่ยอยู่บนสุด
           },
           {
@@ -291,10 +351,15 @@
           }
         ]
       },
+      plugins: [OVERLAY],
       options: {
         maintainAspectRatio: false,
         layout: { padding: { top: 16, right: 10, bottom: 2, left: 2 } },
         plugins: {
+          v3MonthlyOverlay: {
+            axis: 'y', target: t, color: '#f43f5e', width: 2.5, point: 3.5, pointWidth: 2,
+            values: months.map((m) => Number(m.average) || 0)
+          },
           legend: { display: false },
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 10, cornerRadius: 9,
