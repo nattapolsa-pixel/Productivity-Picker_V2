@@ -5,8 +5,9 @@
    หลักที่ใช้กันตัวเลขทับกัน
      1. การ์ดภาพรวม: ตัวเลขติดเฉพาะเส้น Productivity ไม่ติดบนแท่ง และเว้นที่ด้านบนกราฟไว้ 44px
         พร้อมขอบขาวรอบตัวอักษร (textStrokeColor) ให้อ่านออกแม้ทับเส้น
-     2. การ์ดแยกประเภท: กราฟไม่ติดตัวเลขเลย เพราะหลายชุดข้อมูลในเดือนเดียวยังไงก็ทับกัน
-        ตัวเลขไปอยู่ในตารางใต้กราฟแทน อ่านครบทุกค่าและไม่มีทางทับ
+     2. การ์ดแยกประเภท: รวมสามมุมมองเป็นกราฟเดียว สลับด้วยปุ่ม เพื่อไม่ให้หน้ายาวเกิน
+        ตัวเลขวางไว้ในแท่งแต่ละอัน ตั้งตัวอักษรตรง จึงไม่ทับเส้นเป้าและไม่ทับแท่งข้างเคียง
+        แท่งที่เตี้ยเกินกว่าจะใส่ตัวเลขได้จะซ่อนไว้ แล้วอ่านจากตารางที่พับเก็บไว้ท้ายการ์ด
 
    ตัวเลขทุกค่ามาจาก getMonthlyAggregates() ตัวเดิมใน script.js ไม่ได้คิดใหม่
    ค่าเฉลี่ยของเดือน = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว */
@@ -25,6 +26,20 @@
   // พาเลตเดียวกับหน้าอื่นของ V3
   const SERIES = ['#6366f1', '#14b8a6', '#8b5cf6', '#f59e0b', '#f43f5e', '#0ea5e9', '#10b981', '#ec4899', '#a855f7', '#0891b2'];
   const charts = new Map();
+
+  /* โหมดของการ์ดแยกประเภท จำค่าไว้ในเครื่องเหมือนหน้าเทรน */
+  const MODE_KEY = 'pickProductivityMonthlyBreakdown:v3';
+  const MODES = [
+    { key: 'affiliations', label: '👥 สังกัด', unit: 'สังกัด' },
+    { key: 'categories', label: '🏷️ ประเภทงาน', unit: 'ประเภทงาน' },
+    { key: 'bu', label: '🏢 BU', unit: 'BU' }
+  ];
+  let mode = (() => {
+    try {
+      const v = localStorage.getItem(MODE_KEY);
+      return MODES.some((m) => m.key === v) ? v : 'affiliations';
+    } catch (e) { return 'affiliations'; }
+  })();
 
   function target() {
     return Number(window.TARGETS && window.TARGETS.overall) || 170;
@@ -122,16 +137,26 @@
     });
   }
 
-  /* ── การ์ดที่ 2-4: แยกตามสังกัด / ประเภทงาน / BU ──
-     กราฟไม่ติดตัวเลข ตัวเลขอยู่ในตารางใต้กราฟ จึงไม่มีทางทับเส้นหรือแท่ง */
-  function drawBreakdown(canvasId, months, key) {
+  /* ── การ์ดแยกประเภท: กราฟเดียว สลับด้วยปุ่ม ──
+     ตัวเลขวางไว้ "ในแท่ง" ตั้งตรง (rotation -90) สีขาวบนพื้นสีของแท่งเอง
+     จึงไม่มีทางทับเส้นเป้า ทับแท่งข้างเคียง หรือทับตัวเลขของเดือนอื่น
+     แท่งที่เตี้ยเกินกว่าจะใส่ตัวเลขได้จะซ่อนตัวเลขไว้ แล้วให้อ่านจากตารางใต้กราฟแทน */
+  function namesOf(months, key) {
     const names = [];
     months.forEach((m) => (m[key] || []).forEach((it) => {
       if (!names.includes(it.name)) names.push(it.name);
     }));
-    names.sort((a, b) => String(a).localeCompare(String(b), 'th'));
+    return names.sort((a, b) => String(a).localeCompare(String(b), 'th'));
+  }
+
+  function drawBreakdown(months, key) {
+    const names = namesOf(months, key);
     const t = target();
-    draw(canvasId, {
+    const all = [];
+    months.forEach((m) => (m[key] || []).forEach((it) => all.push(Number(it.average) || 0)));
+    const top = Math.max(t, ...(all.length ? all : [t]));
+    const minShow = top * 0.16;            // แท่งเตี้ยกว่านี้ใส่ตัวเลขในแท่งไม่พอ
+    draw('v3MonthlyBreakdownChart', {
       type: 'bar',
       data: {
         labels: months.map((m) => m.labelThaiShort || m.monthKey),
@@ -142,8 +167,20 @@
             return hit ? Number(hit.average) || 0 : null;
           }),
           backgroundColor: SERIES[i % SERIES.length],
-          borderRadius: 6, maxBarThickness: 34,
-          datalabels: { display: false }
+          hoverBackgroundColor: SERIES[i % SERIES.length],
+          borderRadius: 5,
+          maxBarThickness: 40,
+          datalabels: {
+            // วางในแท่ง ชิดด้านบนของแท่ง ตั้งตัวอักษรให้ตรงเพื่อไม่กินความกว้าง
+            anchor: 'end', align: 'start', offset: 6, rotation: -90, clamp: true, clip: true,
+            color: '#fff', font: { size: 10, weight: '700' },
+            textStrokeColor: 'rgba(15,23,42,.55)', textStrokeWidth: 2.5,
+            display: (ctx) => {
+              const v = ctx.dataset.data[ctx.dataIndex];
+              return typeof v === 'number' && v >= minShow;
+            },
+            formatter: (v) => fmt1(v)
+          }
         })).concat([{
           type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
           borderColor: 'rgba(245,158,11,.95)', borderWidth: 2, borderDash: [7, 5],
@@ -152,7 +189,7 @@
       },
       options: {
         maintainAspectRatio: false,
-        layout: { padding: { top: 18, right: 14, bottom: 4, left: 4 } },
+        layout: { padding: { top: 14, right: 14, bottom: 4, left: 4 } },
         plugins: {
           legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 9, padding: 14, font: { size: 11 } } },
           tooltip: {
@@ -166,7 +203,7 @@
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' } } },
           y: {
-            beginAtZero: true, grace: '10%',
+            beginAtZero: true, grace: '8%',
             grid: { color: 'rgba(148,163,184,.22)' },
             ticks: { font: { size: 10.5 } },
             title: { display: true, text: 'หยิบ/ชม.', font: { size: 11, weight: '600' } }
@@ -243,32 +280,45 @@
       + '</div>'
       + card('📊 ภาพรวมทุกเดือน',
         'แท่ง = ยอดหยิบรวมของเดือน (แกนซ้าย) · เส้นแดง = ค่าเฉลี่ยต่อชั่วโมง (แกนขวา) · เส้นประ = เป้า'
-        + ' · ตัวเลขติดเฉพาะบนเส้น และเว้นที่ด้านบนไว้ให้อ่านได้ชัด ไม่ทับกับแท่ง',
+        + ' · ตัวเลขติดเฉพาะบนเส้น มีขอบขาวรอบตัวอักษร จึงไม่จมกับเส้นและไม่ทับแท่ง',
         'v3MonthlyOverviewChart', true)
-      + card('👥 แยกตามสังกัด',
-        'เทียบค่าเฉลี่ยต่อชั่วโมงของแต่ละสังกัดในเดือนเดียวกัน · ตัวเลขทุกค่าอยู่ในตารางใต้กราฟ',
-        'v3MonthlyAffChart', false)
-      + card('🏷️ แยกตามประเภทงาน',
-        'Full Rack / Half Rack / Micro Rack / Pick to Sort / Mezzanine · ตัวเลขทุกค่าอยู่ในตารางใต้กราฟ',
-        'v3MonthlyWorkChart', false)
-      + card('🏢 แยกตาม BU',
-        'เทียบค่าเฉลี่ยต่อชั่วโมงของแต่ละ BU ในเดือนเดียวกัน · ตัวเลขทุกค่าอยู่ในตารางใต้กราฟ',
-        'v3MonthlyBuChart', false)
+      + '<section class="card wide" style="margin-bottom:18px;">'
+        + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนแยกตามประเภท</h3>'
+        + '<div class="sub">กดปุ่มเพื่อสลับมุมมอง · ตัวเลขอยู่ในแท่งแต่ละอัน จึงไม่ทับเส้นเป้าและไม่ทับแท่งข้างเคียง'
+        + ' · แท่งที่เตี้ยเกินกว่าจะใส่ตัวเลขได้ให้อ่านจากตารางท้ายการ์ด</div></div>'
+        + '<div class="seg" id="v3MonthlyModeTog">'
+        + MODES.map((m) => '<button type="button" data-mmode="' + m.key + '"'
+          + (mode === m.key ? ' class="active"' : '') + '>' + m.label + '</button>').join('')
+        + '</div></div>'
+        + '<div class="chartbox tall"><canvas id="v3MonthlyBreakdownChart"></canvas></div>'
+        + '<details id="v3MonthlyTableWrap" style="margin-top:14px;">'
+        + '<summary style="cursor:pointer; font-size:12px; font-weight:700; color:#4f46e5;">ดูตัวเลขทุกค่าเป็นตาราง</summary>'
+        + '<div data-after="v3MonthlyBreakdownChart" style="margin-top:10px;"></div></details>'
+        + '</section>'
       + '<div class="note v3-notice">ค่าเฉลี่ยของเดือนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว'
       + ' ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำ · สีเขียวในตารางคือถึงเป้า สีแดงคือยังไม่ถึง'
       + ' · หน้านี้กางทุกเดือนที่มีข้อมูล ไม่หุบตามตัวกรองวันที่ด้านบน</div>';
 
     drawOverview(months);
-    const aff = drawBreakdown('v3MonthlyAffChart', months, 'affiliations');
-    const work = drawBreakdown('v3MonthlyWorkChart', months, 'categories');
-    const bu = drawBreakdown('v3MonthlyBuChart', months, 'bu');
-    const put = (canvasId, html) => {
-      const slot = host.querySelector('[data-after="' + canvasId + '"]');
-      if (slot) slot.innerHTML = html;
-    };
-    put('v3MonthlyAffChart', breakdownTable(months, 'affiliations', aff));
-    put('v3MonthlyWorkChart', breakdownTable(months, 'categories', work));
-    put('v3MonthlyBuChart', breakdownTable(months, 'bu', bu));
+    paintBreakdown(host, months);
+
+    host.querySelectorAll('#v3MonthlyModeTog button[data-mmode]').forEach((b) => {
+      b.addEventListener('click', () => {
+        if (b.dataset.mmode === mode) return;
+        mode = b.dataset.mmode;
+        try { localStorage.setItem(MODE_KEY, mode); } catch (e) { /* โหมดส่วนตัวเขียนไม่ได้ ไม่เป็นไร */ }
+        host.querySelectorAll('#v3MonthlyModeTog button[data-mmode]').forEach((x) => {
+          x.classList.toggle('active', x.dataset.mmode === mode);
+        });
+        paintBreakdown(host, months);       // สลับกราฟในที่เดิม ไม่ต้องวาดหน้าใหม่ทั้งหน้า
+      });
+    });
+  }
+
+  function paintBreakdown(host, months) {
+    const names = drawBreakdown(months, mode);
+    const slot = host.querySelector('[data-after="v3MonthlyBreakdownChart"]');
+    if (slot) slot.innerHTML = breakdownTable(months, mode, names);
   }
 
   function renderIfVisible() {
