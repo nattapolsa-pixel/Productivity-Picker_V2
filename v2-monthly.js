@@ -41,6 +41,14 @@
     } catch (e) { return 'affiliations'; }
   })();
 
+  /* มุมมอง: แยกกราฟย่อยประเภทละใบ (ตั้งต้น) หรือรวมทุกประเภทในกราฟเดียว
+     ตั้งต้นเป็นแบบแยก เพราะกราฟเดียวที่แบกทุกประเภทพร้อมกันมีตัวเลขเยอะจนอ่านยาก */
+  const VIEW_KEY = 'pickProductivityMonthlyView:v3';
+  let view = (() => {
+    try { return localStorage.getItem(VIEW_KEY) === 'combined' ? 'combined' : 'split'; }
+    catch (e) { return 'split'; }
+  })();
+
   function target() {
     return Number(window.TARGETS && window.TARGETS.overall) || 170;
   }
@@ -248,6 +256,94 @@
     return names;
   }
 
+  /* ── กราฟย่อยประเภทละใบ ──
+     แต่ละใบมีตัวเลขแค่ชุดเดียว (แท่งของประเภทนั้น) จึงอ่านออกชัดและเทียบรูปทรงกันได้ง่าย
+     เส้นแดงบางคือค่าเฉลี่ยรวมของเดือน ไว้ดูว่าประเภทนี้อยู่เหนือหรือใต้ค่าเฉลี่ยรวม (ไม่ติดตัวเลข กันรกตา) */
+  function drawSmall(canvasId, months, key, name, color) {
+    const t = target();
+    const series = months.map((m) => {
+      const hit = (m[key] || []).find((it) => it.name === name);
+      return hit ? Number(hit.average) || 0 : null;
+    });
+    const top = Math.max(t, ...series.map((v) => Number(v) || 0));
+    draw(canvasId, {
+      type: 'bar',
+      data: {
+        labels: months.map((m) => m.labelThaiShort || m.monthKey),
+        datasets: [
+          {
+            type: 'bar', label: name, data: series,
+            backgroundColor: series.map((v) => (v === null ? 'rgba(148,163,184,.25)' : (v >= t ? color : 'rgba(244,63,94,.55)'))),
+            borderRadius: 6, maxBarThickness: 46, order: 2,
+            datalabels: {
+              anchor: 'end', align: 'start', offset: 6, clamp: true, clip: true,
+              color: '#fff', font: { size: 13, weight: '800' },
+              backgroundColor: 'rgba(15,23,42,.78)', borderRadius: 6,
+              padding: { top: 3, bottom: 3, left: 6, right: 6 },
+              display: (ctx) => {
+                const v = ctx.dataset.data[ctx.dataIndex];
+                return typeof v === 'number' && top > 0 && v >= top * 0.14;
+              },
+              formatter: (v) => fmt(v)
+            }
+          },
+          {
+            type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน', data: months.map((m) => Number(m.average) || 0),
+            borderColor: '#f43f5e', borderWidth: 2, pointRadius: 2.5,
+            pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 1.5,
+            tension: .3, fill: false, order: 0, datalabels: { display: false }
+          },
+          {
+            type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
+            borderColor: 'rgba(245,158,11,.9)', borderWidth: 2, borderDash: [6, 4],
+            pointRadius: 0, fill: false, order: 1, datalabels: { display: false }
+          }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        layout: { padding: { top: 16, right: 10, bottom: 2, left: 2 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,.94)', padding: 10, cornerRadius: 9,
+            callbacks: {
+              title: (items) => months[items[0].dataIndex].labelThai || months[items[0].dataIndex].monthKey,
+              label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : fmt1(item.raw) + ' หยิบ/ชม.')
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 10.5, weight: '600' } } },
+          y: { beginAtZero: true, grace: '14%', grid: { color: 'rgba(148,163,184,.2)' }, ticks: { font: { size: 10 } } }
+        }
+      }
+    });
+  }
+
+  /* หัวการ์ดของกราฟย่อย บอกค่าเฉลี่ยรวมของประเภทนั้นและจำนวนเดือนที่ถึงเป้า */
+  function smallHead(months, key, name, color, idx) {
+    const t = target();
+    let sum = 0, count = 0, hit = 0, has = 0;
+    months.forEach((m) => {
+      const it = (m[key] || []).find((x) => x.name === name);
+      if (!it) return;
+      const c = Number(it.count) || 0;
+      sum += (Number(it.rawAverage) || Number(it.average) || 0) * c;
+      count += c;
+      has += 1;
+      if ((Number(it.average) || 0) >= t) hit += 1;
+    });
+    const avg = count ? sum / count : null;
+    const pillClass = avg !== null && avg >= t ? 'good' : 'warn';
+    return '<div class="staff-card-head" style="margin-bottom:8px;">'
+      + '<div><h3 style="font-size:14px; display:flex; align-items:center; gap:8px;">'
+      + '<span style="width:12px; height:12px; border-radius:4px; background:' + color + '; flex-shrink:0;"></span>'
+      + esc(name) + '</h3>'
+      + '<div class="sub">เฉลี่ยรวม ' + (avg === null ? '—' : fmt1(avg)) + ' หยิบ/ชม. · ถึงเป้า ' + fmt(hit) + ' / ' + fmt(has) + ' เดือน</div></div>'
+      + '<span class="v3-pill ' + pillClass + '">' + (avg === null ? 'ไม่มีข้อมูล' : (avg >= t ? 'ถึงเป้า' : 'ต่ำกว่าเป้า ' + fmt1(t - avg))) + '</span></div>';
+  }
+
   /* ตารางค่าใต้กราฟ — เดือนเป็นแถว ประเภทเป็นคอลัมน์ อ่านได้ครบทุกค่าโดยไม่ต้องแย่งที่กับกราฟ */
   function breakdownTable(months, key, names) {
     if (!names.length) return '<div class="staff-miss-ok">ยังไม่มีข้อมูลของประเภทนี้ในช่วงที่มี</div>';
@@ -317,15 +413,20 @@
         + ' · ตัวเลขของเส้นลอยอยู่ด้านบนพร้อมขอบขาว ส่วนยอดหยิบเป็นป้ายในแท่ง จึงอยู่คนละระดับ ไม่ทับกัน',
         'v3MonthlyOverviewChart', true)
       + '<section class="card wide" style="margin-bottom:18px;">'
-        + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนแยกตามประเภท</h3>'
-        + '<div class="sub">กดปุ่มเพื่อสลับมุมมอง · ตัวเลขในแท่งเป็นค่าเฉลี่ยต่อชั่วโมงของประเภทนั้น (ปัดเป็นจำนวนเต็ม)'
-        + ' · เส้นแดง = ค่าเฉลี่ยรวมของเดือน · เส้นประ = เป้า'
-        + ' · แท่งที่เตี้ยเกินกว่าจะใส่ป้ายได้ให้อ่านจากตารางท้ายการ์ด</div></div>'
+        + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนทีละประเภท</h3>'
+        + '<div class="sub">เลือกว่าจะดูแยกทีละประเภทหรือรวมในกราฟเดียว'
+        + ' · ตัวเลขในแท่งคือค่าเฉลี่ยต่อชั่วโมงของประเภทนั้น (ปัดเป็นจำนวนเต็ม ค่าเต็มดูที่ตารางท้ายการ์ด)'
+        + ' · เส้นแดง = ค่าเฉลี่ยรวมของเดือน · เส้นประส้ม = เป้า</div></div>'
+        + '<div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">'
         + '<div class="seg" id="v3MonthlyModeTog">'
         + MODES.map((m) => '<button type="button" data-mmode="' + m.key + '"'
           + (mode === m.key ? ' class="active"' : '') + '>' + m.label + '</button>').join('')
-        + '</div></div>'
-        + '<div class="chartbox tall" style="height:440px;"><canvas id="v3MonthlyBreakdownChart"></canvas></div>'
+        + '</div>'
+        + '<div class="seg" id="v3MonthlyViewTog">'
+        + '<button type="button" data-mview="split"' + (view === 'split' ? ' class="active"' : '') + '>🔎 แยกทีละประเภท</button>'
+        + '<button type="button" data-mview="combined"' + (view === 'combined' ? ' class="active"' : '') + '>📊 รวมในกราฟเดียว</button>'
+        + '</div></div></div>'
+        + '<div id="v3MonthlyBreakdownArea"></div>'
         + '<details id="v3MonthlyTableWrap" style="margin-top:14px;">'
         + '<summary style="cursor:pointer; font-size:12px; font-weight:700; color:#4f46e5;">ดูตัวเลขทุกค่าเป็นตาราง</summary>'
         + '<div data-after="v3MonthlyBreakdownChart" style="margin-top:10px;"></div></details>'
@@ -348,13 +449,59 @@
         paintBreakdown(host, months);       // สลับกราฟในที่เดิม ไม่ต้องวาดหน้าใหม่ทั้งหน้า
       });
     });
+
+    host.querySelectorAll('#v3MonthlyViewTog button[data-mview]').forEach((b) => {
+      b.addEventListener('click', () => {
+        if (b.dataset.mview === view) return;
+        view = b.dataset.mview;
+        try { localStorage.setItem(VIEW_KEY, view); } catch (e) { /* โหมดส่วนตัวเขียนไม่ได้ ไม่เป็นไร */ }
+        host.querySelectorAll('#v3MonthlyViewTog button[data-mview]').forEach((x) => {
+          x.classList.toggle('active', x.dataset.mview === view);
+        });
+        paintBreakdown(host, months);
+      });
+    });
+  }
+
+  /* กราฟของการ์ดนี้ถูกสร้าง-ทำลายบ่อยตอนสลับมุมมอง จึงจดชื่อไว้เพื่อเก็บให้หมด */
+  const breakdownIds = [];
+  function destroyBreakdownCharts() {
+    breakdownIds.forEach((id) => {
+      const c = charts.get(id);
+      if (c) { try { c.destroy(); } catch (e) { /* ข้าม */ } charts.delete(id); }
+    });
+    breakdownIds.length = 0;
   }
 
   function paintBreakdown(host, months) {
-    const names = drawBreakdown(months, mode);
+    const area = $('v3MonthlyBreakdownArea');
+    if (!area) return;
+    destroyBreakdownCharts();
+    const names = namesOf(months, mode);
+    if (!names.length) {
+      area.innerHTML = '<div class="staff-miss-ok">ยังไม่มีข้อมูลของประเภทนี้</div>';
+    } else if (view === 'combined') {
+      area.innerHTML = '<div class="chartbox tall" style="height:440px;"><canvas id="v3MonthlyBreakdownChart"></canvas></div>';
+      drawBreakdown(months, mode);
+      breakdownIds.push('v3MonthlyBreakdownChart');
+    } else {
+      // แยกกราฟย่อยประเภทละใบ สองใบต่อแถวบนจอกว้าง ใบเดียวต่อแถวบนมือถือ
+      area.innerHTML = '<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(330px, 1fr)); gap:14px;">'
+        + names.map((name, i) =>
+          '<div style="border:1px solid #e2e8f0; border-radius:14px; padding:12px 14px; background:#fff;">'
+          + smallHead(months, mode, name, SERIES[i % SERIES.length], i)
+          + '<div class="chartbox" style="height:230px;"><canvas id="v3MonthlySmall' + i + '"></canvas></div>'
+          + '</div>').join('')
+        + '</div>';
+      names.forEach((name, i) => {
+        drawSmall('v3MonthlySmall' + i, months, mode, name, SERIES[i % SERIES.length]);
+        breakdownIds.push('v3MonthlySmall' + i);
+      });
+    }
     const slot = host.querySelector('[data-after="v3MonthlyBreakdownChart"]');
     if (slot) slot.innerHTML = breakdownTable(months, mode, names);
   }
+
 
   function renderIfVisible() {
     const panel = $('tab-monthly');
