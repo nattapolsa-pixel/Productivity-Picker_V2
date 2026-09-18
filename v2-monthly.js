@@ -132,16 +132,18 @@
             backgroundColor: 'rgba(99,102,241,.75)', hoverBackgroundColor: 'rgba(79,70,229,.95)',
             borderRadius: 8, maxBarThickness: 62, yAxisID: 'y', order: 1,   // แท่งวาดก่อน เส้นจะได้ทับบนแท่ง
             datalabels: {
-              // ยอดหยิบใส่เป็นป้ายชิปในแท่ง จึงอยู่คนละระดับกับตัวเลขของเส้นที่ลอยอยู่ด้านบน
-              anchor: 'end', align: 'start', offset: 6, clamp: true, clip: true,
-              color: '#fff', font: { size: 11.5, weight: '800' },
-              backgroundColor: 'rgba(30,41,59,.72)', borderRadius: 6,
+              // ป้ายยอดหยิบวางที่ "โคนแท่ง" ไม่ใช่ยอดแท่ง
+              // เพราะแกนซ้าย (ยอดหยิบ) กับแกนขวา (ค่าเฉลี่ย) บรรจบกันแถวยอดแท่งพอดี
+              // เส้นแดงจึงวิ่งผ่านป้ายที่ยอดแท่งทุกเดือน ย้ายลงโคนแท่งแล้วไม่มีทางชนกันอีก
+              anchor: 'start', align: 'end', offset: 8, clamp: true, clip: true,
+              color: '#fff', font: { size: 12, weight: '800' },
+              backgroundColor: 'rgba(30,41,59,.82)', borderRadius: 6,
               padding: { top: 3, bottom: 3, left: 6, right: 6 },
               display: (ctx) => {
                 const arr = ctx.dataset.data;
                 const v = arr[ctx.dataIndex];
                 const top = Math.max(...arr.map((x) => Number(x) || 0));
-                return typeof v === 'number' && top > 0 && v >= top * 0.14;
+                return typeof v === 'number' && top > 0 && v >= top * 0.12;
               },
               formatter: (v) => fmt(v)
             }
@@ -327,13 +329,15 @@
             backgroundColor: series.map((v) => (v === null ? 'rgba(148,163,184,.25)' : (v >= t ? color : 'rgba(244,63,94,.55)'))),
             borderRadius: 6, maxBarThickness: 46, order: 1,   // แท่งวาดก่อน เส้นจะได้ทับบนแท่ง
             datalabels: {
-              anchor: 'end', align: 'start', offset: 6, clamp: true, clip: true,
+              // ป้ายวางที่โคนแท่ง เพราะเส้นค่าเฉลี่ยรวมใช้แกนเดียวกับแท่ง
+              // ถ้าวางที่ยอดแท่งจะชนเส้นทุกครั้งที่ค่าของประเภทนี้ใกล้ค่าเฉลี่ยรวม
+              anchor: 'start', align: 'end', offset: 8, clamp: true, clip: true,
               color: '#fff', font: { size: 13, weight: '800' },
-              backgroundColor: 'rgba(15,23,42,.78)', borderRadius: 6,
+              backgroundColor: 'rgba(15,23,42,.82)', borderRadius: 6,
               padding: { top: 3, bottom: 3, left: 6, right: 6 },
               display: (ctx) => {
                 const v = ctx.dataset.data[ctx.dataIndex];
-                return typeof v === 'number' && top > 0 && v >= top * 0.14;
+                return typeof v === 'number' && top > 0 && v >= top * 0.12;
               },
               formatter: (v) => fmt(v)
             }
@@ -466,7 +470,7 @@
       + '</div>'
       + card('📊 ภาพรวมทุกเดือน',
         'แท่ง = ยอดหยิบรวมของเดือน (แกนซ้าย) · เส้นแดง = ค่าเฉลี่ยต่อชั่วโมง (แกนขวา) · เส้นประ = เป้า'
-        + ' · ตัวเลขของเส้นลอยอยู่ด้านบนพร้อมขอบขาว ส่วนยอดหยิบเป็นป้ายในแท่ง จึงอยู่คนละระดับ ไม่ทับกัน',
+        + ' · ตัวเลขของเส้นอยู่ด้านบน ส่วนยอดหยิบเป็นป้ายที่โคนแท่ง จึงอยู่คนละระดับ ไม่ทับกัน',
         'v3MonthlyOverviewChart', true)
       + '<section class="card wide" style="margin-bottom:18px;">'
         + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนทีละประเภท</h3>'
