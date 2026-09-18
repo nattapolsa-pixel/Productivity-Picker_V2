@@ -224,30 +224,34 @@
     const unknownCounted = unknownZone.filter((x) => x.counted);
     const unknownTarget = S().zoneTargetOf(UNKNOWN_ZONE);
 
-    host.innerHTML = S().statCards([
-      ['👥 พนักงานทั้งหมด', fmt(list.length), 'คน',
-        `มีแถวในช่วงที่เลือก · นับ Productivity ได้ ${fmt(counted.length)} คน`, '#6366f1'],
-      ['✅ ถึง Target', fmt(hit.length), 'คน',
-        counted.length ? `${fmt(hit.length / counted.length * 100, 1)}% ของคนที่นับได้ · เท่ากับเป้านับว่าผ่าน` : 'ยังไม่มีคนที่นับได้', '#16a34a'],
-      ['⚠️ ต่ำกว่า Target', fmt(below.length), 'คน', 'ดูรายละเอียดต่อที่เมนู “ไม่ถึงเป้า”', '#e11d48'],
-      ['📊 Efficiency เฉลี่ย', avgEff === null ? '—' : fmt(avgEff, 1) + '%', '',
-        'เฉลี่ยของ % รายคน เทียบ Target โซนหลักที่ทำจริง · ไม่ถ่วงน้ำหนักด้วยจำนวนแถว '
-        + '(คนที่มีแถวเข้าเฉลี่ยแถวเดียวมีน้ำหนักเท่าคนที่มี 200 แถว)', effColor],
-      ['➖ ไม่ตัดสินผ่าน/ไม่ผ่าน', fmt(list.length - counted.length), 'คน',
-        'ไม่มีแถวที่นับได้เลย จึงไม่มีค่าเฉลี่ย', '#64748b']
-    ])
-    + `<div class="card wide">
+    /* วางการ์ด KPI ไว้ในการ์ดกราฟใบเดียวกันใต้หัวเรื่อง และเหลือ 4 ใบ ตามหน้า individual ของ V2
+       (ใบ "ไม่ตัดสินผ่าน/ไม่ผ่าน" ยุบไปเป็นบรรทัดรองของใบแรกแทน) */
+    host.innerHTML = `<div class="card wide">
         <h3>👤 ภาพรวมรายบุคคล — เทียบทุกคน</h3>
         <div class="sub">เทียบ Productivity รายคนกับ Target ของโซนหลัก (โซนที่มีแถวเข้าเฉลี่ยมากที่สุด)
           · กดชื่อหรือปุ่ม Scorecard ในตารางเพื่อเจาะลึกรายคน</div>
-        <div class="seg" style="margin-bottom:10px;">
-          <button type="button" data-ind-side="top"${chartSide === 'top' ? ' class="active"' : ''}>20 คนสูงสุด</button>
-          <button type="button" data-ind-side="bottom"${chartSide === 'bottom' ? ' class="active"' : ''}>20 คนต่ำสุด</button>
+        ${S().statCards([
+          ['👥 พนักงานทั้งหมด', fmt(list.length), 'คน',
+            `นับ Productivity ได้ ${fmt(counted.length)} คน · ไม่ตัดสิน ${fmt(list.length - counted.length)} คน`, '#6366f1'],
+          ['✅ ถึง Target', fmt(hit.length), 'คน',
+            counted.length ? `${fmt(hit.length / counted.length * 100, 1)}% ของคนที่นับได้` : 'ยังไม่มีคนที่นับได้', '#16a34a'],
+          ['⚠️ ต่ำกว่า Target', fmt(below.length), 'คน', 'ดูรายละเอียดต่อที่เมนู “ไม่ถึงเป้า”', '#e11d48'],
+          ['📊 Efficiency เฉลี่ย', avgEff === null ? '—' : fmt(avgEff, 1) + '%', '',
+            'เทียบ Target ของโซนที่ทำจริง · เฉลี่ยของ % รายคนแบบไม่ถ่วงน้ำหนัก', effColor]
+        ])}
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px;">
+          <div class="seg">
+            <button type="button" data-ind-side="top"${chartSide === 'top' ? ' class="active"' : ''}>20 คนสูงสุด</button>
+            <button type="button" data-ind-side="bottom"${chartSide === 'bottom' ? ' class="active"' : ''}>20 คนต่ำสุด</button>
+          </div>
+          <span class="pill">แสดง ${fmt(Math.min(20, counted.length))} คน จากที่นับได้ ${fmt(counted.length)} คน</span>
         </div>
-        <div class="chartbox" style="height:${Math.max(320, Math.min(20, counted.length) * 28 + 90)}px;">
+        <div class="chartbox tall" style="margin-top:16px;">
           <canvas id="v3IndCompareChart"></canvas>
         </div>
-        <div class="note v3-notice">ตัวเลขทุกค่าคิดจากแถวของคนนั้นในข้อมูลผลงาน
+        <details style="margin-top:12px;">
+        <summary style="cursor:pointer; font-size:12px; font-weight:700; color:#4f46e5;">ที่มาของตัวเลข และสิ่งที่ไม่มีในหน้านี้</summary>
+        <div class="note v3-notice" style="margin-top:8px;">ตัวเลขทุกค่าคิดจากแถวของคนนั้นในข้อมูลผลงาน
           · Productivity = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น (รวมครั้งเดียว ไม่เอาค่าเฉลี่ยมาเฉลี่ยซ้ำ)
           · Total Pick = ผลรวมยอดหยิบของทุกแถวที่มีวันที่ รวมแถวที่ไม่เข้าเฉลี่ยด้วย
           · ชั่วโมงทำงานตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง
@@ -262,6 +266,7 @@
           · Location ระดับช่อง · เวลาเริ่ม-จบระดับนาที · ชั่วโมง OT · Target ผสมตามสัดส่วนโซน (blendedTarget)
           ของ V2 จึงไม่ถูกนำมาแสดง และโซนในต้นทางคือ<b>โซนสังกัด 1 แถวต่อคนต่อวัน</b> ไม่ใช่โซนที่หยิบจริงรายรายการ
           · ช่องค้นหาอยู่บนตารางด้านล่าง</div>
+        </details>
       </div>
       <h2 class="staff-table-title">ตารางเทียบผลงานรายบุคคล</h2>
       <p class="panel-desc">เรียงตาม % Efficiency มาก→น้อย เป็นค่าตั้งต้น · กดหัวคอลัมน์เพื่อเรียงใหม่
@@ -277,18 +282,20 @@
     ];
 
     S().table($('v3IndCompareTable'), 'individual-compare', ordered, [
+      /* อันดับเป็นอีโมจิเปล่า ๆ ไม่ห่อ span.rank ตามหน้า individual ของ V2 */
       { title: 'อันดับ', value: (x) => (x.rank === null ? '' : x.rank), num: true, sortValue: (x) => x.rank,
-        html: (x) => (x.rank === null ? '—' : `<span class="rank">${medal(x.rank)}</span>`) },
-      { title: 'รหัสพนักงาน', value: (x) => x.id,
-        html: (x) => `<button type="button" data-individual="${esc(x.id)}" title="เปิด Scorecard">${esc(x.id)}</button>` },
-      { title: 'ชื่อ', value: (x) => x.name,
-        html: (x) => `<button type="button" data-individual="${esc(x.id)}" title="เปิด Scorecard">${esc(x.name)}</button>`
+        html: (x) => (x.rank === null ? '—' : medal(x.rank)) },
+      /* รหัสกับชื่ออยู่ช่องเดียวกัน รหัสตัวหนาบรรทัดบน ชื่อเป็นบรรทัดรอง เหมือน V2 */
+      { title: 'รหัส / ชื่อ', value: (x) => x.id + ' ' + x.name,
+        html: (x) => `<button type="button" data-individual="${esc(x.id)}" title="เปิด Scorecard"><b>${esc(x.id)}</b></button>`
           + resignedBadge(x.resigned)
-          + (x.nick || !x.master ? `<span class="sub">${[x.nick ? 'ชื่อเล่น ' + esc(x.nick) : '', x.master ? '' : 'ไม่พบในทะเบียน'].filter(Boolean).join(' · ')}</span>` : '') },
-      { title: 'สังกัด', value: (x) => (x.master ? x.master[4] : '') || x.rows[x.rows.length - 1][34] || 'Not Found' },
-      { title: 'กะ', value: (x) => x.shift,
-        html: (x) => esc(x.shift) + (x.master && x.master[12] && String(x.master[12]).trim() !== x.shift
-          ? `<span class="sub">ทะเบียน: ${esc(x.master[12])}</span>` : '') },
+          + `<span class="sub">${esc(x.name !== x.id ? x.name : '-')}`
+          + `${x.nick ? ' · ชื่อเล่น ' + esc(x.nick) : ''}${x.master ? '' : ' · ไม่พบในทะเบียน'}</span>` },
+      /* สังกัดกับกะรวมช่องเดียว เหมือน V2 */
+      { title: 'สังกัด / กะ', value: (x) => ((x.master ? x.master[4] : '') || x.rows[x.rows.length - 1][34] || 'Not Found') + ' ' + x.shift,
+        html: (x) => esc((x.master ? x.master[4] : '') || x.rows[x.rows.length - 1][34] || 'Not Found')
+          + `<span class="sub">กะ ${esc(x.shift)}`
+          + `${x.master && x.master[12] && String(x.master[12]).trim() !== x.shift ? ' · ทะเบียน ' + esc(x.master[12]) : ''}</span>` },
       { title: 'โซนหลัก', value: (x) => x.zone.label,
         html: (x) => `${esc(x.zone.label)}<span class="sub">${esc(S().zoneLabels[x.zone.group] || 'ไม่พบโซน')}`
           + ` · ${fmt(x.zoneRowCount)} แถวเข้าเฉลี่ย${x.zoneCount > 1 ? ' · ทำ ' + fmt(x.zoneCount) + ' โซน' : ''}</span>` },
@@ -311,7 +318,7 @@
       /* value คืนค่าว่าง เพราะเป็นคอลัมน์ปุ่ม ไม่ใช่ข้อมูล
          ถ้าคืน 'Scorecard' ทุกแถว ช่องค้นหาจะแมตช์ทุกแถวเมื่อพิมพ์ card/score และ CSV จะได้คอลัมน์ค่าซ้ำเปล่า ๆ */
       { title: 'เจาะลึก', value: () => '',
-        html: (x) => `<button type="button" data-individual="${esc(x.id)}">Scorecard</button>` }
+        html: (x) => `<button type="button" class="refreshbtn" style="padding:4px 10px; font-size:11px;" data-individual="${esc(x.id)}">Scorecard</button>` }
     ]);
   }
 
@@ -339,7 +346,7 @@
       options: {
         indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 70 } },
+        layout: { padding: { right: 65 } },
         plugins: {
           legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, padding: 14, font: { size: 11 } } },
           datalabels: {
