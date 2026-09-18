@@ -74,7 +74,10 @@
   }
 
   /* ── สภาพหน้าจอที่ผู้ใช้เลือกเอง (ไม่กระทบตัวเลข) ── */
-  let dailyWindow = 'all';        // 'all' = ทุกวันในช่วงที่กรอง · 'last30' = 30 วันล่าสุด
+  /* เดือนที่กราฟรายวันกำลังกาง ('' = เดือนของวันที่ที่เลือกบนแถบตัวกรอง)
+     กราฟรายวันไม่หุบตามตัวกรองวันที่ เพราะค่าเริ่มต้นของเว็บเป็นวันล่าสุดวันเดียว
+     ถ้าหุบตามจะเห็นจุดเดียว จึงกางทั้งเดือนแบบหน้าภาพรวม แล้วเน้นวันที่อยู่ในตัวกรองไว้ */
+  let dailyMonth = '';
 
   /* ── จัดกลุ่มข้อมูล ──
      ทุกกลุ่มส่งแถวดิบเข้า M.aggregate() ครั้งเดียว จึงได้ sum/count ของกลุ่มตรง */
@@ -112,9 +115,67 @@
   /* ระบบ: ใช้ M.matches เพื่อให้ BPS เริ่มนับ 08/06/2026 ตามกฎ V1 เหมือนตัวกรองด้านบน */
   const SYSTEM_LABEL = { PTT: 'Pick (PTT)', BPS: 'Pick to Sort (BPS)' };
 
+  /* แถวที่ผ่านตัวกรองระบบและกะ แต่ไม่จำกัดช่วงวันที่ — ใช้กางกราฟรายวันทั้งเดือน */
+  function rowsAllDates() {
+    const filters = (window.V3Data && window.V3Data.filters) || {};
+    return S.rows.filter((r) => M.date(r[2]) && M.matches(r, filters));
+  }
+
+  function monthKeysAvailable(rows) {
+    const set = new Set();
+    rows.forEach((r) => set.add(M.date(r[2]).slice(0, 7)));
+    return [...set].sort();
+  }
+
+  function activeMonth(rows) {
+    const months = monthKeysAvailable(rows);
+    if (dailyMonth && months.includes(dailyMonth)) return dailyMonth;
+    const end = $('endDate') && $('endDate').value ? $('endDate').value : '';
+    const start = $('startDate') && $('startDate').value ? $('startDate').value : '';
+    const pick = (end || start).slice(0, 7);
+    if (pick && months.includes(pick)) return pick;
+    return months[months.length - 1] || '';
+  }
+
+  const THAI_MONTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  function monthLabel(key) {
+    if (!key) return '—';
+    const p = key.split('-').map(Number);
+    return THAI_MONTH[p[1] - 1] + ' ' + (p[0] + 543);
+  }
+
+  /* วันทั้งเดือนตามปฏิทิน พร้อมค่าของแต่ละวัน (วันที่ไม่มีข้อมูลเป็น null เพื่อให้เส้นขาดช่วงตามจริง) */
+  function daysOfMonth(monthKey, rows, targetValue) {
+    if (!monthKey) return [];
+    const parts = monthKey.split('-').map(Number);
+    const last = new Date(Date.UTC(parts[0], parts[1], 0)).getUTCDate();
+    const start = $('startDate') && $('startDate').value ? $('startDate').value : '';
+    const end = $('endDate') && $('endDate').value ? $('endDate').value : '';
+    const byDate = bucket(rows.filter((r) => M.date(r[2]).slice(0, 7) === monthKey), (r) => M.date(r[2]));
+    const out = [];
+    for (let d = 1; d <= last; d += 1) {
+      const date = monthKey + '-' + String(d).padStart(2, '0');
+      const rowsOfDay = byDate.get(date) || [];
+      const st = M.aggregate(rowsOfDay);
+      out.push({
+        date,
+        s: st,
+        eff: effOf(st.average, targetValue),
+        gap: st.average === null ? null : st.average - targetValue,
+        pass: passed(st.average, targetValue),
+        inFilter: (!start || date >= start) && (!end || date <= end)
+      });
+    }
+    return out;
+  }
+
   function buildModel() {
     const data = S.visible();                          // กรองวันที่ + ระบบ + กะ ชุดเดียวกับทุกหน้า
     const target = overallTarget();
+    // กรองแถวที่ไม่จำกัดวันที่ครั้งเดียว แล้วส่งต่อ เพราะแถวต้นทางมีหลายหมื่นแถว
+    const allRows = rowsAllDates();
+    const monthList = monthKeysAvailable(allRows);
+    const monthKey = activeMonth(allRows);
     const all = M.aggregate(data);
 
     /* รายวัน */
@@ -183,6 +244,7 @@
 
     return {
       data, target, all, days, judgedDays, hitDays, judgedPeople, hitPeople, persons,
+      allRows, monthKey, monthDays: daysOfMonth(monthKey, allRows, target), monthList,
       shifts, systems, bpsEarly, payTypes, zones,
       eff: effOf(all.average, target)
     };
@@ -217,9 +279,31 @@
     charts.set(id, new Chart(el, config));
   }
 
+  /* ปุ่มเลื่อนเดือนของกราฟรายวัน หน้าตาเดียวกับแถบเลื่อนเดือนของหน้าภาพรวม */
+  function monthNavHtml(model) {
+    const months = model.monthList || [];
+    const i = months.indexOf(model.monthKey);
+    const btn = (dir, label, disabled) => '<button type="button" data-eff-month="' + dir + '"' + (disabled ? ' disabled' : '')
+      + ' style="border:1px solid ' + (disabled ? '#e2e8f0' : '#cbd5e1') + '; background:' + (disabled ? '#f8fafc' : '#fff')
+      + '; color:' + (disabled ? '#cbd5e1' : '#334155') + '; font-family:inherit; font-size:14px; font-weight:700;'
+      + ' width:30px; height:30px; border-radius:9px; line-height:1; cursor:' + (disabled ? 'not-allowed' : 'pointer') + ';">' + label + '</button>';
+    const monthEff = (() => {
+      const rows = (model.allRows || []).filter((r) => M.date(r[2]).slice(0, 7) === model.monthKey);
+      const st = M.aggregate(rows);
+      return effOf(st.average, model.target);
+    })();
+    return '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">'
+      + btn('prev', '\u2039', i <= 0)
+      + '<span style="font-size:13px; font-weight:800; color:#0f172a; min-width:96px; text-align:center;">' + monthLabel(model.monthKey) + '</span>'
+      + btn('next', '\u203a', i < 0 || i >= months.length - 1)
+      + '<span class="pill v3-pill ' + (monthEff !== null && monthEff >= 100 ? 'good' : 'warn') + '">เฉลี่ยทั้งเดือน ' + pct(monthEff) + '</span>'
+      + (dailyMonth ? '<button type="button" data-eff-month="auto" style="border:1px solid #c7d2fe; background:#eef2ff; color:#4338ca; font-size:11.5px; font-weight:700; padding:6px 10px; border-radius:9px; cursor:pointer;">\u21a9 กลับเดือนของวันที่เลือก</button>' : '')
+      + '</div>';
+  }
+
   function drawDailyChart(model) {
     if (typeof Chart === 'undefined') return;
-    const list = dailyWindow === 'last30' ? model.days.slice(-30) : model.days;
+    const list = model.monthDays;
     if (!list.length) return;
     /* rawEff = ค่าไม่ปัด ใช้ตัดสินสีทุกที่ (จุด + ป้าย) ให้ตรงกับสถานะผ่าน/ไม่ผ่านและสีในตาราง
        effData = ค่าปัดทศนิยม 1 ตำแหน่ง ใช้เฉพาะเป็นตัวเลขที่พล็อตและข้อความบนป้าย
@@ -228,6 +312,7 @@
     const rawEff = list.map((d) => d.eff);
     const effData = rawEff.map((e) => (e === null ? null : Math.round(e * 10) / 10));
     const showLabels = list.length <= 32;              // จุดเยอะกว่านี้ป้ายทับกันจนอ่านไม่ออก
+    // วันที่อยู่ในช่วงวันที่ที่เลือกบนแถบตัวกรอง ทำจุดใหญ่กว่าเพื่อให้เห็นว่ากำลังโฟกัสวันไหน
     draw('v3EffDailyChart', {
       data: {
         labels: list.map((d) => ddmm(d.date)),
@@ -236,7 +321,7 @@
             type: 'line', label: '% Efficiency', data: effData,
             borderColor: '#2563eb', backgroundColor: '#2563eb',
             borderWidth: 2.5, tension: 0.3, spanGaps: true,
-            pointRadius: list.length > 90 ? 2.5 : 4.5,
+            pointRadius: list.map((d) => (d.inFilter ? 6.5 : 4)),
             pointHoverRadius: 7,
             pointBackgroundColor: list.map((d) => effColor(d.eff)),
             pointBorderColor: '#fff', pointBorderWidth: list.length > 90 ? 0.5 : 1.5,
@@ -563,16 +648,12 @@
       + '<div class="staff-card-head"><div>'
       + '<h3>📈 แนวโน้ม % Efficiency รายวัน</h3>'
       + '<div class="sub">เส้นทึบคือ % ที่ทำได้ เทียบเส้นประ Baseline 100% (= Target ' + fmt(t) + ' หยิบ/ชม.) · '
-      + 'จุดเขียวถึงเป้า · จุดส้ม 90–99.9% · จุดแดงต่ำกว่า 90%</div></div>'
-      + '<span class="pill v3-pill ' + (isHit ? 'good' : 'warn') + '">รวมช่วงนี้ ' + pct(model.eff) + '</span>'
+      + 'จุดเขียวถึงเป้า · จุดส้ม 90–99.9% · จุดแดงต่ำกว่า 90% · '
+      + 'กางทั้งเดือนเสมอ ไม่หุบตามตัวกรองวันที่ · จุดใหญ่คือวันที่อยู่ในช่วงวันที่ที่เลือก</div></div>'
+      + '<span class="pill v3-pill ' + (isHit ? 'good' : 'warn') + '">รวมช่วงที่กรอง ' + pct(model.eff) + '</span>'
       + '</div>'
-      + '<div class="systog" data-eff-window style="margin-bottom:10px">'
-      + '<button type="button" data-win="all"' + (dailyWindow === 'all' ? ' class="active"' : '') + '>ทั้งช่วงที่กรอง (' + fmt(model.days.length) + ' วัน)</button>'
-      + '<button type="button" data-win="last30"' + (dailyWindow === 'last30' ? ' class="active"' : '') + '>30 วันล่าสุด</button>'
-      + '</div>'
+      + monthNavHtml(model)
       + '<div class="chartbox tall"><canvas id="v3EffDailyChart"></canvas></div>'
-      + (model.days.length > 32 && dailyWindow === 'all'
-        ? '<div class="sub" style="margin-top:8px">จุดเยอะกว่า 32 วันจึงซ่อนป้ายตัวเลขไว้ไม่ให้ทับกัน — กดดูค่าได้ที่ทูลทิป หรือสลับไป 30 วันล่าสุด</div>' : '')
       + '</div>'
 
       + '<div class="card wide v3-card">'
@@ -631,10 +712,17 @@
     host.innerHTML = pageHtml(model);
 
     /* ปุ่มเลือกช่วงของกราฟรายวัน — เปลี่ยนแค่มุมมอง ไม่แตะตัวเลข */
-    host.querySelectorAll('[data-eff-window] button').forEach((btn) => {
+    host.querySelectorAll('[data-eff-month]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        if (btn.dataset.win === dailyWindow) return;
-        dailyWindow = btn.dataset.win;
+        const step = btn.dataset.effMonth;
+        if (step === 'auto') {
+          dailyMonth = '';
+        } else {
+          const list = model.monthList;
+          const next = list[list.indexOf(model.monthKey) + (step === 'next' ? 1 : -1)];
+          if (!next) return;
+          dailyMonth = next;
+        }
         renderAll();
       });
     });
