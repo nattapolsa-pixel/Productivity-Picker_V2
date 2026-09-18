@@ -176,6 +176,10 @@
     const allRows = rowsAllDates();
     const monthList = monthKeysAvailable(allRows);
     const monthKey = activeMonth(allRows);
+    /* กราฟเปรียบเทียบ (กะ / ระบบ / ประเภทการจ้าง / โซน) ใช้แถวของ "ทั้งเดือน" ที่กางอยู่
+       ไม่ใช่ช่วงวันที่ที่กรอง เพราะค่าเริ่มต้นเป็นวันเดียว แท่งส่วนใหญ่จะขึ้น "ไม่ตัดสิน" จนเทียบอะไรไม่ได้
+       ส่วนการ์ด KPI ด้านบนและตารางรายวันยังยึดช่วงวันที่ที่กรองตามเดิม */
+    const monthRows = monthKey ? allRows.filter((r) => M.date(r[2]).slice(0, 7) === monthKey) : allRows;
     const all = M.aggregate(data);
 
     /* รายวัน */
@@ -196,23 +200,23 @@
     const hitPeople = judgedPeople.filter((p) => passed(p.s.average, target));
 
     /* กะ (AG) */
-    const shifts = [...bucket(data, (r) => M.shiftKey(r)).entries()]
+    const shifts = [...bucket(monthRows, (r) => M.shiftKey(r)).entries()]
       .map(([key, rows]) => ({ key, label: shiftLabel(key), s: M.aggregate(rows) }))
       .sort((a, b) => shiftRank(a.key) - shiftRank(b.key) || String(a.key).localeCompare(String(b.key), 'th'));
 
     /* ระบบ */
     const systems = [];
     ['PTT', 'BPS'].forEach((sys) => {
-      const rows = data.filter((r) => M.matches(r, { system: sys }));
+      const rows = monthRows.filter((r) => M.matches(r, { system: sys }));
       if (rows.length) systems.push({ key: sys, label: SYSTEM_LABEL[sys], s: M.aggregate(rows) });
     });
-    const sysUnknown = data.filter((r) => M.system(r) === 'Not Found');
+    const sysUnknown = monthRows.filter((r) => M.system(r) === 'Not Found');
     if (sysUnknown.length) systems.push({ key: 'Not Found', label: 'ไม่ระบุประเภทงาน', s: M.aggregate(sysUnknown) });
     /* แถว Pick to Sort ก่อน 08/06/2026 ไม่เข้าถังระบบใดตามกฎ V1 — บอกจำนวนไว้ในโน้ต */
-    const bpsEarly = data.filter((r) => M.system(r) === 'BPS' && !M.matches(r, { system: 'BPS' })).length;
+    const bpsEarly = monthRows.filter((r) => M.system(r) === 'BPS' && !M.matches(r, { system: 'BPS' })).length;
 
     /* ประเภทการจ้าง (AQ) — มิติที่ V2 ไม่มี */
-    const payTypes = [...bucket(data, payKey).entries()]
+    const payTypes = [...bucket(monthRows, payKey).entries()]
       .map(([key, rows]) => {
         const people = [...bucket(rows, (r) => M.userId(r) || 'Not Found').values()].map((list) => M.aggregate(list));
         const judged = people.filter((p) => p.count > 0);
@@ -228,7 +232,7 @@
     /* โซน — Target ต่อโซนมาจาก V3Shared.zoneTargetOf() (โซนที่ตั้งเองไว้ใช้ค่านั้นก่อน Target ตามประเภทงาน) */
     const zoneBuckets = new Map(S.zones.map((z) => [z.key, []]));
     const zoneUnknown = [];
-    data.forEach((r) => {
+    monthRows.forEach((r) => {
       const z = S.zone(r);
       (z ? zoneBuckets.get(z.key) : zoneUnknown).push(r);
     });
@@ -660,8 +664,9 @@
       + '<div class="staff-card-head"><div>'
       + '<h3>🅰️🅱️ % Efficiency แยกตามกะ และระบบ</h3>'
       + '<div class="sub">กะอ่านตามที่ Sheet บันทึกไว้ (ไม่เดาจากเวลา) · '
-      + 'ระบบแยกจากประเภทงานที่ Sheet บันทึกไว้ · ทุกแท่งเทียบ Target รวม ' + fmt(t) + ' หยิบ/ชม.</div></div>'
-      + '<span class="pill">Shift &amp; System</span>'
+      + 'ระบบแยกจากประเภทงานที่ Sheet บันทึกไว้ · ทุกแท่งเทียบ Target รวม ' + fmt(t) + ' หยิบ/ชม. · '
+      + '<b>ใช้ข้อมูลทั้งเดือน ' + monthLabel(model.monthKey) + '</b> เลื่อนเดือนได้ที่การ์ดกราฟรายวันด้านบน</div></div>'
+      + '<span class="pill">' + monthLabel(model.monthKey) + '</span>'
       + '</div>'
       + '<div class="chartbox tall"><canvas id="v3EffGroupChart"></canvas></div>'
       + '<div class="note v3-notice">ถัง "ไม่ระบุกะ" คือแถวที่ Sheet เว้นกะไว้ว่าง หรือเป็น Not Found Data / #N/A / ขีด — '
@@ -672,11 +677,12 @@
       + '<div class="card wide v3-card">'
       + '<div class="staff-card-head"><div>'
       + '<h3>🧾 % Efficiency แยกตามประเภทการจ้าง</h3>'
-      + '<div class="sub">มิติที่หน้า Efficiency ของ V2 ไม่มี — Sheet บันทึกไว้ว่าแถวนั้นเป็นพนักงาน รายวัน หรือ รายเดือน</div></div>'
+      + '<div class="sub">มิติที่หน้า Efficiency ของ V2 ไม่มี — Sheet บันทึกไว้ว่าแถวนั้นเป็นพนักงาน รายวัน หรือ รายเดือน · '
+      + '<b>ใช้ข้อมูลทั้งเดือน ' + monthLabel(model.monthKey) + '</b></div></div>'
       + '<span class="pill">' + fmt(model.payTypes.length) + ' ประเภทที่พบจริง</span>'
       + '</div>'
       + '<div class="chartbox"><canvas id="v3EffPayChart"></canvas></div>'
-      + '<div class="note v3-notice">แสดงเฉพาะประเภทการจ้างที่มีอยู่จริงในช่วงที่เลือก ไม่เติมประเภทที่ไม่พบ · '
+      + '<div class="note v3-notice">แสดงเฉพาะประเภทการจ้างที่มีอยู่จริงในเดือนนี้ ไม่เติมประเภทที่ไม่พบ · '
       + (payNote || 'ยังไม่มีข้อมูลในช่วงที่เลือก')
       + ' · แถวที่ไม่ได้ระบุประเภทการจ้างจัดไว้ในถัง "ไม่ระบุ" ตามค่าจริง ไม่เดาให้เป็นรายเดือน</div>'
       + '</div>'
@@ -686,7 +692,7 @@
       + '(ติดลบคือยังขาดอีกกี่หยิบ/ชม.) · ชั่วโมงทำงานมาจาก Sheet ตรง ๆ ไม่ลบ 7 ชั่วโมง และไม่ย้ายยอดหลังเที่ยงคืน</p>'
       + '<div id="v3EffDailyTable"></div>'
 
-      + '<h2 class="staff-table-title">อันดับ % Efficiency รายโซน</h2>'
+      + '<h2 class="staff-table-title">อันดับ % Efficiency รายโซน (ทั้งเดือน ' + monthLabel(model.monthKey) + ')</h2>'
       + '<p class="panel-desc">เทียบ Target ของแต่ละโซน (โซนไหนตั้งเองไว้ใช้ค่านั้นก่อน Target ตามประเภทงาน) · '
       + 'ช่วงนี้ถึงเป้า ' + fmt(zonesPass.length) + ' จาก ' + fmt(zonesJudged.length) + ' โซนที่นับได้ · '
       + 'กอง Not Found ไม่ใช่โซนจริง (โซนที่ Sheet บันทึกไว้ไม่ตรงกฎโซนของ V1) จึงเทียบกับ Target รวม ' + fmt(t) + '</p>'
