@@ -473,7 +473,10 @@
           <!-- Populated dynamically -->
         </div>
 
-        <section class="card wide monthly-productivity-panel" aria-labelledby="monthlyChartTitle" style="margin-bottom: 2rem;">
+        <!-- หน้าแนวโน้มรายเดือนรูปแบบใหม่ วาดโดย v2-monthly.js -->
+        <div id="v3Monthly"></div>
+
+        <section class="card wide monthly-productivity-panel" aria-labelledby="monthlyChartTitle" hidden style="display:none;">
           <div class="monthly-productivity-head" style="flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;">
             <div>
               <p class="visual-card-eyebrow">YEARLY TREND</p>
@@ -481,11 +484,6 @@
               <p class="monthly-productivity-desc" id="monthlyChartDesc">เฉลี่ยของพนักงานทุกคน แยกตามเดือน (Jan - Dec)</p>
             </div>
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <div class="present-range-switch" style="padding: 0.15rem; gap: 0.15rem;" aria-label="เลือกโหมดกราฟรายเดือน">
-                <button type="button" class="present-range-btn active" id="monthlyChartTabAffiliation" style="padding: 0.30rem 0.60rem; font-size: 0.72rem;">แยกตามสังกัด</button>
-                <button type="button" class="present-range-btn" id="monthlyChartTabWork" style="padding: 0.30rem 0.60rem; font-size: 0.72rem;">แยกตามประเภทงาน</button>
-                <button type="button" class="present-range-btn" id="monthlyChartTabBu" style="padding: 0.30rem 0.60rem; font-size: 0.72rem;">แยกตาม BU</button>
-              </div>
             </div>
             <div class="monthly-productivity-summary" id="monthlyChartSummary"></div>
           </div>
@@ -894,6 +892,7 @@
   <script src="v2-efficiency.js?v=20260918-2"></script>
   <script src="v2-individual.js?v=20260918-2"></script>
   <script src="v2-incentive.js?v=20260918-2"></script>
+  <script src="v2-monthly.js?v=20260918-1"></script>
 </body>
 
 </html>
