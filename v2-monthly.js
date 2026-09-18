@@ -176,9 +176,6 @@
     const all = [];
     months.forEach((m) => (m[key] || []).forEach((it) => all.push(Number(it.average) || 0)));
     const top = Math.max(t, ...(all.length ? all : [t]));
-    const minShow = top * 0.12;            // แท่งเตี้ยกว่านี้ใส่ป้ายในแท่งไม่พอ
-    // ยิ่งมีหลายชุดข้อมูลในเดือนเดียว แท่งยิ่งแคบ ตัวอักษรต้องเล็กลงตาม
-    const labelSize = names.length <= 3 ? 13 : names.length <= 5 ? 12 : 11;
     draw('v3MonthlyBreakdownChart', {
       type: 'bar',
       data: {
@@ -194,32 +191,25 @@
           borderRadius: 5,
           maxBarThickness: 40,
           order: 1,                         // แท่งวาดก่อนเส้น
-          datalabels: {
-            // ป้ายชิปทึบวางในแท่ง ชิดด้านบน แนวนอน อ่านง่ายกว่าตัวเล็กหมุนตั้ง
-            // ตัดทศนิยมออกเพื่อให้ตัวอักษรใหญ่ได้โดยไม่ล้นความกว้างของแท่ง (ค่าเต็มดูได้ที่ tooltip และตาราง)
-            anchor: 'end', align: 'start', offset: 5, clamp: true, clip: true,
-            color: '#fff', font: { size: labelSize, weight: '800' },
-            backgroundColor: 'rgba(15,23,42,.78)', borderRadius: 6,
-            padding: { top: 3, bottom: 3, left: 5, right: 5 },
-            display: (ctx) => {
-              const v = ctx.dataset.data[ctx.dataIndex];
-              return typeof v === 'number' && v >= minShow;
-            },
-            formatter: (v) => fmt(v)
-          }
+          // มุมมองรวมไม่ใส่ป้ายในแท่ง เพราะป้ายสองชั้นในกรอบเดียวชนกันแน่
+          // เมื่อค่าเฉลี่ยรวมของเดือนใกล้ยอดแท่ง (เคยเจอ 133.3 ของเส้นชนกับ 156 ของแท่ง)
+          // ตัวเลขรายประเภทอ่านได้ที่มุมมอง "แยกทีละประเภท" ที่ตารางท้ายการ์ด และที่ tooltip
+          datalabels: { display: false }
         })).concat([
           {
             // เส้นค่าเฉลี่ยรวมของเดือน ให้เห็นแนวโน้มทั้งเดือนคู่กับแท่งรายประเภท
             type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน',
             data: months.map((m) => Number(m.average) || 0),
-            borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3,
-            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2.5,
+            borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3.5,
+            pointRadius: 5.5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 3,
             tension: .3, fill: false, order: 3,   // ทับบนแท่ง
             datalabels: {
-              // ตัวเลขของเส้นลอยเหนือจุด มีขอบขาวหนา จึงไม่จมกับเส้นและอยู่คนละระดับกับป้ายในแท่ง
-              align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
-              color: '#be123c', font: { size: 12.5, weight: '800' },
-              textStrokeColor: '#fff', textStrokeWidth: 5,
+              // ชิปพื้นขาวขอบแดง อ่านออกแม้พาดอยู่บนแท่งสีเข้ม และเป็นป้ายชั้นเดียวในกราฟนี้
+              align: 'top', anchor: 'end', offset: 12, clamp: true, clip: false,
+              color: '#be123c', font: { size: 13, weight: '800' },
+              backgroundColor: 'rgba(255,255,255,.94)', borderColor: '#f43f5e',
+              borderWidth: 1.5, borderRadius: 8,
+              padding: { top: 3, bottom: 3, left: 7, right: 7 },
               formatter: (v) => fmt1(v)
             }
           },
@@ -416,8 +406,9 @@
       + '<section class="card wide" style="margin-bottom:18px;">'
         + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนทีละประเภท</h3>'
         + '<div class="sub">เลือกว่าจะดูแยกทีละประเภทหรือรวมในกราฟเดียว'
-        + ' · ตัวเลขในแท่งคือค่าเฉลี่ยต่อชั่วโมงของประเภทนั้น (ปัดเป็นจำนวนเต็ม ค่าเต็มดูที่ตารางท้ายการ์ด)'
-        + ' · เส้นแดง = ค่าเฉลี่ยรวมของเดือน · เส้นประส้ม = เป้า</div></div>'
+        + ' · <b>แยกทีละประเภท</b> มีตัวเลขในแท่งของประเภทนั้น · <b>รวมในกราฟเดียว</b> มีเฉพาะตัวเลขของเส้น'
+        + ' เพื่อไม่ให้ป้ายสองชั้นชนกัน (ตัวเลขรายประเภทดูที่ตารางท้ายการ์ดหรือชี้ที่แท่ง)'
+        + ' · เส้นแดง = ค่าเฉลี่ยรวมของเดือน วาดทับบนแท่ง · เส้นประส้ม = เป้า</div></div>'
         + '<div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">'
         + '<div class="seg" id="v3MonthlyModeTog">'
         + MODES.map((m) => '<button type="button" data-mmode="' + m.key + '"'
