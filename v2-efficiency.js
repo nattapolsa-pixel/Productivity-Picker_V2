@@ -319,7 +319,7 @@
     // วันที่อยู่ในช่วงวันที่ที่เลือกบนแถบตัวกรอง ทำจุดใหญ่กว่าเพื่อให้เห็นว่ากำลังโฟกัสวันไหน
     draw('v3EffDailyChart', {
       data: {
-        labels: list.map((d) => ddmm(d.date)),
+        labels: list.map((d) => String(Number(d.date.slice(8, 10)))),
         datasets: [
           {
             type: 'line', label: '% Efficiency', data: effData,
@@ -374,7 +374,12 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 18, font: { size: 10 } } },
+          x: {
+            grid: { display: false },
+            // autoSkip: false เพื่อให้เห็นครบทุกวันที่ ไม่ข้ามวันเว้นวันแบบเดิม
+            ticks: { autoSkip: false, maxRotation: 0, minRotation: 0, font: { size: 10.5, weight: '600' } },
+            title: { display: true, text: 'วันที่ · ' + monthLabel(model.monthKey), font: { size: 10.5 } }
+          },
           y: {
             beginAtZero: false, suggestedMin: 50, suggestedMax: 150,
             grid: { color: 'rgba(148,163,184,.25)' },
