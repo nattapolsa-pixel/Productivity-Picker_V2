@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pick Productivity Dashboard · V3 (หน้าตา V2 · สูตร V1)</title>
+  <title>Pick Productivity Dashboard · V3 (หน้าตา V2 · สูตรที่ใช้)</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231a6cf6'/%3E%3Crect x='7' y='10' width='4' height='14' rx='1.2' fill='white'/%3E%3Crect x='14' y='6' width='4' height='18' rx='1.2' fill='white' opacity='.72'/%3E%3Crect x='21' y='13' width='4' height='11' rx='1.2' fill='white' opacity='.5'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,7 @@
   <!-- ===== โครงหน้าแบบ V2: .layout > .sidebar + .content (pagehead + sysbar) ===== -->
   <div class="layout">
     <nav class="sidebar">
-      <div class="brand">Pick Productivity<span>คลังสินค้า · BPS / PTT · Google Sheets (สูตร V1)</span></div>
+      <div class="brand">Pick Productivity<span>คลังสินค้า · BPS / PTT · Google Sheets </span></div>
 
       <div class="sidebar-scroll">
 
@@ -148,7 +148,7 @@
           <button type="button" data-sys="BPS">Pick to Sort (BPS)</button>
         </div>
         <select id="v3System" aria-label="ระบบงาน" hidden tabindex="-1">
-          <option value="ALL">รวมทุกงาน (สูตร V1)</option>
+          <option value="ALL">รวมทุกงาน </option>
           <option value="PTT">Pick (PTT)</option>
           <option value="BPS">Pick to Sort (BPS)</option>
           <option value="Not Found">ไม่ระบุประเภทงาน</option>
@@ -203,13 +203,13 @@
             <h1 class="panel-title">เทรน สัปดาห์ / เดือน</h1>
           </div>
           <p class="panel-desc">ดูแนวโน้มผลงานเทียบงวดต่องวด สลับได้ระหว่างรายสัปดาห์กับรายเดือน
-            · Productivity คิดด้วยสูตร V1 คือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว
+           · Productivity คิดจากผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว
             ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำเหมือนหน้าเดียวกันของ V2</p>
         </div>
         <div id="v3Trend"></div>
       </section>
 
-<section class="tab-panel" id="tab-zone-map"><div class="panel-header"><h1 class="panel-title">แผนผังโซน & Productivity</h1></div><p class="panel-desc">ตำแหน่งงานตามโซนสังกัดใน Results Master จับกลุ่มตามกฎ V1 · สีเข้ม = Total Pick มาก · ค่าบนแผนผังไม่ใช่การกระจายรายการสินค้าแต่ละ Location</p><div class="card v3-card"><div id="v3ZoneMap" class="heat v3-heatmap"></div></div><div id="v3ZoneTable"></div></section>
+<section class="tab-panel" id="tab-zone-map"><div class="panel-header"><h1 class="panel-title">แผนผังโซน & Productivity</h1></div><p class="panel-desc">ตำแหน่งงานตามโซนสังกัดในข้อมูลผลงาน จับกลุ่ม · สีเข้ม = Total Pick มาก · ค่าบนแผนผังไม่ใช่การกระจายรายการสินค้าแต่ละ Location</p><div class="card v3-card"><div id="v3ZoneMap" class="heat v3-heatmap"></div></div><div id="v3ZoneTable"></div></section>
             <!-- TAB: ไม่ถึงเป้า — ลอกองค์ประกอบจากหน้า belowtarget ของ V2 -->
       <section class="page tab-panel" id="tab-below-target" data-page="below-target">
         <div class="panel-header">
@@ -217,7 +217,7 @@
             <h1 class="panel-title">ไม่ถึงเป้า (แยกตามโซน)</h1>
           </div>
           <p class="panel-desc">โซนไหนมีคนยังไม่ถึง Target และกี่คนในโซนนั้น · Target ของแต่ละโซนมาจาก ⚙️ ตั้งค่า Target
-            (โซนไหนไม่ได้ตั้งเองจะใช้ Target ตามประเภทงาน) · ค่าเฉลี่ยรายคนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น ตามสูตร V1
+            (โซนไหนไม่ได้ตั้งเองจะใช้ Target ตามประเภทงาน) · ค่าเฉลี่ยรายคนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น 
             · เท่ากับเป้านับว่าผ่าน</p>
         </div>
         <div id="v3BelowTarget"></div>
@@ -230,7 +230,7 @@
             <h1 class="panel-title">Efficiency (เทียบเป้าเป็น %)</h1>
           </div>
           <p class="panel-desc">ทำได้กี่เปอร์เซ็นต์ของเป้า แยกรายวัน รายกะ และรายโซน
-            · Productivity คิดด้วยสูตร V1 คือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว
+           · Productivity คิดจากผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว
             · Target รายโซนมาจาก ⚙️ ตั้งค่า Target · เท่ากับเป้านับว่าผ่าน</p>
         </div>
         <div id="v3Efficiency"></div>
@@ -243,7 +243,7 @@
             <h1 class="panel-title">เจาะลึกรายบุคคล</h1>
           </div>
           <p class="panel-desc">เทียบผลงานทุกคนกับ Target ของโซน แล้วกดดู Scorecard รายคนได้
-            · ทุกตัวเลขมาจากแถวของคนนั้นใน Results Master ตามสูตร V1
+           · ทุกตัวเลขมาจากแถวของคนนั้นในข้อมูลผลงาน 
             · ไม่มีข้อมูลระดับ SKU และโซนที่หยิบจริงรายรายการ จึงใช้โซนสังกัดเป็นตัวแทน</p>
         </div>
         <div id="v3Individual"></div>
@@ -257,13 +257,13 @@
           </div>
           <p class="panel-desc">ตั้งเกณฑ์แล้วดูว่าต้องใช้งบเท่าไร ใครได้เท่าไร
             · เป็นการประมาณการบนหน้าเว็บเท่านั้น ไม่ได้ผูกกับระบบจ่ายเงินจริง และไม่เขียนกลับ Google Sheet
-            · คิดจาก Productivity รายคนตามสูตร V1 เทียบ Target ของโซนที่สังกัด</p>
+           · คิดจาก Productivity รายคน เทียบ Target ของโซนที่สังกัด</p>
         </div>
         <div id="v3Incentive"></div>
       </section>
 
 <section class="tab-panel" id="tab-hours"><div class="panel-header"><h1 class="panel-title">ปริมาณงานรายชั่วโมง</h1></div><p class="panel-desc">ยอดจากข้อมูลรายชั่วโมง ตามหัวตาราง 07:00 ถึง 06:00 · วันที่ยึดวันที่ในชีต เช่นเดียวกับ V1 · ไม่ปรับเวลาเพิ่ม</p><div id="v3Hours"></div></section>
-      <section class="tab-panel" id="tab-quality"><div class="panel-header"><h1 class="panel-title">Not Found & คุณภาพข้อมูล</h1></div><p class="panel-desc">รายการตรวจสอบยังอยู่ในยอดตามกฎ V1 · Not Found ไม่ได้หมายความว่าต้องลบข้อมูล</p><div id="v3Quality"></div></section>
+      <section class="tab-panel" id="tab-quality"><div class="panel-header"><h1 class="panel-title">Not Found & คุณภาพข้อมูล</h1></div><p class="panel-desc">รายการตรวจสอบยังอยู่ในยอด · Not Found ไม่ได้หมายความว่าต้องลบข้อมูล</p><div id="v3Quality"></div></section>
       <section class="page tab-panel active" id="tab-overview" data-page="overview">
         <div class="panel-header">
           <div>
@@ -277,7 +277,7 @@
             <span
               style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; background:#10b981; color:#fff; border-radius:8px; font-size:14px; flex-shrink:0;">📊</span>
             <div>
-              <span class="active-date-eyebrow">ฐานข้อมูลหลัก: Google Sheet Results Master (สูตร V1)</span>
+              <span class="active-date-eyebrow">ฐานข้อมูลหลัก: Google Sheet ข้อมูลผลงาน </span>
               <strong id="activeDateLabel">กำลังตรวจสอบวันที่ล่าสุด...</strong>
             </div>
           </div>
@@ -331,7 +331,7 @@
           <div class="card wide">
             <h3>แนวโน้มการหยิบ &amp; Productivity</h3>
             <div class="sub" id="trendSub">แท่ง = ยอดหยิบรวม Total Pick (แกนซ้าย) · เส้น = Productivity ค่าเฉลี่ยต่อชั่วโมง
-              ของแถวที่นับได้ (แกนขวา) · รวมยอดและจำนวนแถวตามสูตร V1 ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ</div>
+              ของแถวที่นับได้ (แกนขวา) · รวมยอดและจำนวนแถว ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ</div>
             <div class="controls" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
               <div class="seg" id="seg"><button type="button" data-mode="day" class="active">รายวัน</button><button
                   type="button" data-mode="week">รายสัปดาห์</button><button type="button"
@@ -352,7 +352,7 @@
                 ช่วงเวลา</span>
             </div>
             <div class="sub" style="margin-bottom:12px;">ยอดตามหัวตารางของ Sheet 07:00 ถึง 06:00 วันที่ยึดวันที่ในชีต
-              ตาม V1 ไม่ปรับเวลาและไม่ย้ายยอดหลังเที่ยงคืน</div>
+               ไม่ปรับเวลาและไม่ย้ายยอดหลังเที่ยงคืน</div>
             <div class="chartbox"><canvas id="hourlyPeakChart"></canvas></div>
           </div>
         </div>
@@ -366,7 +366,7 @@
                 style="background:#eef2ff; color:#4338ca; font-weight:700; font-size:12.5px; padding:3px 10px;">-</span>
             </div>
             <div class="sub" style="margin-bottom:14px;">เทียบยอดหยิบ Pick (PTT) กับ Pick to Sort (BPS) แยกตามประเภทงาน
-              (Type Pick) · BPS เริ่มนับ 08/06/2026 ตาม V1</div>
+              (Type Pick) · BPS เริ่มนับ 08/06/2026 </div>
 
             <div style="display:grid; grid-template-columns: 200px 1fr; gap:16px; align-items:center; flex:1;">
               <div style="height:200px; position:relative; display:flex; align-items:center; justify-content:center;">
@@ -450,7 +450,7 @@
                 style="background:#f3e8ff; color:#7e22ce; font-weight:700; font-size:12.5px; padding:3px 10px;">Shift
                 Comparison</span>
             </div>
-            <div class="sub" style="margin-bottom:14px;">กะอ่านจากช่องกะของ Results Master โดยตรง รองรับค่า A/B/C
+            <div class="sub" style="margin-bottom:14px;">กะอ่านจากช่องกะของ ข้อมูลผลงาน โดยตรง รองรับค่า A/B/C
               และค่าที่ต้นทางระบุ ไม่คาดเดากะจากเวลาและไม่ลบ 7 ชั่วโมง</div>
             <div style="height:230px; position:relative; flex:1;">
               <canvas id="shiftCompareChart"></canvas>
@@ -589,9 +589,9 @@
           <div>
             <h1 class="panel-title">พนักงานใหม่</h1>
           </div>
-          <p class="panel-desc">คนที่เริ่มงานไม่เกิน 90 วันนับจากวันล่าสุดที่มีข้อมูล ใช้เกณฑ์เดียวกับ V1
-            วันเริ่มงานยึดตามทะเบียนวันเริ่มงาน (Update name / 2ND) ถ้าไม่มีจึงใช้วันแรกที่พบผลงานใน Results Master
-            · Productivity คือค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ตามสูตร V1</p>
+          <p class="panel-desc">คนที่เริ่มงานไม่เกิน 90 วันนับจากวันล่าสุดที่มีข้อมูล ใช้เกณฑ์เดียวกันทั้งระบบ
+            วันเริ่มงานยึดตามทะเบียนพนักงาน ถ้าไม่มีจึงใช้วันแรกที่พบผลงาน
+           · Productivity คือค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ </p>
         </div>
 
         <div class="source-badge-bar staff-note-bar" id="newStaffNote"></div>
@@ -646,7 +646,7 @@
         </div>
 
         <h2 class="staff-table-title">รายชื่อพนักงานใหม่</h2>
-        <p class="panel-desc">เรียงตามอายุงานน้อยไปมาก · แถวที่ขึ้น ⛔ ออกแล้ว คือคนที่อยู่ในชีต Resigned</p>
+        <p class="panel-desc">เรียงตามอายุงานน้อยไปมาก · แถวที่ขึ้น ⛔ ออกแล้ว คือคนที่อยู่ในรายชื่อที่ลาออก</p>
         <div id="newStaffTable"></div>
       </section>
 
@@ -713,7 +713,7 @@
 
         <h2 class="staff-table-title">รายชื่อพนักงานเก่า</h2>
         <p class="panel-desc">เรียงตาม Productivity สูงไปต่ำ · คอลัมน์ "เทียบเดือนก่อน" บอกว่าเดือนล่าสุดดีขึ้นหรือแย่ลง
-          · แถวที่ขึ้น ⛔ ออกแล้ว คือคนที่อยู่ในชีต Resigned</p>
+         · แถวที่ขึ้น ⛔ ออกแล้ว คือคนที่อยู่ในรายชื่อที่ลาออก</p>
         <div id="oldStaffTable"></div>
       </section>
 <section class="tab-panel" id="tab-present">
@@ -886,14 +886,14 @@
   <script src="data-client.js?v=20260916-1"></script>
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260917-1"></script>
-  <script src="insights.js?v=20260918-1"></script>
+  <script src="insights.js?v=20260918-2"></script>
   <script src="v2-shell.js?v=20260917-v2shell-27"></script>
-  <script src="v2-views.js?v=20260918-1"></script>
-  <script src="v2-roster-write.js?v=20260918-1"></script>
-  <script src="v2-staff.js?v=20260918-1"></script>
-  <script src="v2-efficiency.js?v=20260918-1"></script>
-  <script src="v2-individual.js?v=20260918-1"></script>
-  <script src="v2-incentive.js?v=20260918-1"></script>
+  <script src="v2-views.js?v=20260918-2"></script>
+  <script src="v2-roster-write.js?v=20260918-2"></script>
+  <script src="v2-staff.js?v=20260918-2"></script>
+  <script src="v2-efficiency.js?v=20260918-2"></script>
+  <script src="v2-individual.js?v=20260918-2"></script>
+  <script src="v2-incentive.js?v=20260918-2"></script>
 </body>
 
 </html>

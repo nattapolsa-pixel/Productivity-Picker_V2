@@ -2,13 +2,13 @@
    เกณฑ์อายุงานใช้กฎเดียวกับ V1 (buildTenuredPickerBenchmark ใน script.js):
      anchor = วันล่าสุดที่มีข้อมูล  ·  cutoff = anchor ลบ 90 วัน
      พนักงานใหม่ = วันเริ่มงาน > cutoff   ·   พนักงานเก่า = วันเริ่มงาน <= cutoff
-   วันเริ่มงานยึดทะเบียนก่อน (Update name คอลัมน์ H เหมือน V1 และเพิ่ม 2ND คอลัมน์ G ที่ V1 ไม่ได้อ่าน
-   เพื่อให้ครอบคลุมคนมากขึ้น) ถ้าไม่มีทั้งสองที่จึงใช้วันแรกที่พบผลงานใน Results Master เหมือน firstSeen ของ V1
+   วันเริ่มงานยึดทะเบียนก่อน (ทะเบียนวันเริ่มงาน คอลัมน์ H เหมือน V1 และเพิ่ม 2ND คอลัมน์ G ที่ V1 ไม่ได้อ่าน
+   เพื่อให้ครอบคลุมคนมากขึ้น) ถ้าไม่มีทั้งสองที่จึงใช้วันแรกที่พบผลงานในข้อมูลผลงาน เหมือน firstSeen ของ V1
 
-   ตัวเลขทุกค่าคำนวณด้วย V3Metrics ซึ่งเป็นสูตร V1:
+   ตัวเลขทุกค่าคำนวณด้วย V3Metrics ซึ่งเป็นสูตรที่ใช้:
      Total Pick   = ผลรวมคอลัมน์ E ของแถวที่มีวันที่
      Productivity = ผลรวมคอลัมน์ AF ของแถวที่ AF > 0 ÷ จำนวนแถวนั้น (รวม sum/count ครั้งเดียว)
-   ชื่อยึดทะเบียน 2ND · คนที่อยู่ในชีต Resigned ขึ้น Remark สีแดงว่าออกแล้ว */
+   ชื่อยึดทะเบียนพนักงาน · คนที่อยู่ในรายชื่อที่ลาออก ขึ้น Remark สีแดงว่าออกแล้ว */
 (() => {
   'use strict';
   if (typeof Chart === 'undefined') {
@@ -47,7 +47,7 @@
     if (!res) return '';
     const web = res.source === 'web';
     const when = res.date ? dmy(res.date) : 'ไม่ทราบวันที่';
-    return `<span class="staff-resigned${web ? ' is-web' : ''}" title="${web ? 'กรอกในเว็บ ยังไม่ได้ใส่ในชีต Resigned' : 'อยู่ในชีต Resigned'}">`
+    return `<span class="staff-resigned${web ? ' is-web' : ''}" title="${web ? 'กรอกในเว็บ ยังไม่ได้ใส่ในรายชื่อที่ลาออก' : 'อยู่ในรายชื่อที่ลาออก'}">`
       + `⛔ ออกแล้ว ${when}${web ? ' · กรอกในเว็บ' : ''}</span>`;
   }
 
@@ -173,7 +173,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; background:#10b981; color:#fff; border-radius:8px; font-size:14px; flex-shrink:0;">👥</span>
         <div>
-          <span class="active-date-eyebrow">เกณฑ์อายุงาน 90 วันตามกฎ V1</span>
+          <span class="active-date-eyebrow">เกณฑ์อายุงาน 90 วัน</span>
           <strong>วันล่าสุดที่มีข้อมูล ${dmy(ctx.anchor)} · เส้นแบ่ง ${dmy(ctx.cutoff)}</strong>
         </div>
       </div>
@@ -218,25 +218,25 @@
 
 
   /* ── ตรวจว่าแต่ละคนขาดข้อมูลอะไร และต้องไปเติมที่ไหน ──
-     ผลงานของคนเหล่านี้ไม่ถูกตัดออกจากยอดใด ๆ ตามกฎ V1
+     ผลงานของคนเหล่านี้ไม่ถูกตัดออกจากยอดใด ๆ 
      แต่ KPI ที่ต้องใช้ข้อมูลนั้น (กะ, สังกัด, BU, ประเภทงาน, โซน, อายุงาน) จะเชื่อถือไม่ได้
-     ดัชนีคอลัมน์ Results Master: 32 AG กะ, 33 AH Position/Zone, 34 AI สังกัด, 35 AJ BU, 36 AK Pick Type */
+     ดัชนีคอลัมน์ ข้อมูลผลงาน: 32 AG กะ, 33 AH Position/Zone, 34 AI สังกัด, 35 AJ BU, 36 AK Pick Type */
   const MISS_RULES = [
-    { key: 'roster', label: 'ไม่มีใน 2ND', where: 'เพิ่มแถวในทะเบียน 2ND ใส่รหัสพนักงานกับชื่อ',
+    { key: 'roster', label: 'ไม่มีในทะเบียน', where: 'เพิ่มแถวในทะเบียนพนักงาน ใส่รหัสพนักงานกับชื่อ',
       test: (p) => !M.inRoster(p.rows[0], roster) },
-    { key: 'name', label: 'ไม่มีชื่อ', where: 'ทะเบียน 2ND ช่องชื่อ-นามสกุล',
+    { key: 'name', label: 'ไม่มีชื่อ', where: 'ทะเบียนพนักงาน ช่องชื่อ-นามสกุล',
       test: (p) => p.name === 'Not Found' },
-    { key: 'start', label: 'ไม่มีวันเริ่มงาน', where: 'ทะเบียนวันเริ่มงาน (หรือช่องวันเริ่มงานในทะเบียน 2ND)',
+    { key: 'start', label: 'ไม่มีวันเริ่มงาน', where: 'ทะเบียนวันเริ่มงาน (หรือช่องวันเริ่มงานในทะเบียน)',
       test: (p) => !p.hasRosterStart },
-    { key: 'shift', label: 'กะ Not Found', where: 'Results Master ช่องกะ',
+    { key: 'shift', label: 'กะ Not Found', where: 'ข้อมูลผลงาน ช่องกะ',
       count: (p) => p.rows.filter((r) => M.shiftKey(r) === 'Not Found').length },
-    { key: 'aff', label: 'สังกัดว่าง', where: 'Results Master ช่องสังกัด',
+    { key: 'aff', label: 'สังกัดว่าง', where: 'ข้อมูลผลงาน ช่องสังกัด',
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[34])).length },
-    { key: 'bu', label: 'BU ว่าง', where: 'Results Master ช่อง BU',
+    { key: 'bu', label: 'BU ว่าง', where: 'ข้อมูลผลงาน ช่อง BU',
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[35])).length },
-    { key: 'type', label: 'Type Pick ว่าง', where: 'Results Master ช่องประเภทงาน',
+    { key: 'type', label: 'Type Pick ว่าง', where: 'ข้อมูลผลงาน ช่องประเภทงาน',
       count: (p) => p.rows.filter((r) => !M.type(r[36])).length },
-    { key: 'zone', label: 'Zone ว่าง', where: 'Results Master ช่องโซน (Position)',
+    { key: 'zone', label: 'Zone ว่าง', where: 'ข้อมูลผลงาน ช่องโซน (Position)',
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[33])).length }
   ];
 
@@ -261,11 +261,11 @@
       if (p.resigned.source === 'web') {
         // กรอกในเว็บแล้วแต่ยังไม่ได้ใส่ในชีต Resigned จึงยังถือเป็นงานค้าง ให้ค้างในการ์ดไว้ตรวจและ Export ได้
         out.push({ key: 'resigned-web', label: 'กรอกในเว็บว่าออกแล้ว รอใส่ใน Sheet',
-          where: 'ชีต Resigned: รหัสพนักงาน · ชื่อ · วันพ้นสภาพ', rows: null });
+          where: 'รายชื่อที่ลาออก: รหัสพนักงาน · ชื่อ · วันพ้นสภาพ', rows: null });
       }
       if (p.name === 'Not Found') {
         const rule = MISS_RULES.find((r) => r.key === 'name');
-        out.push({ ...rule, where: p.resigned.source === 'web' ? 'กรอกชื่อในเว็บได้เลย' : 'ชีต Resigned ช่องชื่อ', rows: null });
+        out.push({ ...rule, where: p.resigned.source === 'web' ? 'กรอกชื่อในเว็บได้เลย' : 'รายชื่อที่ลาออก ช่องชื่อ', rows: null });
       }
       return out;
     }
@@ -315,11 +315,11 @@
         }).join('')
       : `<span class="staff-miss-ok">✓ ไม่มีใครต้องตามข้อมูลเพิ่มในมุมมองนี้${out.length ? ' (เหลือแต่คนที่ออกแล้ว)' : ''}</span>`)
       + (out.length ? `<span class="staff-miss-pill is-out" title="ไม่ต้องตามข้อมูลแล้ว ขอแค่ชื่อ">⛔ ออกแล้ว <b>${fmt(out.length)}</b> คน</span>` : '')
-      + (outWeb.length ? `<span class="staff-miss-pill is-out" title="กรอกในเว็บแล้ว เหลือเอาไปใส่ในชีต Resigned">ในนั้นกรอกในเว็บ รอใส่ใน Sheet <b>${fmt(outWeb.length)}</b> คน</span>` : '')
+      + (outWeb.length ? `<span class="staff-miss-pill is-out" title="กรอกในเว็บแล้ว เหลือเอาไปใส่ในรายชื่อที่ลาออก">ในนั้นกรอกในเว็บ รอใส่ใน Sheet <b>${fmt(outWeb.length)}</b> คน</span>` : '')
       + (outDebt.people ? `<span class="staff-miss-pill" title="ไม่ต้องตามตัวคนแล้ว แต่ยอดของคนกลุ่มนี้ยังอ้างอิงข้อมูลที่ว่างอยู่">ออกแล้วแต่ข้อมูลยังว่าง <b>${fmt(outDebt.people)}</b> คน · <b>${fmt(outDebt.total)}</b> ชิ้น</span>` : '')
       + '<span class="staff-miss-hint">สืบมาว่ารหัสนี้คือใคร → กดที่ <b>รหัสพนักงาน</b> ในตารางเพื่อเปิดฟอร์ม · ถ้าลาออกไปแล้วให้เลือก <b>⛔ ลาออกแล้ว</b> กรอกแค่ชื่อกับวันที่ออก</span>'
       + (loadWarnings.length
-        ? `<span class="staff-miss-warn">⚠️ อ่านข้อมูลบางชีตไม่ได้รอบนี้ (${esc(loadWarnings.join(' · '))}) สถานะ “ออกแล้ว” จากชีต Resigned จึงอาจหายไปทั้งหมด</span>`
+        ? `<span class="staff-miss-warn">⚠️ อ่านข้อมูลบางชีตไม่ได้รอบนี้ (${esc(loadWarnings.join(' · '))}) สถานะ “ออกแล้ว” จากรายชื่อที่ลาออก จึงอาจหายไปทั้งหมด</span>`
         : '');
     if (writer) writer.bind(summary, (id) => items.find((x) => x.p.id === id)?.p, renderAll);
 
@@ -332,7 +332,7 @@
       {
         title: 'สถานะ',
         value: (x) => (x.p.resigned
-          ? (x.p.resigned.source === 'web' ? 'ออกแล้ว (กรอกในเว็บ)' : 'ออกแล้ว (ชีต Resigned)')
+          ? (x.p.resigned.source === 'web' ? 'ออกแล้ว (กรอกในเว็บ)' : 'ออกแล้ว (ยืนยันแล้ว)')
           : (draftStatus(x.p.id) === 'active' ? 'กรอกแล้ว รอใส่ใน Sheet' : 'Not Found')),
         html: (x) => (x.p.resigned
           ? resignedBadge(x.p.resigned)
@@ -558,7 +558,7 @@
       const sheetOut = all.filter((p) => p.resigned && p.resigned.source !== 'web').length;
       const webOut = resCount - sheetOut;
       cards.push(insightCard('warn', 'อัตราออกของคนใหม่',
-        `ในกลุ่มคนใหม่ <b>${fmt(all.length)}</b> คน มี <b>${fmt(sheetOut)}</b> คนที่พ้นสภาพตามชีต Resigned (${fmt1(sheetOut / all.length * 100)}%)`
+        `ในกลุ่มคนใหม่ <b>${fmt(all.length)}</b> คน มี <b>${fmt(sheetOut)}</b> คนที่พ้นสภาพตามรายชื่อที่ลาออก (${fmt1(sheetOut / all.length * 100)}%)`
         + (webOut ? ` และอีก <b>${fmt(webOut)}</b> คนที่กรอกในเว็บว่าออกแล้วแต่ยังไม่เข้าชีต (รวมเป็น ${fmt1(resCount / all.length * 100)}%)` : '')
         + ` กด “ซ่อนคนที่ออกแล้ว” เพื่อดูเฉพาะคนที่ยังอยู่`));
     }

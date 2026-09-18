@@ -1,5 +1,5 @@
 /* v2-views.js — กราฟชุดเดียวกับหน้า overview ของ V2 (Chart.js + datalabels)
-   ตัวเลขทุกค่าคำนวณด้วย V3Metrics ซึ่งเป็นสูตร V1:
+   ตัวเลขทุกค่าคำนวณด้วย V3Metrics ซึ่งเป็นสูตรที่ใช้:
      Total Pick   = ผลรวมคอลัมน์ E ของทุกแถวที่มีวันที่ (รวมแถว AF = Not Count)
      Productivity = ผลรวมคอลัมน์ AF ของแถวที่ AF > 0 ÷ จำนวนแถวนั้น (รวม sum/count ครั้งเดียว)
    ไม่มีการเฉลี่ยค่าเฉลี่ยรายวันซ้ำ ไม่ลบ 7 ชั่วโมง ไม่ย้ายยอดหลังเที่ยงคืน
@@ -151,7 +151,7 @@
 
      ต่างจาก V2 ที่สูตรโดยตั้งใจ
        V2 คิด Productivity ของงวด = เฉลี่ยของค่าเฉลี่ยรายวัน (app.js:6136 mean ของ avg_prod ซึ่งเองก็เป็น mean อีกชั้น)
-       V3 ใช้สูตร V1 = ผลรวมคอลัมน์ AF ของแถวที่ AF > 0 ÷ จำนวนแถวนั้น รวม sum/count ครั้งเดียว
+       V3 ใช้สูตรที่ใช้ = ผลรวมคอลัมน์ AF ของแถวที่ AF > 0 ÷ จำนวนแถวนั้น รวม sum/count ครั้งเดียว
        ตัวเลขจึงไม่ตรงกับ V2 และที่ถูกคือของ V3
 
      กางทุกงวดที่มีข้อมูลเสมอ ไม่หุบตามตัวกรองวันที่ (เหมือน V2) แต่ไฮไลต์งวดที่อยู่ในช่วงที่เลือกไว้ */
@@ -224,7 +224,7 @@
       return trendPeriodMode === 'week' ? weekStartKey(d) : d.slice(0, 7);
     });
     const periods = [...byPeriod.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, rowsOf]) => {
-      const s = M.aggregate(rowsOf);               // สูตร V1 ทั้งก้อน
+      const s = M.aggregate(rowsOf);               // สูตรที่ใช้ ทั้งก้อน
       const dayMap = new Map();
       rowsOf.forEach((r) => {
         const d = M.date(r[2]);
@@ -539,7 +539,7 @@
         : fmt(labels.length) + ' ' + unit + ' \u00b7 ' + fmt(shown) + ' Total Pick';
     }
     if ($('trendSub')) {
-      let text = 'แท่ง = Total Pick รวมยอดหยิบทุกแถว (แกนซ้าย) \u00b7 เส้น = Productivity เฉลี่ยต่อชั่วโมงจากแถวที่นับได้ (แกนขวา) \u00b7 รวมครั้งเดียวตามสูตร V1 ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ';
+      let text = 'แท่ง = Total Pick รวมยอดหยิบทุกแถว (แกนซ้าย) \u00b7 เส้น = Productivity เฉลี่ยต่อชั่วโมงจากแถวที่นับได้ (แกนขวา) \u00b7 รวมครั้งเดียว ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ';
       if (trendMode === 'day') {
         text += '<br><b style="color:#4338ca;">กราฟกางทั้งเดือน ' + monthLabel(activeMonthKey()) + '</b>'
           + ' \u2014 แท่งสีเข้ม = วันที่อยู่ในตัวกรอง' + (start ? ' (' + start + (start === end ? '' : ' \u2013 ' + end) + ')' : '')

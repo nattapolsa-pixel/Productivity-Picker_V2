@@ -26,11 +26,11 @@
    ── ของ V2 ที่ตัดออกเพราะไม่มีข้อมูล (อธิบายให้ผู้ใช้เห็นในโน้ตใต้การ์ดด้วย) ──
    Lines / pcs / SKU / ชื่อสินค้า / Owner / Location ระดับช่อง  → ไม่มีในต้นทาง
    OT รายชั่วโมง และเวลาเริ่ม-จบระดับนาที                      → ใช้ช่วงชั่วโมงจาก H–AE แทน
-   Active Hours และเกณฑ์ "Active > 3 ชม. · Prod < 1000"        → ใช้กฎ V1 คือ AF > 0
+   Active Hours และเกณฑ์ "Active > 3 ชม. · Prod < 1000"        → ใช้เกณฑ์ที่ใช้ คือ AF > 0
    blendedTarget (Target ผสมตามสัดส่วนโซน)                     → ภาพรวมรายคนใช้ Target ของโซนหลัก
                                                                  รายวัน/รายแถวใช้ Target ของโซนในวันนั้น (ไม่ผสมสัดส่วน)
    โซนที่หยิบจริงรายรายการ (โซนประจำ / ไปช่วย)                 → คอลัมน์ AH เป็นโซนสังกัด 1 แถวต่อคนต่อวัน
-                                                                 จึงเทียบกับ Zone ในทะเบียน 2ND คอลัมน์ J แทน
+                                                                 จึงเทียบกับ Zone ในทะเบียนพนักงาน คอลัมน์ J แทน
 
    ── ของที่ V3 ทำได้แต่ V2 ทำไม่ได้ ─────────────────────────────────────
    กราฟรูปแบบการทำงานรายชั่วโมงของคนนั้น จากคอลัมน์ H–AE (24 ช่อง)
@@ -77,7 +77,7 @@
     if (!info) return '';
     const web = info.source === 'web';
     const when = info.date ? dmy(info.date) : 'ไม่ทราบวันที่';
-    return `<span class="staff-resigned${web ? ' is-web' : ''}" title="${web ? 'กรอกในเว็บ ยังไม่ได้ใส่ในชีต Resigned' : 'อยู่ในชีต Resigned'}">`
+    return `<span class="staff-resigned${web ? ' is-web' : ''}" title="${web ? 'กรอกในเว็บ ยังไม่ได้ใส่ในรายชื่อที่ลาออก' : 'อยู่ในรายชื่อที่ลาออก'}">`
       + `⛔ ออกแล้ว ${esc(when)}${web ? ' · กรอกในเว็บ' : ''}</span>`;
   }
 
@@ -158,7 +158,7 @@
       zs.rows += 1;
 
       const af = M.number(r[31]);
-      if (af > 0) {                                   // เข้าเฉลี่ยเฉพาะ AF > 0 ตามกฎ V1
+      if (af > 0) {                                   // เข้าเฉลี่ยเฉพาะ AF > 0 
         p.sum += af; p.count += 1;
         zs.sum += af; zs.count += 1;
       }
@@ -194,7 +194,7 @@
     counted.forEach((x, i) => { x.rank = i + 1; });
     list.filter((x) => !x.counted).forEach((x) => { x.rank = null; });
 
-    const group = M.aggregate(data);                  // ค่าเฉลี่ยกลุ่มด้วยสูตร V1 ครั้งเดียว
+    const group = M.aggregate(data);                  // ค่าเฉลี่ยกลุ่มครั้งเดียว
     return { data, list, counted, group, anchor, hourLabels, roster };
   }
 
@@ -234,7 +234,7 @@
         'เฉลี่ยของ % รายคน เทียบ Target โซนหลักที่ทำจริง · ไม่ถ่วงน้ำหนักด้วยจำนวนแถว '
         + '(คนที่มีแถวเข้าเฉลี่ยแถวเดียวมีน้ำหนักเท่าคนที่มี 200 แถว)', effColor],
       ['➖ ไม่ตัดสินผ่าน/ไม่ผ่าน', fmt(list.length - counted.length), 'คน',
-        'ไม่มีแถวที่นับได้เลย จึงไม่มีค่าเฉลี่ยตามกฎ V1', '#64748b']
+        'ไม่มีแถวที่นับได้เลย จึงไม่มีค่าเฉลี่ย', '#64748b']
     ])
     + `<div class="card wide">
         <h3>👤 ภาพรวมรายบุคคล — เทียบทุกคน</h3>
@@ -247,12 +247,12 @@
         <div class="chartbox" style="height:${Math.max(320, Math.min(20, counted.length) * 28 + 90)}px;">
           <canvas id="v3IndCompareChart"></canvas>
         </div>
-        <div class="note v3-notice">ตัวเลขทุกค่าคิดจากแถวของคนนั้นใน Results Master
+        <div class="note v3-notice">ตัวเลขทุกค่าคิดจากแถวของคนนั้นในข้อมูลผลงาน
           · Productivity = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น (รวมครั้งเดียว ไม่เอาค่าเฉลี่ยมาเฉลี่ยซ้ำ)
           · Total Pick = ผลรวมยอดหยิบของทุกแถวที่มีวันที่ รวมแถวที่ไม่เข้าเฉลี่ยด้วย
           · ชั่วโมงทำงานตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง
-          <br>การ์ด “Efficiency เฉลี่ย” เป็นค่าเฉลี่ยของ % รายคนแบบ<b>ไม่ถ่วงน้ำหนัก</b> (คนละเรื่องกับสูตร V1 ที่รวมครั้งเดียว)
-          ส่วน Productivity ของกลุ่มทั้งหมดที่คิดตามสูตร V1 คือ <b>${fmt(ctx.group.average, 1)}</b> หยิบ/ชม.
+          <br>การ์ด “Efficiency เฉลี่ย” เป็นค่าเฉลี่ยของ % รายคนแบบ<b>ไม่ถ่วงน้ำหนัก</b> (คนละเรื่องกับสูตรที่ใช้ ที่รวมครั้งเดียว)
+          ส่วน Productivity ของกลุ่มทั้งหมดที่คิดจาก <b>${fmt(ctx.group.average, 1)}</b> หยิบ/ชม.
           จาก ${fmt(ctx.group.count)} แถวที่เข้าเฉลี่ย
           ${unknownZone.length ? `<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownZone.length)} คนในช่วงที่เลือกที่โซนหลักเป็น Not Found
             (โซนในต้นทางไม่ตรงกฎโซนของ V1) นับ Productivity ได้ ${fmt(unknownCounted.length)} คน
@@ -284,13 +284,13 @@
       { title: 'ชื่อ', value: (x) => x.name,
         html: (x) => `<button type="button" data-individual="${esc(x.id)}" title="เปิด Scorecard">${esc(x.name)}</button>`
           + resignedBadge(x.resigned)
-          + (x.nick || !x.master ? `<span class="sub">${[x.nick ? 'ชื่อเล่น ' + esc(x.nick) : '', x.master ? '' : 'ไม่พบใน 2ND'].filter(Boolean).join(' · ')}</span>` : '') },
+          + (x.nick || !x.master ? `<span class="sub">${[x.nick ? 'ชื่อเล่น ' + esc(x.nick) : '', x.master ? '' : 'ไม่พบในทะเบียน'].filter(Boolean).join(' · ')}</span>` : '') },
       { title: 'สังกัด', value: (x) => (x.master ? x.master[4] : '') || x.rows[x.rows.length - 1][34] || 'Not Found' },
       { title: 'กะ', value: (x) => x.shift,
         html: (x) => esc(x.shift) + (x.master && x.master[12] && String(x.master[12]).trim() !== x.shift
-          ? `<span class="sub">ทะเบียน 2ND: ${esc(x.master[12])}</span>` : '') },
+          ? `<span class="sub">ทะเบียน: ${esc(x.master[12])}</span>` : '') },
       { title: 'โซนหลัก', value: (x) => x.zone.label,
-        html: (x) => `${esc(x.zone.label)}<span class="sub">${esc(S().zoneLabels[x.zone.group] || 'ไม่พบโซนตามกฎ V1')}`
+        html: (x) => `${esc(x.zone.label)}<span class="sub">${esc(S().zoneLabels[x.zone.group] || 'ไม่พบโซน')}`
           + ` · ${fmt(x.zoneRowCount)} แถวเข้าเฉลี่ย${x.zoneCount > 1 ? ' · ทำ ' + fmt(x.zoneCount) + ' โซน' : ''}</span>` },
       { title: 'Productivity', value: (x) => (x.average === null ? '' : x.average), num: true, sortValue: (x) => x.average,
         html: (x) => (x.average === null
@@ -425,7 +425,7 @@
     /* ── แถบทะเบียนจากชีต 2ND ── */
     const pills = [];
     pills.push(`<span class="pill" style="background:#e0f2fe;color:#0369a1;">โซนหลัก ${esc(person.zone.label)}</span>`);
-    pills.push(`<span class="pill">${esc(Sh.zoneLabels[person.zone.group] || 'ไม่พบโซนตามกฎ V1')}</span>`);
+    pills.push(`<span class="pill">${esc(Sh.zoneLabels[person.zone.group] || 'ไม่พบโซน')}</span>`);
     pills.push(`<span class="pill" style="background:#f1f5f9;color:#475569;">กะ ${esc(person.shift)}</span>`);
     if (person.nick) pills.push(`<span class="pill" style="background:#f1f5f9;color:#475569;">ชื่อเล่น ${esc(person.nick)}</span>`);
     if (master) {
@@ -440,7 +440,7 @@
       if (rosterZone) pills.push(`<span class="pill" style="background:#f1f5f9;color:#475569;">Zone ในทะเบียน ${esc(rosterZone)}</span>`);
       if (rosterShift && rosterShift !== person.shift) pills.push(`<span class="pill" style="background:#fef3c7;color:#92400e;">ทะเบียนระบุกะ ${esc(rosterShift)}</span>`);
     } else {
-      pills.push('<span class="pill" style="background:#fef3c7;color:#92400e;">ไม่พบรหัสนี้ในทะเบียน 2ND</span>');
+      pills.push('<span class="pill" style="background:#fef3c7;color:#92400e;">ไม่พบรหัสนี้ในทะเบียนพนักงาน</span>');
     }
     if (person.startDate) {
       const years = person.tenure === null ? null : person.tenure / 365;
@@ -513,9 +513,9 @@
     }
     if (person.resigned) {
       insights.push(insightCard('warn', 'พ้นสภาพแล้ว',
-        `รหัสนี้อยู่ใน${person.resigned.source === 'web' ? 'รายการที่กรอกในเว็บ (ยังไม่เข้าชีต Resigned)' : 'ชีต Resigned'}`
+        `รหัสนี้อยู่ใน${person.resigned.source === 'web' ? 'รายการที่กรอกในเว็บ (ยังไม่เข้ารายชื่อที่ลาออก)' : 'รายชื่อที่ลาออก'}`
         + ` · พ้นสภาพ <b>${esc(person.resigned.date ? dmy(person.resigned.date) : 'ไม่ทราบวันที่')}</b>`
-        + `<br>ผลงานย้อนหลังยังคงไว้ตามกฎ V1 ไม่ลบทิ้ง`));
+        + `<br>ผลงานย้อนหลังยังคงไว้ ไม่ลบทิ้ง`));
     }
 
     host.innerHTML = `
@@ -529,7 +529,7 @@
         </div>
         ${cards}
         <div class="staff-insight-grid">${insights.join('')}</div>
-        <div class="note v3-notice">ทุกค่าในหน้านี้คิดจากแถวของคนนี้ใน Results Master
+        <div class="note v3-notice">ทุกค่าในหน้านี้คิดจากแถวของคนนี้ในข้อมูลผลงาน
           · Productivity = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น · Total Pick = ผลรวมยอดหยิบทุกแถวที่มีวันที่
           · ชั่วโมงทำงานตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง · เท่ากับเป้านับว่าผ่าน
           <br><b>Target ที่ใช้ในหน้านี้</b> — การ์ด Productivity และ % Efficiency ตัดสิน<b>ภาพรวมของคนนี้</b>
@@ -546,7 +546,7 @@
           <br><b>ไม่มีในต้นทาง จึงไม่มีในหน้านี้</b> — Lines · pcs · SKU และชื่อสินค้า · Owner · Location ระดับช่อง
           · เวลาเริ่ม-จบระดับนาที · ชั่วโมง OT · Target ผสมตามสัดส่วนโซน (blendedTarget) · โซนที่หยิบจริงรายรายการ
           ที่ V2 เคยแสดง จึงถูกตัดออก · แทนที่ด้วยช่วงเวลาจากข้อมูลรายชั่วโมง, ชั่วโมงทำงาน,
-          Target ของโซนหลัก และการเทียบโซนสังกัดกับ Zone ในทะเบียน 2ND</div>
+          Target ของโซนหลัก และการเทียบโซนสังกัดกับ Zone ในทะเบียนพนักงาน</div>
       </div>
 
       <div class="card wide" style="margin-top:16px;">
@@ -582,11 +582,11 @@
 
       <h2 class="staff-table-title">📍 โซนที่ทำ และ Target ของแต่ละโซน</h2>
       <p class="panel-desc">ค่าเฉลี่ยของแต่ละโซนคิดแยกด้วยสูตรเดิม (ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวในโซนนั้นที่นับได้ ÷ จำนวนแถวนั้น)
-        · “โซนประจำ” คือโซนที่ตรงกับ Zone ในทะเบียน 2ND</p>
+       · “โซนประจำ” คือโซนที่ตรงกับ Zone ในทะเบียนพนักงาน</p>
       <div id="v3IndZoneTable"></div>
 
       <h2 class="staff-table-title">🗓️ ผลงานรายวันของคนนี้</h2>
-      <p class="panel-desc">หนึ่งบรรทัดต่อหนึ่งแถวใน Results Master (ใหม่ → เก่า)
+      <p class="panel-desc">หนึ่งบรรทัดต่อหนึ่งแถวในข้อมูลผลงาน (ใหม่ → เก่า)
         · แถวที่ค่าเฉลี่ยต่อชั่วโมงไม่มากกว่า 0 จะไม่เข้าเฉลี่ยและมีเหตุผลกำกับไว้
         · ตารางนี้เทียบค่าเฉลี่ยต่อชั่วโมงของแถวกับ <b>Target ของโซนในแถวนั้น</b> เกณฑ์เดียวกับการ์ด “วันที่ถึงเป้าโซน” ด้านบน
         ต่างกันแค่ตารางนี้<b>นับต่อแถว</b> ส่วนการ์ดนับต่อวัน ถ้าวันเดียวมีหลายแถวในต้นทาง
@@ -613,7 +613,7 @@
         html: (z) => `<b>${esc(z.zone.label)}</b>`
           + (z.isHome === true ? ' <span class="pill" style="background:#dcfce7;color:#15803d;">โซนประจำ</span>'
             : z.isHome === false ? ' <span class="pill" style="background:#ffedd5;color:#c2410c;">ไม่ใช่โซนในทะเบียน</span>' : '')
-          + `<span class="sub">${esc(Sh.zoneLabels[z.zone.group] || 'ไม่พบโซนตามกฎ V1')}</span>` },
+          + `<span class="sub">${esc(Sh.zoneLabels[z.zone.group] || 'ไม่พบโซน')}</span>` },
       { title: 'Total Pick', value: (z) => z.total, num: true, html: (z) => fmt(z.total) },
       { title: 'สัดส่วน', value: (z) => z.share, num: true, html: (z) => fmt(z.share, 1) + '%' },
       { title: 'แถวทั้งหมด', value: (z) => z.rows, num: true },
