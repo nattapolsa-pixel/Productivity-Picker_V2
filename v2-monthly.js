@@ -73,7 +73,20 @@
             type: 'bar', label: 'ยอดหยิบรวมของเดือน', data: months.map((m) => m.totalPick),
             backgroundColor: 'rgba(99,102,241,.75)', hoverBackgroundColor: 'rgba(79,70,229,.95)',
             borderRadius: 8, maxBarThickness: 62, yAxisID: 'y', order: 3,
-            datalabels: { display: false }          // ไม่ติดตัวเลขบนแท่ง กันทับกับเส้นและตัวเลขของเส้น
+            datalabels: {
+              // ยอดหยิบใส่เป็นป้ายชิปในแท่ง จึงอยู่คนละระดับกับตัวเลขของเส้นที่ลอยอยู่ด้านบน
+              anchor: 'end', align: 'start', offset: 6, clamp: true, clip: true,
+              color: '#fff', font: { size: 11.5, weight: '800' },
+              backgroundColor: 'rgba(30,41,59,.72)', borderRadius: 6,
+              padding: { top: 3, bottom: 3, left: 6, right: 6 },
+              display: (ctx) => {
+                const arr = ctx.dataset.data;
+                const v = arr[ctx.dataIndex];
+                const top = Math.max(...arr.map((x) => Number(x) || 0));
+                return typeof v === 'number' && top > 0 && v >= top * 0.14;
+              },
+              formatter: (v) => fmt(v)
+            }
           },
           {
             type: 'line', label: 'ค่าเฉลี่ยต่อชั่วโมงของเดือน', data: months.map((m) => Number(m.average) || 0),
@@ -82,9 +95,9 @@
             tension: .32, fill: false, yAxisID: 'y1', order: 1,
             datalabels: {
               // ตัวเลขลอยเหนือจุดเสมอ มีขอบขาวรอบตัวอักษร จึงไม่จมกับเส้นหรือแท่ง
-              align: 'top', anchor: 'end', offset: 10, clamp: true, clip: false,
-              color: '#be123c', font: { size: 11, weight: '700' },
-              textStrokeColor: '#fff', textStrokeWidth: 4,
+              align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
+              color: '#be123c', font: { size: 13, weight: '800' },
+              textStrokeColor: '#fff', textStrokeWidth: 5,
               formatter: (v) => fmt1(v)
             }
           },
@@ -155,7 +168,9 @@
     const all = [];
     months.forEach((m) => (m[key] || []).forEach((it) => all.push(Number(it.average) || 0)));
     const top = Math.max(t, ...(all.length ? all : [t]));
-    const minShow = top * 0.16;            // แท่งเตี้ยกว่านี้ใส่ตัวเลขในแท่งไม่พอ
+    const minShow = top * 0.12;            // แท่งเตี้ยกว่านี้ใส่ป้ายในแท่งไม่พอ
+    // ยิ่งมีหลายชุดข้อมูลในเดือนเดียว แท่งยิ่งแคบ ตัวอักษรต้องเล็กลงตาม
+    const labelSize = names.length <= 3 ? 13 : names.length <= 5 ? 12 : 11;
     draw('v3MonthlyBreakdownChart', {
       type: 'bar',
       data: {
@@ -171,27 +186,46 @@
           borderRadius: 5,
           maxBarThickness: 40,
           datalabels: {
-            // วางในแท่ง ชิดด้านบนของแท่ง ตั้งตัวอักษรให้ตรงเพื่อไม่กินความกว้าง
-            anchor: 'end', align: 'start', offset: 6, rotation: -90, clamp: true, clip: true,
-            color: '#fff', font: { size: 10, weight: '700' },
-            textStrokeColor: 'rgba(15,23,42,.55)', textStrokeWidth: 2.5,
+            // ป้ายชิปทึบวางในแท่ง ชิดด้านบน แนวนอน อ่านง่ายกว่าตัวเล็กหมุนตั้ง
+            // ตัดทศนิยมออกเพื่อให้ตัวอักษรใหญ่ได้โดยไม่ล้นความกว้างของแท่ง (ค่าเต็มดูได้ที่ tooltip และตาราง)
+            anchor: 'end', align: 'start', offset: 5, clamp: true, clip: true,
+            color: '#fff', font: { size: labelSize, weight: '800' },
+            backgroundColor: 'rgba(15,23,42,.78)', borderRadius: 6,
+            padding: { top: 3, bottom: 3, left: 5, right: 5 },
             display: (ctx) => {
               const v = ctx.dataset.data[ctx.dataIndex];
               return typeof v === 'number' && v >= minShow;
             },
-            formatter: (v) => fmt1(v)
+            formatter: (v) => fmt(v)
           }
-        })).concat([{
-          type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
-          borderColor: 'rgba(245,158,11,.95)', borderWidth: 2, borderDash: [7, 5],
-          pointRadius: 0, fill: false, datalabels: { display: false }
-        }])
+        })).concat([
+          {
+            // เส้นค่าเฉลี่ยรวมของเดือน ให้เห็นแนวโน้มทั้งเดือนคู่กับแท่งรายประเภท
+            type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน',
+            data: months.map((m) => Number(m.average) || 0),
+            borderColor: '#0f172a', backgroundColor: '#fff', borderWidth: 3,
+            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#0f172a', pointBorderWidth: 2.5,
+            tension: .3, fill: false, order: 0,
+            datalabels: {
+              // ตัวเลขของเส้นลอยเหนือจุด มีขอบขาวหนา จึงไม่จมกับเส้นและอยู่คนละระดับกับป้ายในแท่ง
+              align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
+              color: '#0f172a', font: { size: 12.5, weight: '800' },
+              textStrokeColor: '#fff', textStrokeWidth: 5,
+              formatter: (v) => fmt1(v)
+            }
+          },
+          {
+            type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
+            borderColor: 'rgba(245,158,11,.95)', borderWidth: 2, borderDash: [7, 5],
+            pointRadius: 0, fill: false, order: 1, datalabels: { display: false }
+          }
+        ])
       },
       options: {
         maintainAspectRatio: false,
-        layout: { padding: { top: 14, right: 14, bottom: 4, left: 4 } },
+        layout: { padding: { top: 40, right: 16, bottom: 4, left: 4 } },
         plugins: {
-          legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 9, padding: 14, font: { size: 11 } } },
+          legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 9, padding: 14, font: { size: 11.5 } } },
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 11, cornerRadius: 10,
             callbacks: {
@@ -203,9 +237,9 @@
         scales: {
           x: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' } } },
           y: {
-            beginAtZero: true, grace: '8%',
+            beginAtZero: true, grace: '18%',
             grid: { color: 'rgba(148,163,184,.22)' },
-            ticks: { font: { size: 10.5 } },
+            ticks: { font: { size: 11 } },
             title: { display: true, text: 'หยิบ/ชม.', font: { size: 11, weight: '600' } }
           }
         }
@@ -280,17 +314,18 @@
       + '</div>'
       + card('📊 ภาพรวมทุกเดือน',
         'แท่ง = ยอดหยิบรวมของเดือน (แกนซ้าย) · เส้นแดง = ค่าเฉลี่ยต่อชั่วโมง (แกนขวา) · เส้นประ = เป้า'
-        + ' · ตัวเลขติดเฉพาะบนเส้น มีขอบขาวรอบตัวอักษร จึงไม่จมกับเส้นและไม่ทับแท่ง',
+        + ' · ตัวเลขของเส้นลอยอยู่ด้านบนพร้อมขอบขาว ส่วนยอดหยิบเป็นป้ายในแท่ง จึงอยู่คนละระดับ ไม่ทับกัน',
         'v3MonthlyOverviewChart', true)
       + '<section class="card wide" style="margin-bottom:18px;">'
         + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนแยกตามประเภท</h3>'
-        + '<div class="sub">กดปุ่มเพื่อสลับมุมมอง · ตัวเลขอยู่ในแท่งแต่ละอัน จึงไม่ทับเส้นเป้าและไม่ทับแท่งข้างเคียง'
-        + ' · แท่งที่เตี้ยเกินกว่าจะใส่ตัวเลขได้ให้อ่านจากตารางท้ายการ์ด</div></div>'
+        + '<div class="sub">กดปุ่มเพื่อสลับมุมมอง · ตัวเลขในแท่งเป็นค่าเฉลี่ยต่อชั่วโมงของประเภทนั้น (ปัดเป็นจำนวนเต็ม)'
+        + ' · เส้นดำ = ค่าเฉลี่ยรวมของเดือน · เส้นประ = เป้า'
+        + ' · แท่งที่เตี้ยเกินกว่าจะใส่ป้ายได้ให้อ่านจากตารางท้ายการ์ด</div></div>'
         + '<div class="seg" id="v3MonthlyModeTog">'
         + MODES.map((m) => '<button type="button" data-mmode="' + m.key + '"'
           + (mode === m.key ? ' class="active"' : '') + '>' + m.label + '</button>').join('')
         + '</div></div>'
-        + '<div class="chartbox tall"><canvas id="v3MonthlyBreakdownChart"></canvas></div>'
+        + '<div class="chartbox tall" style="height:440px;"><canvas id="v3MonthlyBreakdownChart"></canvas></div>'
         + '<details id="v3MonthlyTableWrap" style="margin-top:14px;">'
         + '<summary style="cursor:pointer; font-size:12px; font-weight:700; color:#4f46e5;">ดูตัวเลขทุกค่าเป็นตาราง</summary>'
         + '<div data-after="v3MonthlyBreakdownChart" style="margin-top:10px;"></div></details>'
