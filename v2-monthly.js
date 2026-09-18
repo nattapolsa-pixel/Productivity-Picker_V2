@@ -80,7 +80,7 @@
           {
             type: 'bar', label: 'ยอดหยิบรวมของเดือน', data: months.map((m) => m.totalPick),
             backgroundColor: 'rgba(99,102,241,.75)', hoverBackgroundColor: 'rgba(79,70,229,.95)',
-            borderRadius: 8, maxBarThickness: 62, yAxisID: 'y', order: 3,
+            borderRadius: 8, maxBarThickness: 62, yAxisID: 'y', order: 1,   // แท่งวาดก่อน เส้นจะได้ทับบนแท่ง
             datalabels: {
               // ยอดหยิบใส่เป็นป้ายชิปในแท่ง จึงอยู่คนละระดับกับตัวเลขของเส้นที่ลอยอยู่ด้านบน
               anchor: 'end', align: 'start', offset: 6, clamp: true, clip: true,
@@ -100,7 +100,7 @@
             type: 'line', label: 'ค่าเฉลี่ยต่อชั่วโมงของเดือน', data: months.map((m) => Number(m.average) || 0),
             borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3,
             pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2.5,
-            tension: .32, fill: false, yAxisID: 'y1', order: 1,
+            tension: .32, fill: false, yAxisID: 'y1', order: 3,   // เส้นค่าเฉลี่ยวาดท้ายสุด อยู่บนสุด
             datalabels: {
               // ตัวเลขลอยเหนือจุดเสมอ มีขอบขาวรอบตัวอักษร จึงไม่จมกับเส้นหรือแท่ง
               align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
@@ -112,7 +112,7 @@
           {
             type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
             borderColor: 'rgba(245,158,11,.95)', borderWidth: 2, borderDash: [7, 5],
-            pointRadius: 0, fill: false, yAxisID: 'y1', order: 2,
+            pointRadius: 0, fill: false, yAxisID: 'y1', order: 2,   // เส้นเป้าอยู่เหนือแท่งแต่ใต้เส้นค่าเฉลี่ย
             datalabels: { display: false }
           }
         ]
@@ -193,6 +193,7 @@
           hoverBackgroundColor: SERIES[i % SERIES.length],
           borderRadius: 5,
           maxBarThickness: 40,
+          order: 1,                         // แท่งวาดก่อนเส้น
           datalabels: {
             // ป้ายชิปทึบวางในแท่ง ชิดด้านบน แนวนอน อ่านง่ายกว่าตัวเล็กหมุนตั้ง
             // ตัดทศนิยมออกเพื่อให้ตัวอักษรใหญ่ได้โดยไม่ล้นความกว้างของแท่ง (ค่าเต็มดูได้ที่ tooltip และตาราง)
@@ -213,7 +214,7 @@
             data: months.map((m) => Number(m.average) || 0),
             borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3,
             pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2.5,
-            tension: .3, fill: false, order: 0,
+            tension: .3, fill: false, order: 3,   // ทับบนแท่ง
             datalabels: {
               // ตัวเลขของเส้นลอยเหนือจุด มีขอบขาวหนา จึงไม่จมกับเส้นและอยู่คนละระดับกับป้ายในแท่ง
               align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
@@ -225,7 +226,7 @@
           {
             type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
             borderColor: 'rgba(245,158,11,.95)', borderWidth: 2, borderDash: [7, 5],
-            pointRadius: 0, fill: false, order: 1, datalabels: { display: false }
+            pointRadius: 0, fill: false, order: 2, datalabels: { display: false }
           }
         ])
       },
@@ -274,7 +275,7 @@
           {
             type: 'bar', label: name, data: series,
             backgroundColor: series.map((v) => (v === null ? 'rgba(148,163,184,.25)' : (v >= t ? color : 'rgba(244,63,94,.55)'))),
-            borderRadius: 6, maxBarThickness: 46, order: 2,
+            borderRadius: 6, maxBarThickness: 46, order: 1,   // แท่งวาดก่อน เส้นจะได้ทับบนแท่ง
             datalabels: {
               anchor: 'end', align: 'start', offset: 6, clamp: true, clip: true,
               color: '#fff', font: { size: 13, weight: '800' },
@@ -289,14 +290,14 @@
           },
           {
             type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน', data: months.map((m) => Number(m.average) || 0),
-            borderColor: '#f43f5e', borderWidth: 2, pointRadius: 2.5,
-            pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 1.5,
-            tension: .3, fill: false, order: 0, datalabels: { display: false }
+            borderColor: '#f43f5e', borderWidth: 2.5, pointRadius: 3.5,
+            pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2,
+            tension: .3, fill: false, order: 3, datalabels: { display: false }   // เส้นค่าเฉลี่ยอยู่บนสุด
           },
           {
             type: 'line', label: 'เป้า ' + fmt(t), data: months.map(() => t),
             borderColor: 'rgba(245,158,11,.9)', borderWidth: 2, borderDash: [6, 4],
-            pointRadius: 0, fill: false, order: 1, datalabels: { display: false }
+            pointRadius: 0, fill: false, order: 2, datalabels: { display: false }
           }
         ]
       },
