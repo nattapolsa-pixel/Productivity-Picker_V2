@@ -84,11 +84,11 @@
   /* เหตุผลที่แถวนั้นไม่เข้าค่าเฉลี่ย — อ่านค่าดิบในคอลัมน์ AF ไม่เดา */
   function excludeReason(row) {
     const raw = String(row[31] ?? '').trim();
-    if (!raw) return 'คอลัมน์ AF ว่าง';
-    if (/^not\s?count$/i.test(raw)) return 'คอลัมน์ AF เขียนว่า Not Count';
+    if (!raw) return 'ไม่มีค่าเฉลี่ย/ชม. ในแถวนี้';
+    if (/^not\s?count$/i.test(raw)) return 'ต้นทางเขียนว่า Not Count';
     const n = M.number(row[31]);
-    if (n === 0) return 'คอลัมน์ AF เป็น 0';
-    if (n < 0) return 'คอลัมน์ AF ติดลบ (' + raw + ')';
+    if (n === 0) return 'ค่าเฉลี่ย/ชม. เป็น 0';
+    if (n < 0) return 'ค่าเฉลี่ย/ชม. ติดลบ (' + raw + ')';
     return '';
   }
 
@@ -234,7 +234,7 @@
         'เฉลี่ยของ % รายคน เทียบ Target โซนหลักที่ทำจริง · ไม่ถ่วงน้ำหนักด้วยจำนวนแถว '
         + '(คนที่มีแถวเข้าเฉลี่ยแถวเดียวมีน้ำหนักเท่าคนที่มี 200 แถว)', effColor],
       ['➖ ไม่ตัดสินผ่าน/ไม่ผ่าน', fmt(list.length - counted.length), 'คน',
-        'ไม่มีแถวที่ AF > 0 เลย จึงไม่มีค่าเฉลี่ยตามกฎ V1', '#64748b']
+        'ไม่มีแถวที่นับได้เลย จึงไม่มีค่าเฉลี่ยตามกฎ V1', '#64748b']
     ])
     + `<div class="card wide">
         <h3>👤 ภาพรวมรายบุคคล — เทียบทุกคน</h3>
@@ -248,19 +248,19 @@
           <canvas id="v3IndCompareChart"></canvas>
         </div>
         <div class="note v3-notice">ตัวเลขทุกค่าคิดจากแถวของคนนั้นใน Results Master
-          · Productivity = ผลรวมคอลัมน์ AF ของแถวที่ AF &gt; 0 ÷ จำนวนแถวนั้น (รวมครั้งเดียว ไม่เอาค่าเฉลี่ยมาเฉลี่ยซ้ำ)
-          · Total Pick = ผลรวมคอลัมน์ E ของทุกแถวที่มีวันที่ รวมแถวที่ AF เป็น Not Count
-          · ชั่วโมงคือคอลัมน์ G ตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง
+          · Productivity = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น (รวมครั้งเดียว ไม่เอาค่าเฉลี่ยมาเฉลี่ยซ้ำ)
+          · Total Pick = ผลรวมยอดหยิบของทุกแถวที่มีวันที่ รวมแถวที่ไม่เข้าเฉลี่ยด้วย
+          · ชั่วโมงทำงานตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง
           <br>การ์ด “Efficiency เฉลี่ย” เป็นค่าเฉลี่ยของ % รายคนแบบ<b>ไม่ถ่วงน้ำหนัก</b> (คนละเรื่องกับสูตร V1 ที่รวมครั้งเดียว)
           ส่วน Productivity ของกลุ่มทั้งหมดที่คิดตามสูตร V1 คือ <b>${fmt(ctx.group.average, 1)}</b> หยิบ/ชม.
           จาก ${fmt(ctx.group.count)} แถวที่เข้าเฉลี่ย
           ${unknownZone.length ? `<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownZone.length)} คนในช่วงที่เลือกที่โซนหลักเป็น Not Found
-            (คอลัมน์ AH ไม่ตรงกฎโซนของ V1) นับ Productivity ได้ ${fmt(unknownCounted.length)} คน
+            (โซนในต้นทางไม่ตรงกฎโซนของ V1) นับ Productivity ได้ ${fmt(unknownCounted.length)} คน
             กลุ่มนี้เทียบกับ <b>Target รวม ${fmt(unknownTarget)}</b> เพราะไม่รู้ประเภทงาน
             ต้องเติม Zone ให้ถูกก่อนจะเชื่อเลขของกลุ่มนี้ได้ (เหมือนที่เมนู “ไม่ถึงเป้า” เตือนไว้)` : ''}
           <br><b>ไม่มีในต้นทาง จึงไม่มีในหน้านี้</b> — จำนวนบรรทัด (Lines) · จำนวนชิ้นดิบ (pcs) · SKU และชื่อสินค้า · Owner
           · Location ระดับช่อง · เวลาเริ่ม-จบระดับนาที · ชั่วโมง OT · Target ผสมตามสัดส่วนโซน (blendedTarget)
-          ของ V2 จึงไม่ถูกนำมาแสดง และคอลัมน์ AH คือ<b>โซนสังกัด 1 แถวต่อคนต่อวัน</b> ไม่ใช่โซนที่หยิบจริงรายรายการ
+          ของ V2 จึงไม่ถูกนำมาแสดง และโซนในต้นทางคือ<b>โซนสังกัด 1 แถวต่อคนต่อวัน</b> ไม่ใช่โซนที่หยิบจริงรายรายการ
           · ช่องค้นหาอยู่บนตารางด้านล่าง</div>
       </div>
       <h2 class="staff-table-title">ตารางเทียบผลงานรายบุคคล</h2>
@@ -281,7 +281,7 @@
         html: (x) => (x.rank === null ? '—' : `<span class="rank">${medal(x.rank)}</span>`) },
       { title: 'รหัสพนักงาน', value: (x) => x.id,
         html: (x) => `<button type="button" data-individual="${esc(x.id)}" title="เปิด Scorecard">${esc(x.id)}</button>` },
-      { title: 'ชื่อ (2ND)', value: (x) => x.name,
+      { title: 'ชื่อ', value: (x) => x.name,
         html: (x) => `<button type="button" data-individual="${esc(x.id)}" title="เปิด Scorecard">${esc(x.name)}</button>`
           + resignedBadge(x.resigned)
           + (x.nick || !x.master ? `<span class="sub">${[x.nick ? 'ชื่อเล่น ' + esc(x.nick) : '', x.master ? '' : 'ไม่พบใน 2ND'].filter(Boolean).join(' · ')}</span>` : '') },
@@ -301,8 +301,8 @@
         html: (x) => (x.gap === null ? '—' : `<span class="${x.gap >= 0 ? 'staff-up' : 'staff-down'}">${signed(x.gap)}</span>`) },
       { title: '% Eff', value: (x) => (x.eff === null ? '' : x.eff), num: true, sortValue: (x) => x.eff,
         html: (x) => (x.eff === null ? '—' : fmt(x.eff, 1) + '%') },
-      { title: 'Total Pick (E)', value: (x) => x.total, num: true, html: (x) => fmt(x.total) },
-      { title: 'ชั่วโมง (G)', value: (x) => x.hours, num: true, html: (x) => fmt(x.hours, 1) },
+      { title: 'Total Pick', value: (x) => x.total, num: true, html: (x) => fmt(x.total) },
+      { title: 'ชั่วโมงทำงาน', value: (x) => x.hours, num: true, html: (x) => fmt(x.hours, 1) },
       { title: 'วันที่มีงาน', value: (x) => x.workDays, num: true },
       { title: 'สถานะ', value: (x) => (!x.counted ? 'ไม่ตัดสิน' : x.below ? 'ต่ำกว่าเป้า' : 'ถึงเป้า'),
         html: (x) => (!x.counted
@@ -451,15 +451,15 @@
     /* ── การ์ด 5 ใบ ตามลำดับของ V2 (individualScorecardHtml) ── */
     const cards = Sh.statCards([
       ['⚡ Productivity', person.average === null ? '—' : fmt(person.average, 1), 'หยิบ/ชม.',
-        person.average === null ? 'ไม่มีแถวที่ AF > 0 จึงไม่ตัดสิน'
+        person.average === null ? 'ไม่มีแถวที่นับได้ จึงไม่ตัดสิน'
           : `Target ${fmt(person.target)} · ${person.gap >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} ${fmt(Math.abs(person.gap), 1)} · ${fmt(person.count)} แถวเข้าเฉลี่ย`,
         person.average === null ? '#64748b' : person.below ? '#e11d48' : '#16a34a'],
       ['🎯 % Efficiency', person.eff === null ? '—' : fmt(person.eff, 1), '%',
         `เทียบ Target โซน ${person.zone.label} ที่ ${fmt(person.target)} หยิบ/ชม.`,
         person.eff === null ? '#64748b' : person.eff >= 100 ? '#16a34a' : '#ea580c'],
       ['📦 Total Pick', fmt(person.total), 'หน่วย',
-        `${fmt(person.workDays)} วันที่มีงาน · ${fmt(person.rows.length)} แถวต้นทาง (รวมแถวที่ AF เป็น Not Count)`, '#0ea5e9'],
-      ['⏱️ ชั่วโมง (คอลัมน์ G)', fmt(person.hours, 1), 'ชม.',
+        `${fmt(person.workDays)} วันที่มีงาน · ${fmt(person.rows.length)} แถวต้นทาง (รวมแถวที่ไม่เข้าเฉลี่ย)`, '#0ea5e9'],
+      ['⏱️ ชั่วโมงทำงาน', fmt(person.hours, 1), 'ชม.',
         person.workDays ? `เฉลี่ย ${fmt(person.hours / person.workDays, 1)} ชม./วันที่มีงาน · ไม่มีข้อมูล OT ในต้นทาง` : 'ไม่มีข้อมูล OT ในต้นทาง', '#7c3aed'],
       ['📈 วันดีที่สุด / แย่ที่สุด', best ? fmt(best.average, 1) : '—', 'หยิบ/ชม.',
         best ? `${dmy(best.date)} · ต่ำสุด ${fmt(worst.average, 1)} (${dmy(worst.date)})` : 'ยังไม่มีวันที่นับได้', '#0891b2']
@@ -472,7 +472,7 @@
       insights.push(insightCard(d >= 0 ? 'good' : 'warn', 'เทียบค่าเฉลี่ยของกลุ่ม',
         `คนนี้ <b>${fmt(person.average, 1)}</b> หยิบ/ชม. · กลุ่มทั้งหมด <b>${fmt(groupAvg, 1)}</b> หยิบ/ชม.`
         + ` ${d >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} <b>${fmt(Math.abs(d), 1)}</b>`
-        + `<br>ค่าเฉลี่ยกลุ่มคิดจากทุกแถวที่ AF > 0 ในช่วงที่เลือก (${fmt(ctx.group.count)} แถว) รวมครั้งเดียวไม่เฉลี่ยซ้ำ`));
+        + `<br>ค่าเฉลี่ยกลุ่มคิดจากทุกแถวที่นับได้ในช่วงที่เลือก (${fmt(ctx.group.count)} แถว) รวมครั้งเดียวไม่เฉลี่ยซ้ำ`));
     }
     if (pctEff !== null) {
       insights.push(insightCard(pctEff >= 50 ? 'good' : 'warn', 'เปอร์เซ็นไทล์ในกลุ่ม',
@@ -494,7 +494,7 @@
         + (offZoneDays
           ? ` · มี ${fmt(offZoneDays)} วันที่ Target ต่างจากโซนหลัก (${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม.)`
           : ` · ทุกวันใช้ Target เดียวกับโซนหลัก (${fmt(person.target)} หยิบ/ชม.)`)
-        + `<br>อีก ${fmt(daily.length - countedDays.length)} วันไม่เข้าเฉลี่ยเพราะคอลัมน์ AF ไม่มากกว่า 0`
+        + `<br>อีก ${fmt(daily.length - countedDays.length)} วันไม่เข้าเฉลี่ยเพราะค่าเฉลี่ยต่อชั่วโมงไม่มากกว่า 0`
         + (multi
           ? `<br>ค่านี้<b>นับต่อวัน</b> — มี ${fmt(multi)} วันที่ต้นทางมีหลายแถว จึงรวมเป็นวันเดียวก่อนเทียบเป้า`
             + ` ทำให้จำนวนผ่าน/ไม่ผ่านต่างจากตารางรายวันที่นับต่อแถวได้`
@@ -503,13 +503,13 @@
     insights.push(insightCard(person.zoneCount > 1 ? 'warn' : 'good', 'โซนที่ทำงาน',
       `ทำ <b>${fmt(person.zoneCount)}</b> โซนในช่วงที่เลือก · โซนหลักคือ <b>${esc(person.zone.label)}</b>`
       + ` (มีแถวเข้าเฉลี่ย ${fmt(person.zoneRowCount)} แถว มากที่สุด)`
-      + `<br>คอลัมน์ AH เป็นโซนสังกัดรายวัน ไม่ใช่โซนที่หยิบจริงรายรายการ`));
+      + `<br>โซนในต้นทางเป็นโซนสังกัดรายวัน ไม่ใช่โซนที่หยิบจริงรายรายการ`));
     if (peak) {
       insights.push(insightCard('good', 'ช่วงเวลาที่ทำงาน',
         `มียอดใน <b>${fmt(activeHours.length)}</b> จาก 24 ช่วง · ช่วงแรก <b>${esc(ctx.hourLabels[activeHours[0].i])}</b>`
         + ` · ช่วงสุดท้าย <b>${esc(ctx.hourLabels[activeHours[activeHours.length - 1].i])}</b>`
         + ` · หยิบมากสุดช่วง <b>${esc(ctx.hourLabels[peak.i])}</b> ที่ ${fmt(peak.v)} หน่วย`
-        + `<br>มาจากคอลัมน์ H–AE ที่ Sheet บันทึกยอดต่อชั่วโมงไว้แล้ว ไม่ใช่เวลาเข้า-ออกงาน`));
+        + `<br>มาจากข้อมูลรายชั่วโมงที่ Sheet บันทึกยอดต่อชั่วโมงไว้แล้ว ไม่ใช่เวลาเข้า-ออกงาน`));
     }
     if (person.resigned) {
       insights.push(insightCard('warn', 'พ้นสภาพแล้ว',
@@ -530,28 +530,28 @@
         ${cards}
         <div class="staff-insight-grid">${insights.join('')}</div>
         <div class="note v3-notice">ทุกค่าในหน้านี้คิดจากแถวของคนนี้ใน Results Master
-          · Productivity = ผลรวมคอลัมน์ AF ของแถวที่ AF &gt; 0 ÷ จำนวนแถวนั้น · Total Pick = ผลรวมคอลัมน์ E ทุกแถวที่มีวันที่
-          · ชั่วโมงคือคอลัมน์ G ตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง · เท่ากับเป้านับว่าผ่าน
+          · Productivity = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น · Total Pick = ผลรวมยอดหยิบทุกแถวที่มีวันที่
+          · ชั่วโมงทำงานตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง · เท่ากับเป้านับว่าผ่าน
           <br><b>Target ที่ใช้ในหน้านี้</b> — การ์ด Productivity และ % Efficiency ตัดสิน<b>ภาพรวมของคนนี้</b>
           ด้วย Target ของโซนหลัก (${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม.) เหมือนตารางเทียบทุกคนและเมนู “ไม่ถึงเป้า”
           · ส่วนการ์ด “วันที่ถึงเป้าโซน” ตารางรายวัน และเส้นประบนกราฟเทรน ตัดสิน<b>รายวัน/รายแถว</b>
           ด้วย Target ของโซนที่ทำในวันนั้น${offZoneDays ? ` (มี ${fmt(offZoneDays)} วันที่นับได้ซึ่ง Target ต่างจากโซนหลัก)` : ''}
           ${person.zone.key === 'unknown'
-            ? `<br><b>โซนหลักของคนนี้เป็น Not Found</b> — คอลัมน์ AH ไม่ตรงกฎโซนของ V1 จึงเทียบกับ
+            ? `<br><b>โซนหลักของคนนี้เป็น Not Found</b> — โซนในต้นทางไม่ตรงกฎโซนของ V1 จึงเทียบกับ
                Target รวม ${fmt(person.target)} เพราะไม่รู้ประเภทงาน ต้องเติม Zone ให้ถูกก่อนจะเชื่อเลขของคนนี้ได้`
             : unknownDays
-              ? `<br><b>มี ${fmt(unknownDays)} วันที่โซนเป็น Not Found</b> (คอลัมน์ AH ไม่ตรงกฎโซนของ V1)
+              ? `<br><b>มี ${fmt(unknownDays)} วันที่โซนเป็น Not Found</b> (โซนในต้นทางไม่ตรงกฎโซนของ V1)
                  วันเหล่านั้นเทียบกับ Target รวม ${fmt(Sh.zoneTargetOf(UNKNOWN_ZONE))} เพราะไม่รู้ประเภทงาน`
               : ''}
           <br><b>ไม่มีในต้นทาง จึงไม่มีในหน้านี้</b> — Lines · pcs · SKU และชื่อสินค้า · Owner · Location ระดับช่อง
           · เวลาเริ่ม-จบระดับนาที · ชั่วโมง OT · Target ผสมตามสัดส่วนโซน (blendedTarget) · โซนที่หยิบจริงรายรายการ
-          ที่ V2 เคยแสดง จึงถูกตัดออก · แทนที่ด้วยช่วงเวลาจากคอลัมน์ H–AE, ชั่วโมงจากคอลัมน์ G,
-          Target ของโซนหลัก และการเทียบโซนสังกัด (AH) กับ Zone ในทะเบียน 2ND</div>
+          ที่ V2 เคยแสดง จึงถูกตัดออก · แทนที่ด้วยช่วงเวลาจากข้อมูลรายชั่วโมง, ชั่วโมงทำงาน,
+          Target ของโซนหลัก และการเทียบโซนสังกัดกับ Zone ในทะเบียน 2ND</div>
       </div>
 
       <div class="card wide" style="margin-top:16px;">
         <h3>📉 เทรน Productivity รายวันของคนนี้</h3>
-        <div class="sub">แท่ง = Total Pick (คอลัมน์ E) ของวันนั้น · เส้น = ค่าเฉลี่ย AF ของวันนั้น
+        <div class="sub">แท่ง = Total Pick ของวันนั้น · เส้น = ค่าเฉลี่ยต่อชั่วโมงของวันนั้น
           · เส้นประ = <b>Target ของโซนที่ทำในวันนั้น</b>
           ${offTargetDays
             ? `(โซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. · ในช่วงที่กราฟแสดงมี ${fmt(offTargetDays)} วันที่ใช้ค่าอื่น เส้นจึงขยับ)`
@@ -563,32 +563,32 @@
           <button type="button" data-ind-trend="0"${trendDays === 0 ? ' class="active"' : ''}>ทุกวันที่มีงาน</button>
         </div>
         <div class="chartbox tall"><canvas id="v3IndTrendChart"></canvas></div>
-        <div class="note v3-notice">วันที่ยึดคอลัมน์ C ตรง ๆ ไม่ย้ายยอดหลังเที่ยงคืน
-          · วันที่ AF ไม่มากกว่า 0 จะไม่มีจุดบนเส้น Productivity แต่ยังมีแท่ง Total Pick เพราะคอลัมน์ E ยังนับ
+        <div class="note v3-notice">วันที่ยึดวันที่ในต้นทางตรง ๆ ไม่ย้ายยอดหลังเที่ยงคืน
+          · วันที่ค่าเฉลี่ยต่อชั่วโมงไม่มากกว่า 0 จะไม่มีจุดบนเส้น Productivity แต่ยังมีแท่ง Total Pick เพราะยอดหยิบยังนับ
           · ไม่มีข้อมูล Lines และ OT ในต้นทาง จึงไม่มีสองเส้นนั้นเหมือน V2</div>
       </div>
 
       <div class="card wide" style="margin-top:16px;">
-        <h3>🕒 รูปแบบการทำงานรายชั่วโมงของคนนี้ (คอลัมน์ H–AE)</h3>
+        <h3>🕒 รูปแบบการทำงานรายชั่วโมงของคนนี้</h3>
         <div class="sub">ผลรวมยอดหยิบของแต่ละช่วงเวลาจากทุกวันในช่วงที่เลือก
           · ผลรวม 24 ช่อง ${fmt(hourSum)} เทียบ Total Pick ${fmt(person.total)}
           ${hourSum === person.total ? '(ตรงกันพอดี)' : `(ต่าง ${signed(hourSum - person.total, 0)})`}</div>
         <div class="chartbox"><canvas id="v3IndHourChart"></canvas></div>
         <div class="note v3-notice"><b>หน้านี้ V2 ทำไม่ได้</b> — V2 ไม่มียอดรายชั่วโมงแยกรายคน
-          ส่วน V3 อ่านจากคอลัมน์ H–AE ที่ Sheet บันทึกไว้ครบ 24 ช่องต่อแถว
+          ส่วน V3 อ่านจากข้อมูลรายชั่วโมงที่ Sheet บันทึกไว้ครบ 24 ช่องต่อแถว
           · ช่วงที่เป็น 0 คือ Sheet ไม่มียอดในช่องนั้น ไม่ได้แปลว่าคนนี้ไม่ได้อยู่ในคลัง
-          · หัวคอลัมน์เริ่ม ${esc(ctx.hourLabels[0] || '')} ถึง ${esc(ctx.hourLabels[23] || '')}</div>
+          · ช่วงเวลาเริ่ม ${esc(ctx.hourLabels[0] || '')} ถึง ${esc(ctx.hourLabels[23] || '')}</div>
       </div>
 
       <h2 class="staff-table-title">📍 โซนที่ทำ และ Target ของแต่ละโซน</h2>
-      <p class="panel-desc">ค่าเฉลี่ยของแต่ละโซนคิดแยกด้วยสูตรเดิม (ผลรวม AF ของแถวในโซนนั้นที่ AF &gt; 0 ÷ จำนวนแถวนั้น)
-        · “โซนประจำ” คือโซนที่ตรงกับ Zone ในทะเบียน 2ND คอลัมน์ J</p>
+      <p class="panel-desc">ค่าเฉลี่ยของแต่ละโซนคิดแยกด้วยสูตรเดิม (ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวในโซนนั้นที่นับได้ ÷ จำนวนแถวนั้น)
+        · “โซนประจำ” คือโซนที่ตรงกับ Zone ในทะเบียน 2ND</p>
       <div id="v3IndZoneTable"></div>
 
       <h2 class="staff-table-title">🗓️ ผลงานรายวันของคนนี้</h2>
       <p class="panel-desc">หนึ่งบรรทัดต่อหนึ่งแถวใน Results Master (ใหม่ → เก่า)
-        · แถวที่ AF ไม่มากกว่า 0 จะไม่เข้าเฉลี่ยและมีเหตุผลกำกับไว้
-        · ตารางนี้เทียบ AF ของแถวกับ <b>Target ของโซนในแถวนั้น</b> เกณฑ์เดียวกับการ์ด “วันที่ถึงเป้าโซน” ด้านบน
+        · แถวที่ค่าเฉลี่ยต่อชั่วโมงไม่มากกว่า 0 จะไม่เข้าเฉลี่ยและมีเหตุผลกำกับไว้
+        · ตารางนี้เทียบค่าเฉลี่ยต่อชั่วโมงของแถวกับ <b>Target ของโซนในแถวนั้น</b> เกณฑ์เดียวกับการ์ด “วันที่ถึงเป้าโซน” ด้านบน
         ต่างกันแค่ตารางนี้<b>นับต่อแถว</b> ส่วนการ์ดนับต่อวัน ถ้าวันเดียวมีหลายแถวในต้นทาง
         จำนวนผ่าน/ไม่ผ่านของสองที่จึงต่างกันได้ (คนนี้มี ${fmt(daily.filter((d) => d.rows.length > 1).length)} วันที่มีหลายแถว)</p>
       <div id="v3IndDailyTable"></div>`;
@@ -614,7 +614,7 @@
           + (z.isHome === true ? ' <span class="pill" style="background:#dcfce7;color:#15803d;">โซนประจำ</span>'
             : z.isHome === false ? ' <span class="pill" style="background:#ffedd5;color:#c2410c;">ไม่ใช่โซนในทะเบียน</span>' : '')
           + `<span class="sub">${esc(Sh.zoneLabels[z.zone.group] || 'ไม่พบโซนตามกฎ V1')}</span>` },
-      { title: 'Total Pick (E)', value: (z) => z.total, num: true, html: (z) => fmt(z.total) },
+      { title: 'Total Pick', value: (z) => z.total, num: true, html: (z) => fmt(z.total) },
       { title: 'สัดส่วน', value: (z) => z.share, num: true, html: (z) => fmt(z.share, 1) + '%' },
       { title: 'แถวทั้งหมด', value: (z) => z.rows, num: true },
       { title: 'แถวเข้าเฉลี่ย', value: (z) => z.count, num: true },
@@ -639,12 +639,12 @@
     });
     Sh.table($('v3IndDailyTable'), 'individual-daily', rowItems, [
       { title: 'วันที่', value: (d) => d.date, html: (d) => `<b>${esc(dmy(d.date))}</b><span class="sub">${esc(d.date)}</span>` },
-      { title: 'กะ (AG)', value: (d) => d.shift },
-      { title: 'โซน (AH)', value: (d) => d.zone.label,
+      { title: 'กะ', value: (d) => d.shift },
+      { title: 'โซน', value: (d) => d.zone.label,
         html: (d) => esc(d.zone.label) + `<span class="sub">${esc(String(d.row[33] || 'Not Found'))}</span>` },
-      { title: 'Total Pick (E)', value: (d) => d.total, num: true, html: (d) => fmt(d.total) },
-      { title: 'ชั่วโมง (G)', value: (d) => d.hours, num: true, html: (d) => fmt(d.hours, 1) },
-      { title: 'AF', value: (d) => (d.af === null ? '' : d.af), num: true, sortValue: (d) => d.af,
+      { title: 'Total Pick', value: (d) => d.total, num: true, html: (d) => fmt(d.total) },
+      { title: 'ชั่วโมงทำงาน', value: (d) => d.hours, num: true, html: (d) => fmt(d.hours, 1) },
+      { title: 'ค่าเฉลี่ย/ชม.', value: (d) => (d.af === null ? '' : d.af), num: true, sortValue: (d) => d.af,
         html: (d) => (d.af === null ? `<span class="sub">${esc(d.raw || 'ว่าง')}</span>` : fmt(d.af, 1)) },
       { title: 'Target โซน', value: (d) => d.target, num: true },
       { title: 'เทียบเป้า', value: (d) => (!d.counted ? 'ไม่เข้าเฉลี่ย' : d.af >= d.target ? 'ผ่าน' : 'ไม่ผ่าน'),
@@ -678,9 +678,9 @@
       data: {
         labels,
         datasets: [
-          { type: 'bar', label: 'Total Pick (คอลัมน์ E)', data: totals, backgroundColor: '#818cf8',
+          { type: 'bar', label: 'Total Pick', data: totals, backgroundColor: '#818cf8',
             borderRadius: 5, yAxisID: 'y', order: 2 },
-          { type: 'line', label: 'Productivity (เฉลี่ย AF)', data: prods, spanGaps: true,
+          { type: 'line', label: 'Productivity (ค่าเฉลี่ย/ชม.)', data: prods, spanGaps: true,
             borderColor: '#059669', backgroundColor: '#059669', borderWidth: 2.5, tension: .3,
             pointRadius: use.length > 40 ? 0 : 3.5, pointBackgroundColor: '#fff', pointBorderWidth: 2,
             yAxisID: 'y1', order: 1 },
@@ -710,9 +710,9 @@
               afterBody: (items) => {
                 const d = use[items[0].dataIndex];
                 if (!d) return [];
-                const note = d.average === null ? 'วันนี้ไม่เข้าเฉลี่ย (AF ไม่มากกว่า 0)'
+                const note = d.average === null ? 'วันนี้ไม่เข้าเฉลี่ย (ค่าเฉลี่ย/ชม. ไม่มากกว่า 0)'
                   : d.average >= d.target ? 'ผ่านเป้าโซน' : 'ต่ำกว่าเป้าโซน';
-                return [`ชั่วโมง (G): ${fmt(d.hours, 1)}`, `แถวต้นทาง: ${fmt(d.rows.length)}`,
+                return [`ชั่วโมงทำงาน: ${fmt(d.hours, 1)}`, `แถวต้นทาง: ${fmt(d.rows.length)}`,
                   `Target วันนั้น: ${fmt(d.target)} (โซน ${d.zone.label})`, note];
               }
             }

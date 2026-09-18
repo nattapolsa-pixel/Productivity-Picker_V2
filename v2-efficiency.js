@@ -270,14 +270,14 @@
               label: (ctx) => {
                 const d = list[ctx.dataIndex];
                 if (ctx.datasetIndex !== 0) return ' เป้ามาตรฐาน 100% (' + fmt(model.target) + ' หยิบ/ชม.)';
-                if (d.s.count === 0) return ' วันนี้ไม่มีแถวที่ AF > 0 จึงไม่ตัดสิน';
+                if (d.s.count === 0) return ' วันนี้ไม่มีแถวที่นับได้ จึงไม่ตัดสิน';
                 return ' Efficiency ' + pct(d.eff) + ' · Productivity ' + fmt(d.s.average, 1)
                   + ' หยิบ/ชม. · ' + (d.pass ? 'ถึงเป้า' : 'ไม่ถึงเป้า');
               },
               afterBody: (items) => {
                 const d = list[items[0].dataIndex];
                 return ['Total Pick ' + fmt(d.s.total) + ' ชิ้น',
-                  'ชั่วโมง (คอลัมน์ G) ' + fmt(d.s.hours, 1),
+                  'ชั่วโมงทำงาน ' + fmt(d.s.hours, 1),
                   'แถวเข้าเฉลี่ย ' + fmt(d.s.count) + ' · ไม่เข้าเฉลี่ย ' + fmt(d.s.excluded),
                   'พนักงาน ' + fmt(d.s.people) + ' คน'];
               }
@@ -300,8 +300,8 @@
   /* กราฟแท่งใบเดียวรวมกะ (AG) กับระบบ เหมือน V2 ที่วางกะ A/B และ PTT/BPS ไว้ใบเดียวกัน */
   function drawGroupChart(model) {
     if (typeof Chart === 'undefined') return;
-    const cats = model.shifts.map((x) => ({ label: x.label, s: x.s, kind: 'กะ (คอลัมน์ AG)' }))
-      .concat(model.systems.map((x) => ({ label: x.label, s: x.s, kind: 'ระบบ (Pick Type คอลัมน์ AK)' })));
+    const cats = model.shifts.map((x) => ({ label: x.label, s: x.s, kind: 'แยกตามกะ' }))
+      .concat(model.systems.map((x) => ({ label: x.label, s: x.s, kind: 'แยกตามระบบ (ประเภทงาน)' })));
     if (!cats.length) return;
     /* ระบายสีด้วยค่าไม่ปัด (rawEff) ให้ตรงกับทูลทิปและสถานะในตาราง
        ค่าปัด (values) ใช้เฉพาะเป็นความสูงของแท่งและตัวเลขบนป้าย */
@@ -330,7 +330,7 @@
             callbacks: {
               label: (ctx) => {
                 const c = cats[ctx.dataIndex];
-                if (c.s.count === 0) return ' ไม่มีแถวที่ AF > 0 จึงไม่ตัดสิน';
+                if (c.s.count === 0) return ' ไม่มีแถวที่นับได้ จึงไม่ตัดสิน';
                 return ' Efficiency ' + pct(effOf(c.s.average, model.target))
                   + ' · Productivity ' + fmt(c.s.average, 1) + ' หยิบ/ชม.';
               },
@@ -386,7 +386,7 @@
             callbacks: {
               label: (ctx) => {
                 const c = cats[ctx.dataIndex];
-                if (c.s.count === 0) return ' ไม่มีแถวที่ AF > 0 จึงไม่ตัดสิน';
+                if (c.s.count === 0) return ' ไม่มีแถวที่นับได้ จึงไม่ตัดสิน';
                 return ' Efficiency ' + pct(effOf(c.s.average, model.target))
                   + ' · Productivity ' + fmt(c.s.average, 1) + ' หยิบ/ชม.';
               },
@@ -428,8 +428,8 @@
     const newestFirst = [...model.days].reverse();     // วันล่าสุดขึ้นก่อน กดหัวคอลัมน์เรียงใหม่ได้
     S.table(container, 'eff-daily', newestFirst, [
       { title: 'วันที่', value: (d) => dmy(d.date), sortValue: (d) => d.date },
-      { title: 'Total Pick (คอลัมน์ E)', value: (d) => d.s.total, num: true, html: (d) => fmt(d.s.total) },
-      { title: 'ชั่วโมง (คอลัมน์ G)', value: (d) => d.s.hours, num: true, html: (d) => fmt(d.s.hours, 1) },
+      { title: 'Total Pick', value: (d) => d.s.total, num: true, html: (d) => fmt(d.s.total) },
+      { title: 'ชั่วโมงทำงาน', value: (d) => d.s.hours, num: true, html: (d) => fmt(d.s.hours, 1) },
       { title: 'Productivity (หยิบ/ชม.)', value: (d) => d.s.average, num: true, html: (d) => '<b>' + fmt(d.s.average, 1) + '</b>' },
       { title: 'Target', value: (d) => model.target, num: true },
       {
@@ -459,8 +459,8 @@
           + '<span class="sub">' + esc(S.zoneLabels[z.zone.group] || 'ไม่พบโซนตามกฎ V1') + '</span>'
       },
       { title: 'ประเภทงาน', value: (z) => S.zoneLabels[z.zone.group] || 'Not Found' },
-      { title: 'Total Pick (คอลัมน์ E)', value: (z) => z.s.total, num: true, html: (z) => fmt(z.s.total) },
-      { title: 'ชั่วโมง (คอลัมน์ G)', value: (z) => z.s.hours, num: true, html: (z) => fmt(z.s.hours, 1) },
+      { title: 'Total Pick', value: (z) => z.s.total, num: true, html: (z) => fmt(z.s.total) },
+      { title: 'ชั่วโมงทำงาน', value: (z) => z.s.hours, num: true, html: (z) => fmt(z.s.hours, 1) },
       { title: 'Productivity (หยิบ/ชม.)', value: (z) => z.s.average, num: true, html: (z) => '<b>' + fmt(z.s.average, 1) + '</b>' },
       { title: 'Target ของโซน', value: (z) => z.target, num: true },
       {
@@ -483,10 +483,10 @@
       pass: passed(p.s.average, model.target)
     }));
     S.table(container, 'eff-paytype', list, [
-      { title: 'ประเภทการจ้าง (คอลัมน์ AQ)', value: (p) => p.key, html: (p) => '<b>' + esc(p.key) + '</b>' },
+      { title: 'ประเภทการจ้าง', value: (p) => p.key, html: (p) => '<b>' + esc(p.key) + '</b>' },
       { title: 'พนักงาน', value: (p) => p.people, num: true },
-      { title: 'Total Pick (คอลัมน์ E)', value: (p) => p.s.total, num: true, html: (p) => fmt(p.s.total) },
-      { title: 'ชั่วโมง (คอลัมน์ G)', value: (p) => p.s.hours, num: true, html: (p) => fmt(p.s.hours, 1) },
+      { title: 'Total Pick', value: (p) => p.s.total, num: true, html: (p) => fmt(p.s.total) },
+      { title: 'ชั่วโมงทำงาน', value: (p) => p.s.hours, num: true, html: (p) => fmt(p.s.hours, 1) },
       { title: 'Productivity (หยิบ/ชม.)', value: (p) => p.s.average, num: true, html: (p) => '<b>' + fmt(p.s.average, 1) + '</b>' },
       { title: 'Target', value: () => model.target, num: true },
       {
@@ -530,7 +530,7 @@
       ['🎯 Efficiency เฉลี่ยรวม', pct(model.eff), '',
         'Productivity ' + fmt(model.all.average, 1) + ' หยิบ/ชม. เทียบเป้า ' + fmt(t), effColor(model.eff)],
       ['📊 สถานะภาพรวม', model.all.average === null ? 'ไม่ตัดสิน' : (isHit ? 'ถึงเป้า (Hit)' : 'ไม่ถึงเป้า (Miss)'), '',
-        model.all.average === null ? 'ยังไม่มีแถวที่ AF > 0 ในช่วงที่เลือก'
+        model.all.average === null ? 'ยังไม่มีแถวที่นับได้ในช่วงที่เลือก'
           : (gap >= 0 ? 'เกินเป้า ' + signed(gap) + ' หยิบ/ชม.' : 'ยังขาดอีก ' + fmt(Math.abs(gap), 1) + ' หยิบ/ชม.'),
         model.all.average === null ? GREY : (isHit ? GREEN : RED)],
       ['📅 วันที่ผ่านเกณฑ์ (Hit Rate)', fmt(model.hitDays.length) + ' / ' + fmt(model.judgedDays.length), 'วัน',
@@ -544,17 +544,17 @@
     return cards
       /* โน้ตใต้การ์ด — บอกที่มาของตัวเลขและบอกตรง ๆ ว่าอะไรของ V2 ทำไม่ได้เพราะไม่มีข้อมูล */
       + '<div class="note v3-notice">'
-      + '<b>ที่มาของตัวเลข</b> · Productivity = ผลรวมคอลัมน์ AF ของแถวที่ AF &gt; 0 ÷ จำนวนแถวนั้น '
-      + '(รวม sum/count ครั้งเดียวทุกระดับ ไม่เอาค่าเฉลี่ยมาเฉลี่ยซ้ำ) · '
+      + '<b>ที่มาของตัวเลข</b> · Productivity = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น '
+      + '(รวมครั้งเดียวทุกระดับ ไม่เอาค่าเฉลี่ยมาเฉลี่ยซ้ำ) · '
       + '% Efficiency = Productivity ÷ Target × 100 · <b>เท่ากับเป้านับว่าผ่าน</b> · '
-      + 'Total Pick = ผลรวมคอลัมน์ E ของทุกแถวที่มีวันที่ รวมแถวที่ AF เป็น Not Count · '
+      + 'Total Pick = ผลรวมยอดหยิบของทุกแถวที่มีวันที่ รวมแถวที่ไม่เข้าเฉลี่ยด้วย · '
       + 'ช่วงนี้มี ' + fmt(model.all.rows) + ' แถว เข้าเฉลี่ย ' + fmt(model.all.count) + ' แถว '
       + 'ไม่เข้าเฉลี่ย ' + fmt(model.all.excluded) + ' แถว · Target รวมตอนนี้ ' + fmt(t) + ' หยิบ/ชม. '
       + 'แก้ได้จากปุ่ม ⚙️ ตั้งค่า Target บนแถบตัวกรองด้านบน (Target รายโซนก็อยู่ในหน้าต่างนั้น)'
       + '<br><b>สิ่งที่หน้านี้ของ V2 มีแต่ V3 ทำไม่ได้</b> — ข้อมูลจริงมีแค่ 1 แถวต่อคนต่อวัน จึง<b>ไม่มี</b> '
       + 'จำนวนชิ้นดิบ (pcs) จำนวนบรรทัด (lines) SKU Owner Location ระดับช่อง และเวลาเริ่ม-จบระดับนาที · '
       + 'หน้านี้จึงมีหน่วยเดียวคือ หยิบ/ชม. ไม่มีโหมด ชิ้น/ชม. และไม่มี Cycle time ต่อบรรทัดแบบ V2 · '
-      + 'คอลัมน์ AH เป็นโซนสังกัดของคนในวันนั้น ไม่ใช่โซนที่หยิบจริงรายรายการ ตารางรายโซนจึงอ่านได้ว่า '
+      + 'โซนที่ Sheet บันทึกไว้เป็นโซนสังกัดของคนในวันนั้น ไม่ใช่โซนที่หยิบจริงรายรายการ ตารางรายโซนจึงอ่านได้ว่า '
       + '"ผลงานของคนที่สังกัดโซนนั้น" · ไม่มีแผนงานล่วงหน้าและไม่มี blendedTarget จึงไม่มีการพยากรณ์'
       + (model.bpsEarly ? '<br>Pick to Sort ' + fmt(model.bpsEarly) + ' แถวก่อน 08/06/2026 ไม่เข้าถังระบบใด ตามกฎ V1 ที่ให้ BPS เริ่มนับ 08/06/2026' : '')
       + '</div>'
@@ -578,37 +578,37 @@
       + '<div class="card wide v3-card">'
       + '<div class="staff-card-head"><div>'
       + '<h3>🅰️🅱️ % Efficiency แยกตามกะ และระบบ</h3>'
-      + '<div class="sub">กะอ่านจากคอลัมน์ AG ตามที่ Sheet บันทึกไว้ (ไม่เดาจากเวลา) · '
-      + 'ระบบแยกจาก Pick Type คอลัมน์ AK · ทุกแท่งเทียบ Target รวม ' + fmt(t) + ' หยิบ/ชม.</div></div>'
+      + '<div class="sub">กะอ่านตามที่ Sheet บันทึกไว้ (ไม่เดาจากเวลา) · '
+      + 'ระบบแยกจากประเภทงานที่ Sheet บันทึกไว้ · ทุกแท่งเทียบ Target รวม ' + fmt(t) + ' หยิบ/ชม.</div></div>'
       + '<span class="pill">Shift &amp; System</span>'
       + '</div>'
       + '<div class="chartbox tall"><canvas id="v3EffGroupChart"></canvas></div>'
-      + '<div class="note v3-notice">ถัง "ไม่ระบุกะ" คือคอลัมน์ AG ว่าง หรือเป็น Not Found Data / #N/A / ขีด — '
+      + '<div class="note v3-notice">ถัง "ไม่ระบุกะ" คือแถวที่ Sheet เว้นกะไว้ว่าง หรือเป็น Not Found Data / #N/A / ขีด — '
       + 'ไม่ใช่กะจริง ต้องเติมข้อมูลก่อนจะเชื่อเลขของถังนี้ได้ · '
-      + 'ถัง "ไม่ระบุประเภทงาน" คือคอลัมน์ AK ที่เทียบกับกฎ V1 ไม่ได้ (เช่น ช่วยงานส่วนอื่น) จึงไม่รู้ว่าเป็น PTT หรือ BPS</div>'
+      + 'ถัง "ไม่ระบุประเภทงาน" คือประเภทงานที่ Sheet บันทึกไว้แต่เทียบกับกฎ V1 ไม่ได้ (เช่น ช่วยงานส่วนอื่น) จึงไม่รู้ว่าเป็น PTT หรือ BPS</div>'
       + '</div>'
 
       + '<div class="card wide v3-card">'
       + '<div class="staff-card-head"><div>'
-      + '<h3>🧾 % Efficiency แยกตามประเภทการจ้าง (คอลัมน์ AQ)</h3>'
+      + '<h3>🧾 % Efficiency แยกตามประเภทการจ้าง</h3>'
       + '<div class="sub">มิติที่หน้า Efficiency ของ V2 ไม่มี — Sheet บันทึกไว้ว่าแถวนั้นเป็นพนักงาน รายวัน หรือ รายเดือน</div></div>'
       + '<span class="pill">' + fmt(model.payTypes.length) + ' ประเภทที่พบจริง</span>'
       + '</div>'
       + '<div class="chartbox"><canvas id="v3EffPayChart"></canvas></div>'
-      + '<div class="note v3-notice">แสดงเฉพาะค่าที่มีอยู่จริงในคอลัมน์ AQ ของช่วงที่เลือก ไม่เติมประเภทที่ไม่พบ · '
+      + '<div class="note v3-notice">แสดงเฉพาะประเภทการจ้างที่มีอยู่จริงในช่วงที่เลือก ไม่เติมประเภทที่ไม่พบ · '
       + (payNote || 'ยังไม่มีข้อมูลในช่วงที่เลือก')
-      + ' · แถวที่ AQ ว่างจัดไว้ในถัง "ไม่ระบุ" ตามค่าจริง ไม่เดาให้เป็นรายเดือน</div>'
+      + ' · แถวที่ไม่ได้ระบุประเภทการจ้างจัดไว้ในถัง "ไม่ระบุ" ตามค่าจริง ไม่เดาให้เป็นรายเดือน</div>'
       + '</div>'
 
       + '<h2 class="staff-table-title">ผลงานและ % Efficiency รายวัน</h2>'
       + '<p class="panel-desc">วันล่าสุดขึ้นก่อน · กดหัวคอลัมน์เพื่อเรียงใหม่ · Gap คือ Productivity ลบ Target '
-      + '(ติดลบคือยังขาดอีกกี่หยิบ/ชม.) · ชั่วโมงมาจากคอลัมน์ G ตรง ๆ ไม่ลบ 7 ชั่วโมง และไม่ย้ายยอดหลังเที่ยงคืน</p>'
+      + '(ติดลบคือยังขาดอีกกี่หยิบ/ชม.) · ชั่วโมงทำงานมาจาก Sheet ตรง ๆ ไม่ลบ 7 ชั่วโมง และไม่ย้ายยอดหลังเที่ยงคืน</p>'
       + '<div id="v3EffDailyTable"></div>'
 
       + '<h2 class="staff-table-title">อันดับ % Efficiency รายโซน</h2>'
       + '<p class="panel-desc">เทียบ Target ของแต่ละโซน (โซนไหนตั้งเองไว้ใช้ค่านั้นก่อน Target ตามประเภทงาน) · '
       + 'ช่วงนี้ถึงเป้า ' + fmt(zonesPass.length) + ' จาก ' + fmt(zonesJudged.length) + ' โซนที่นับได้ · '
-      + 'กอง Not Found ไม่ใช่โซนจริง (คอลัมน์ AH ไม่ตรงกฎโซนของ V1) จึงเทียบกับ Target รวม ' + fmt(t) + '</p>'
+      + 'กอง Not Found ไม่ใช่โซนจริง (โซนที่ Sheet บันทึกไว้ไม่ตรงกฎโซนของ V1) จึงเทียบกับ Target รวม ' + fmt(t) + '</p>'
       + '<div id="v3EffZoneTable"></div>'
 
       + '<h2 class="staff-table-title">ตารางประเภทการจ้าง (รายวัน / รายเดือน)</h2>'

@@ -273,13 +273,13 @@
         labels: labelsOf,
         datasets: [
           {
-            type: 'bar', label: 'ยอดหยิบรวม (คอลัมน์ E)', data: periods.map((p) => p.stats.total),
+            type: 'bar', label: 'ยอดหยิบรวม', data: periods.map((p) => p.stats.total),
             backgroundColor: periods.map((p) => (p.inFilter ? 'rgba(79,70,229,.95)' : 'rgba(99,102,241,.28)')),
             borderRadius: 6, yAxisID: 'y', order: 2,
             datalabels: { display: false }
           },
           {
-            type: 'line', label: 'Productivity (เฉลี่ย AF > 0)', data: periods.map((p) => (p.stats.average === null ? null : Number(p.stats.average.toFixed(1)))),
+            type: 'line', label: 'Productivity (เฉลี่ยต่อชั่วโมง)', data: periods.map((p) => (p.stats.average === null ? null : Number(p.stats.average.toFixed(1)))),
             borderColor: '#f43f5e', backgroundColor: '#f43f5e', borderWidth: 2.5, pointRadius: 3.5,
             tension: .3, fill: false, yAxisID: 'y1', order: 1,
             datalabels: { align: 'top', color: '#be123c', font: { size: 10, weight: '700' }, formatter: (v) => (v === null ? '' : fmt1(v)) }
@@ -413,8 +413,8 @@
       ])}
       <div class="chartbox tall" style="margin-top:16px;"><canvas id="v3TrendPeriodChart"></canvas></div>
       <div class="chartbox" style="margin-top:16px;"><canvas id="v3TrendChangeChart"></canvas></div>
-      <div class="note v3-notice"><b>สูตรที่ใช้เป็นของ V1</b> — Productivity ของ${unit} = ผลรวมคอลัมน์ AF ของแถวที่ AF &gt; 0 ÷ จำนวนแถวนั้น
-        รวม sum/count ครั้งเดียว ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำ · ยอดหยิบ = ผลรวมคอลัมน์ E ทุกแถวที่มีวันที่
+      <div class="note v3-notice"><b>สูตรที่ใช้เป็นของ V1</b> — Productivity ของ${unit} = ผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น
+        รวมครั้งเดียว ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำ · ยอดหยิบ = ผลรวมยอดหยิบทุกแถวที่มีวันที่
         ${trendPeriodMode === 'day' ? `<br>วันที่มีแถวเข้าเฉลี่ยน้อยกว่า ${THIN_ROWS} แถวจะขึ้น ⚠️ เพราะค่าเฉลี่ยเหวี่ยงง่าย อย่าตัดสินใจจากวันเดียว` : ''}
         <br>หน้าเดียวกันของ V2 คิดเป็น “เฉลี่ยของค่าเฉลี่ยรายวัน” ตัวเลขจึงอาจไม่ตรงกับหน้านี้
         ยิ่งจำนวนแถวของแต่ละวันในงวดต่างกันมาก ยิ่งต่างกันมาก · ${trendPeriodMode === 'week' ? 'สัปดาห์เริ่มวันจันทร์' : 'เดือนตามปฏิทิน'}</div>
@@ -448,7 +448,7 @@
             + (p.prodDeltaPct === null ? '' : `<span class="sub">${signed1(p.prodDeltaPct)}%</span>`) },
         { title: `Δ ยอดหยิบ ${delta}`, value: (p) => (p.qtyDeltaPct === null ? 0 : p.qtyDeltaPct), num: true, sortValue: (p) => p.qtyDeltaPct,
           html: (p) => `<span class="${cls(p.qtyDeltaPct)}">${signed1(p.qtyDeltaPct)}${p.qtyDeltaPct === null ? '' : '%'}</span>` },
-        { title: 'ชั่วโมง (คอลัมน์ G)', value: (p) => p.stats.hours, num: true, html: (p) => fmt1(p.stats.hours) },
+        { title: 'ชั่วโมงทำงาน', value: (p) => p.stats.hours, num: true, html: (p) => fmt1(p.stats.hours) },
         (trendPeriodMode === 'day'
           ? { title: 'คนที่มีผลงาน', value: (p) => p.stats.people, num: true, html: (p) => `${fmt(p.stats.people)}<span class="sub">${fmt(p.stats.excluded)} แถวไม่เข้าเฉลี่ย</span>` }
           : { title: 'คนมากสุด/วัน', value: (p) => p.maxPeopleDay, num: true, html: (p) => `${fmt(p.maxPeopleDay)}<span class="sub">${fmt(p.stats.people)} คนทั้ง${unit}</span>` }),
@@ -539,7 +539,7 @@
         : fmt(labels.length) + ' ' + unit + ' \u00b7 ' + fmt(shown) + ' Total Pick';
     }
     if ($('trendSub')) {
-      let text = 'แท่ง = Total Pick รวมคอลัมน์ E (แกนซ้าย) \u00b7 เส้น = Productivity เฉลี่ยคอลัมน์ AF เฉพาะค่า &gt; 0 (แกนขวา) \u00b7 รวม sum/count ของแถวตามสูตร V1 ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ';
+      let text = 'แท่ง = Total Pick รวมยอดหยิบทุกแถว (แกนซ้าย) \u00b7 เส้น = Productivity เฉลี่ยต่อชั่วโมงจากแถวที่นับได้ (แกนขวา) \u00b7 รวมครั้งเดียวตามสูตร V1 ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ';
       if (trendMode === 'day') {
         text += '<br><b style="color:#4338ca;">กราฟกางทั้งเดือน ' + monthLabel(activeMonthKey()) + '</b>'
           + ' \u2014 แท่งสีเข้ม = วันที่อยู่ในตัวกรอง' + (start ? ' (' + start + (start === end ? '' : ' \u2013 ' + end) + ')' : '')
@@ -554,7 +554,7 @@
         datasets: [
           {
             type: 'bar',
-            label: 'Total Pick (Column E)',
+            label: 'Total Pick',
             data: totals,
             backgroundColor: trendMode === 'day'
               ? inFilter.map((on) => (on ? 'rgba(79,70,229,.95)' : 'rgba(99,102,241,.28)'))
@@ -580,7 +580,7 @@
           },
           {
             type: 'line',
-            label: 'Productivity (เฉลี่ย Column AF)',
+            label: 'Productivity (เฉลี่ยต่อชั่วโมง)',
             data: prods,
             borderColor: '#f43f5e',
             backgroundColor: '#f43f5e',
@@ -934,7 +934,7 @@
           },
           {
             type: 'line',
-            label: 'Productivity (เฉลี่ย AF)',
+            label: 'Productivity (เฉลี่ยต่อชั่วโมง)',
             data: entries.map((e) => (e.stats.average === null ? 0 : Number(e.stats.average.toFixed(1)))),
             borderColor: '#f43f5e',
             backgroundColor: '#fff',
@@ -1012,7 +1012,7 @@
       data: {
         labels: items.map((x) => (x.name.length > 26 ? x.name.slice(0, 25) + '…' : x.name)),
         datasets: [{
-          label: 'Productivity (เฉลี่ย AF)',
+          label: 'Productivity (เฉลี่ยต่อชั่วโมง)',
           data: items.map((x) => Number(x.stats.average.toFixed(1))),
           backgroundColor: items.map((x) => (x.stats.average >= target ? '#10b981' : '#f43f5e')),
           borderRadius: 6,

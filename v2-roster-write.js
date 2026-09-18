@@ -27,7 +27,7 @@
     { key: 'startDate', label: 'วันที่เริ่มทำงาน', col: '2ND G', placeholder: 'เช่น 20/03/2026' },
     { key: 'statusWork', label: 'Status Work', col: '2ND H', placeholder: 'เช่น Work' },
     { key: 'zone', label: 'Zone', col: '2ND J' },
-    { key: 'pickType', label: 'Pick Type', col: '2ND K', note: 'ค่านี้มีผลต่อสูตร AF และ Productivity' },
+    { key: 'pickType', label: 'Pick Type', col: '2ND K', note: 'ค่านี้มีผลต่อค่าเฉลี่ยต่อชั่วโมงและ Productivity' },
     { key: 'bu', label: 'BU', col: '2ND L' },
     { key: 'shift', label: 'Ship กะ', col: '2ND M', placeholder: 'เช่น A / B / C' }
   ];
@@ -133,7 +133,9 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  /* ── ฟอร์มกรอกรายคน ── */
+  /* ── ฟอร์มกรอกรายคน ──
+     ป้ายช่องปลายทางในชีต (f.col) ไม่แสดงในหน้าเว็บแล้ว แต่ยังใช้ทำหัวคอลัมน์ใน Export CSV
+     เพราะคนที่เอา CSV ไปวางต้องรู้ว่าวางช่องไหน */
   function panelHtml(person, state) {
     const inSheet = Boolean(person.resigned && person.resigned.source !== 'web');
     const resigned = state.status === 'resigned';
@@ -153,13 +155,13 @@
           <button type="button" data-rw-status="resigned"${resigned ? ' class="active is-out"' : ''}>⛔ ลาออกแล้ว</button>
         </div>
         <span class="rw-seghint">${resigned
-          ? 'ปลายทาง: ชีต <b>Resigned</b> คอลัมน์ A รหัส · B ชื่อ · H วันพ้นสภาพ'
+          ? 'ปลายทาง: ชีต <b>Resigned</b> — รหัสพนักงาน · ชื่อ · วันพ้นสภาพ'
           : (inSheet
-            ? 'ปลายทาง: ชีต <b>2ND</b> คอลัมน์ C–M · <b>หมายเหตุ</b> ชีต Resigned บอกว่ารหัสนี้ออกแล้ว หน้าเว็บจะยังขึ้นว่าออกแล้วจนกว่าจะแก้ในชีต Resigned'
-            : 'ปลายทาง: ชีต <b>2ND</b> คอลัมน์ C–M')}</span>
+            ? 'ปลายทาง: ทะเบียน <b>2ND</b> · <b>หมายเหตุ</b> ชีต Resigned บอกว่ารหัสนี้ออกแล้ว หน้าเว็บจะยังขึ้นว่าออกแล้วจนกว่าจะแก้ในชีต Resigned'
+            : 'ปลายทาง: ทะเบียน <b>2ND</b>')}</span>
       </div>
       <div class="rw-grid">
-        ${list.map((f) => `<label>${esc(f.label)} <span class="rw-col">${esc(f.col)}</span>
+        ${list.map((f) => `<label>${esc(f.label)}
           <input type="text" data-rw-field="${f.key}" placeholder="${esc(f.placeholder || '')}" value="${esc(val(f.key))}">
           ${f.note ? `<em class="rw-warn">${esc(f.note)}</em>` : ''}
         </label>`).join('')}

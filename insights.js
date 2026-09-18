@@ -14,7 +14,7 @@
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);});}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
-  function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,1),'Pick/ชม. · เฉลี่ย AF > 0'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,1),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   /* กดหัวคอลัมน์เพื่อเรียง ครั้งแรกมาก -> น้อย ครั้งที่สองน้อย -> มาก ครั้งที่สามกลับลำดับตั้งต้น
      ต้องเก็บลำดับตั้งต้นไว้ได้ เพราะบางตารางจัดลำดับมาก่อนแล้ว
@@ -78,13 +78,13 @@
   }
   const recordColumns=[
     {title:'วันที่',value:r=>M.date(r[2])},
-    {title:'User ID',value:r=>r[3]||'Not Found'}, {title:'ชื่อพนักงาน (2ND)',value:r=>M.personName(r,roster),html:r=>{const nd=M.personName(r,roster);const raw=String(r[1]||'').trim();const nick=M.personNickname(r,roster);const extra=[nick?'ชื่อเล่น '+esc(nick):'',(raw&&raw!==nd)?'ใน Results Master: '+esc(raw):'',M.inRoster(r,roster)?'':'ไม่พบใน 2ND'].filter(Boolean).join(' · ');return esc(nd)+(extra?`<span class="sub">${extra}</span>`:'');}},
+    {title:'User ID',value:r=>r[3]||'Not Found'}, {title:'ชื่อพนักงาน',value:r=>M.personName(r,roster),html:r=>{const nd=M.personName(r,roster);const raw=String(r[1]||'').trim();const nick=M.personNickname(r,roster);const extra=[nick?'ชื่อเล่น '+esc(nick):'',(raw&&raw!==nd)?'ใน Results Master: '+esc(raw):'',M.inRoster(r,roster)?'':'ไม่พบใน 2ND'].filter(Boolean).join(' · ');return esc(nd)+(extra?`<span class="sub">${extra}</span>`:'');}},
     {title:'ระบบ',value:r=>M.system(r)}, {title:'กะ',value:r=>r[32]||'Not Found'},
     {title:'Zone',value:r=>r[33]||'Not Found'}, {title:'สังกัด',value:r=>r[34]||'Not Found'},
     {title:'BU',value:r=>r[35]||'Not Found'}, {title:'Type Pick',value:r=>r[36]||'Not Found'},
     {title:'Total Pick',value:r=>M.number(r[4]),num:true,html:r=>fmt(M.number(r[4]))},
-    {title:'ชั่วโมง G',value:r=>M.number(r[6]),num:true,html:r=>fmt(M.number(r[6]),1)},
-    {title:'AF',value:r=>r[31]||'ว่าง',num:true},
+    {title:'ชั่วโมงทำงาน',value:r=>M.number(r[6]),num:true,html:r=>fmt(M.number(r[6]),1)},
+    {title:'ค่าเฉลี่ย/ชม.',value:r=>r[31]||'ว่าง',num:true},
     {title:'สถานะ',value:r=>M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย',html:r=>`<span class="pill v3-pill ${M.number(r[31])>0?'good':'warn'}">${M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย'}</span>`}
   ];
   function recordsPage(){if(!$('v3Records'))return;const data=visible();$('v3Records').innerHTML=stats(data)+'<div id="v3RecordsTable"></div>';table($('v3RecordsTable'),'records',data,recordColumns,{valid:r=>M.number(r[31])>0});}
@@ -235,8 +235,8 @@
     +`<div class="card wide"><h3>⚠️ พนักงานที่ยังไม่ถึง Target ของโซน</h3>
       <div class="sub">เทียบ Productivity รายคนกับ Target ของโซนหลักที่ทำแถวมากที่สุด · โซนไหนตั้ง Target เองไว้จะใช้ค่านั้นก่อน Target ตามประเภทงาน</div>
       <div class="chartbox tall"><canvas id="v3BelowTargetChart"></canvas></div>
-      <div class="note v3-notice">นับเฉพาะคนที่มีแถวเข้าเฉลี่ย (คอลัมน์ AF > 0) ตามกฎ V1 · ค่าเฉลี่ยรายคนคือผลรวม AF ÷ จำนวนแถวที่ AF > 0 ไม่ได้เฉลี่ยค่าเฉลี่ยซ้ำ · เท่ากับเป้านับว่าผ่าน · คนหนึ่งคนนับครั้งเดียวที่โซนหลัก
-        ${unknownGroup?`<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownGroup.all.length)} คนที่คอลัมน์ AH ไม่ตรงกฎโซนของ V1 (ไม่ถึงเป้า ${fmt(unknownGroup.below.length)} คน) กองนี้เทียบกับ Target รวม ${fmt(unknownGroup.target)} เพราะไม่รู้ประเภทงาน ต้องเติม Zone ให้ถูกก่อนจะเชื่อเลขของกองนี้ได้`:''}</div></div>
+      <div class="note v3-notice">นับเฉพาะคนที่มีแถวเข้าเฉลี่ยตามกฎ V1 · ค่าเฉลี่ยรายคนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น ไม่ได้เฉลี่ยค่าเฉลี่ยซ้ำ · เท่ากับเป้านับว่าผ่าน · คนหนึ่งคนนับครั้งเดียวที่โซนหลัก
+        ${unknownGroup?`<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownGroup.all.length)} คนที่ข้อมูลโซนไม่ตรงกฎโซนของ V1 (ไม่ถึงเป้า ${fmt(unknownGroup.below.length)} คน) กองนี้เทียบกับ Target รวม ${fmt(unknownGroup.target)} เพราะไม่รู้ประเภทงาน ต้องเติม Zone ให้ถูกก่อนจะเชื่อเลขของกองนี้ได้`:''}</div></div>
     <h2 class="staff-table-title">โซนที่มีคนไม่ถึงเป้า</h2>
     <p class="panel-desc">เรียงโซนที่มีคนตกเป้ามากที่สุดขึ้นก่อน · กดหัวคอลัมน์เพื่อเรียงใหม่ได้</p>
     <div id="v3BelowTargetZones"></div>
@@ -264,13 +264,13 @@
     table($('v3BelowTargetPeople'),'below-people',ranked,[
       {title:'#',value:x=>ranked.indexOf(x)+1,num:true,html:x=>`<span class="rank">${ranked.indexOf(x)+1}</span>`},
       {title:'รหัสพนักงาน',value:x=>x.id},
-      {title:'ชื่อ (2ND)',value:x=>x.name,html:x=>esc(x.name)+(x.zoneCount>1?`<span class="sub">ทำ ${fmt(x.zoneCount)} โซน</span>`:'')},
+      {title:'ชื่อ',value:x=>x.name,html:x=>esc(x.name)+(x.zoneCount>1?`<span class="sub">ทำ ${fmt(x.zoneCount)} โซน</span>`:'')},
       {title:'โซนหลัก',value:x=>x.zone.label,html:x=>`${esc(x.zone.label)}<span class="sub">${fmt(x.zoneRowCount)} แถวในโซนนี้</span>`},
       {title:'Productivity',value:x=>x.average,num:true,html:x=>`<b style="color:#b91c1c">${fmt(x.average,1)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`},
       {title:'Target โซน',value:x=>x.target,num:true},
       {title:'Gap',value:x=>x.gap,num:true,html:x=>`<span class="staff-down">${fmt(x.gap,1)}</span>`},
       {title:'% Efficiency',value:x=>x.eff,num:true,html:x=>fmt(x.eff,1)+'%'},
-      {title:'ชั่วโมง (คอลัมน์ G)',value:x=>x.hours,num:true,html:x=>fmt(x.hours,1)},
+      {title:'ชั่วโมงทำงาน',value:x=>x.hours,num:true,html:x=>fmt(x.hours,1)},
       {title:'Total Pick',value:x=>x.total,num:true,html:x=>fmt(x.total)}
     ]);
   }
@@ -327,14 +327,14 @@
 
     const diff=total.total-hourlySum;
     $('v3Hours').innerHTML=cards([
-      ['Total Pick (Column E)',fmt(total.total),'ยอดหลักตามสูตร V1'],
-      ['ผลรวม 24 ช่องเวลา (H–AE)',fmt(hourlySum),diff===0?'ตรงกับ Column E พอดี':'ต่างจาก Column E '+fmt(diff)],
+      ['Total Pick',fmt(total.total),'ยอดหลักตามสูตร V1'],
+      ['ผลรวม 24 ช่องเวลา',fmt(hourlySum),diff===0?'ตรงกับ Total Pick พอดี':'ต่างจาก Total Pick '+fmt(diff)],
       ['ชั่วโมงที่หยิบมากสุด',peakIndex>=0&&totals[peakIndex]>0?esc(labels[peakIndex]):'—',totals[peakIndex]>0?fmt(totals[peakIndex])+' ชิ้น · มีงาน '+fmt(activeHours)+' จาก 24 ช่วง':'ยังไม่มียอดในช่วงที่เลือก'],
       ['พนักงานที่มีงาน',fmt(total.people),fmt(total.count)+' แถวเข้าเฉลี่ย · Productivity '+fmt(total.average,1)+' หยิบ/ชม.']
     ])
-    +`<div class="card wide v3-card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;"><h2 style="margin:0;">🕒 ยอดหยิบตามช่วงเวลา (Hourly Activity)</h2><span class="pill" style="background:#f0fdf4;color:#15803d;font-weight:700;">24 ช่วง · Column H–AE</span></div><div class="sub" style="margin-bottom:12px;">ยอดตามหัวตารางของ Sheet เริ่ม ${esc(labels[0]||'')} ถึง ${esc(labels[23]||'')} · วันที่ยึดคอลัมน์ C ตาม V1 ไม่ปรับเวลาและไม่ย้ายยอดหลังเที่ยงคืน · ช่วงที่เป็น 0 คือ Sheet ยังไม่มียอดในช่องนั้น</div><div class="chartbox tall"><canvas id="hoursChart"></canvas></div></div>`
+    +`<div class="card wide v3-card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;"><h2 style="margin:0;">🕒 ยอดหยิบตามช่วงเวลา (Hourly Activity)</h2><span class="pill" style="background:#f0fdf4;color:#15803d;font-weight:700;">24 ช่วง · ข้อมูลรายชั่วโมง</span></div><div class="sub" style="margin-bottom:12px;">ยอดตามหัวตารางของ Sheet เริ่ม ${esc(labels[0]||'')} ถึง ${esc(labels[23]||'')} · ยึดวันที่ตามที่ชีตบันทึกไว้ตาม V1 ไม่ปรับเวลาและไม่ย้ายยอดหลังเที่ยงคืน · ช่วงที่เป็น 0 คือ Sheet ยังไม่มียอดในช่องนั้น</div><div class="chartbox tall"><canvas id="hoursChart"></canvas></div></div>`
     +`<div id="v3HoursTable"></div>`
-    +`<h2 style="font-size:17px;font-weight:700;color:#0f172a;margin:22px 0 4px;">รายคนในแต่ละช่วงเวลา</h2><p class="panel-desc">ชื่อจากทะเบียน 2ND · ชั่วโมงที่มีงานนับเฉพาะช่องที่มียอดมากกว่า 0 · Productivity ยังใช้ค่าเฉลี่ย Column AF ตามสูตร V1</p><div id="v3HoursPeople"></div>`;
+    +`<h2 style="font-size:17px;font-weight:700;color:#0f172a;margin:22px 0 4px;">รายคนในแต่ละช่วงเวลา</h2><p class="panel-desc">ชื่อจากทะเบียน 2ND · ชั่วโมงที่มีงานนับเฉพาะช่องที่มียอดมากกว่า 0 · Productivity ยังใช้ค่าเฉลี่ยต่อชั่วโมงของแต่ละแถวที่นับได้ ตามสูตร V1</p><div id="v3HoursPeople"></div>`;
 
     table($('v3HoursTable'),'hours',labels.map((label,i)=>({label,index:i,total:totals[i],people:peoplePerHour[i].size,top:topPerHour[i]})),[
       {title:'ช่วงเวลา',value:h=>h.label},
@@ -346,7 +346,7 @@
 
     table($('v3HoursPeople'),'hours-people',people,[
       {title:'User ID',value:p=>p.id},
-      {title:'ชื่อ (2ND)',value:p=>p.name,html:p=>esc(p.name)+(p.nick||!p.inRoster?`<span class="sub">${[p.nick?'ชื่อเล่น '+esc(p.nick):'',p.inRoster?'':'ไม่พบใน 2ND'].filter(Boolean).join(' · ')}</span>`:'')},
+      {title:'ชื่อ',value:p=>p.name,html:p=>esc(p.name)+(p.nick||!p.inRoster?`<span class="sub">${[p.nick?'ชื่อเล่น '+esc(p.nick):'',p.inRoster?'':'ไม่พบใน 2ND'].filter(Boolean).join(' · ')}</span>`:'')},
       {title:'กะ',value:p=>p.shift},
       {title:'ชั่วโมงที่มีงาน',value:p=>p.hourCount,num:true,html:p=>fmt(p.hourCount)+' / 24'},
       {title:'ช่วงแรก',value:p=>p.firstHour||'—'},
@@ -355,7 +355,7 @@
       {title:'Total Pick',value:p=>p.stats.total,num:true,html:p=>fmt(p.stats.total)},
       {title:'ผลรวม 24 ช่อง',value:p=>p.hourSum,num:true,html:p=>fmt(p.hourSum)},
       {title:'Productivity',value:p=>p.stats.average===null?0:p.stats.average,num:true,html:p=>fmt(p.stats.average,1)},
-      {title:'Operating time (G)',value:p=>p.stats.hours,num:true,html:p=>fmt(p.stats.hours,1)}
+      {title:'ชั่วโมงทำงาน',value:p=>p.stats.hours,num:true,html:p=>fmt(p.stats.hours,1)}
     ]);
 
     // ให้ v2-views.js วาดกราฟ Chart.js ลงใน #hoursChart ที่เพิ่งสร้าง
@@ -419,7 +419,7 @@
   }
 
   function qualityPage(){if(!$('v3Quality'))return;const data=visible(),problem=data.filter(r=>issues(r).length);const noMaster=data.filter(r=>!roster.has(String(r[3]||'').trim()));const invalid=rows.filter(r=>!M.date(r[2]));
-    $('v3Quality').innerHTML=cards([['แถวที่ต้องตรวจ',fmt(problem.length),'ไม่ตัดจากยอดอัตโนมัติ'],['Total Pick ของแถวที่ต้องตรวจ',fmt(M.aggregate(problem).total),'นับแต่ละแถวครั้งเดียว'],['ยอดที่ไม่มีทะเบียน 2ND',fmt(M.aggregate(noMaster).total),'อาจเป็นพนักงานเก่าหรือรหัสไม่ตรง'],['แถวไม่มีวันที่ทั้งไฟล์',fmt(invalid.length),'รวมแถวสูตรท้าย Sheet ไม่เข้าในวันรายงาน']])+`<div class="note v3-notice">Productivity อ้างอิง AF จริง ไม่แก้ค่าเองเมื่อพบ Not Found ส่วนทะเบียน 2ND เป็นข้อมูลปัจจุบัน การไม่พบทะเบียนไม่ได้ยืนยันว่าพนักงานลาออก</div>`
+    $('v3Quality').innerHTML=cards([['แถวที่ต้องตรวจ',fmt(problem.length),'ไม่ตัดจากยอดอัตโนมัติ'],['Total Pick ของแถวที่ต้องตรวจ',fmt(M.aggregate(problem).total),'นับแต่ละแถวครั้งเดียว'],['ยอดที่ไม่มีทะเบียน 2ND',fmt(M.aggregate(noMaster).total),'อาจเป็นพนักงานเก่าหรือรหัสไม่ตรง'],['แถวไม่มีวันที่ทั้งไฟล์',fmt(invalid.length),'รวมแถวสูตรท้าย Sheet ไม่เข้าในวันรายงาน']])+`<div class="note v3-notice">Productivity อ้างอิงค่าเฉลี่ยต่อชั่วโมงที่ชีตบันทึกไว้จริง ไม่แก้ค่าเองเมื่อพบ Not Found ส่วนทะเบียน 2ND เป็นข้อมูลปัจจุบัน การไม่พบทะเบียนไม่ได้ยืนยันว่าพนักงานลาออก</div>`
       +`<h2 class="staff-table-title">รหัสพนักงานที่ยังไม่มีทะเบียน</h2><p class="panel-desc">เห็นรหัสแล้วกดปุ่มเติมข้อมูลเพื่อระบุว่ารหัสนี้คือใคร แก้ได้ในหน้านี้เลย · ถ้าสืบมาแล้วพบว่า<b>ลาออกไปแล้ว</b> ให้เลือกปุ่ม ⛔ ลาออกแล้ว ในฟอร์ม กรอกแค่ชื่อกับวันที่ออกพอ ปลายทางคือชีต Resigned ไม่ใช่ 2ND</p><div class="staff-miss-summary" id="v3QualityWriteBar"></div><div id="v3QualityPeople"></div>`
       +`<h2 class="staff-table-title">รายการแถวที่ต้องตรวจ</h2><p class="panel-desc">รายละเอียดระดับแถวสำหรับคนที่อยากไล่ดูต้นทาง</p><div id="v3QualityTable"></div>`;
     renderQualityPeople(data);

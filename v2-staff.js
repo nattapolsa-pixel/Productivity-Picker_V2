@@ -222,21 +222,21 @@
      แต่ KPI ที่ต้องใช้ข้อมูลนั้น (กะ, สังกัด, BU, ประเภทงาน, โซน, อายุงาน) จะเชื่อถือไม่ได้
      ดัชนีคอลัมน์ Results Master: 32 AG กะ, 33 AH Position/Zone, 34 AI สังกัด, 35 AJ BU, 36 AK Pick Type */
   const MISS_RULES = [
-    { key: 'roster', label: 'ไม่มีใน 2ND', where: 'เพิ่มแถวในชีต 2ND (B รหัส, C ชื่อ)',
+    { key: 'roster', label: 'ไม่มีใน 2ND', where: 'เพิ่มแถวในทะเบียน 2ND ใส่รหัสพนักงานกับชื่อ',
       test: (p) => !M.inRoster(p.rows[0], roster) },
-    { key: 'name', label: 'ไม่มีชื่อ', where: '2ND คอลัมน์ C ชื่อ-นามสกุล',
+    { key: 'name', label: 'ไม่มีชื่อ', where: 'ทะเบียน 2ND ช่องชื่อ-นามสกุล',
       test: (p) => p.name === 'Not Found' },
-    { key: 'start', label: 'ไม่มีวันเริ่มงาน', where: 'Update name คอลัมน์ H (หรือ 2ND คอลัมน์ G)',
+    { key: 'start', label: 'ไม่มีวันเริ่มงาน', where: 'ทะเบียนวันเริ่มงาน (หรือช่องวันเริ่มงานในทะเบียน 2ND)',
       test: (p) => !p.hasRosterStart },
-    { key: 'shift', label: 'กะ Not Found', where: 'Results Master คอลัมน์ AG',
+    { key: 'shift', label: 'กะ Not Found', where: 'Results Master ช่องกะ',
       count: (p) => p.rows.filter((r) => M.shiftKey(r) === 'Not Found').length },
-    { key: 'aff', label: 'สังกัดว่าง', where: 'Results Master คอลัมน์ AI',
+    { key: 'aff', label: 'สังกัดว่าง', where: 'Results Master ช่องสังกัด',
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[34])).length },
-    { key: 'bu', label: 'BU ว่าง', where: 'Results Master คอลัมน์ AJ',
+    { key: 'bu', label: 'BU ว่าง', where: 'Results Master ช่อง BU',
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[35])).length },
-    { key: 'type', label: 'Type Pick ว่าง', where: 'Results Master คอลัมน์ AK',
+    { key: 'type', label: 'Type Pick ว่าง', where: 'Results Master ช่องประเภทงาน',
       count: (p) => p.rows.filter((r) => !M.type(r[36])).length },
-    { key: 'zone', label: 'Zone ว่าง', where: 'Results Master คอลัมน์ AH (Position)',
+    { key: 'zone', label: 'Zone ว่าง', where: 'Results Master ช่องโซน (Position)',
       count: (p) => p.rows.filter((r) => M.isPlaceholder(r[33])).length }
   ];
 
@@ -261,11 +261,11 @@
       if (p.resigned.source === 'web') {
         // กรอกในเว็บแล้วแต่ยังไม่ได้ใส่ในชีต Resigned จึงยังถือเป็นงานค้าง ให้ค้างในการ์ดไว้ตรวจและ Export ได้
         out.push({ key: 'resigned-web', label: 'กรอกในเว็บว่าออกแล้ว รอใส่ใน Sheet',
-          where: 'ชีต Resigned: A รหัส · B ชื่อ · H วันพ้นสภาพ', rows: null });
+          where: 'ชีต Resigned: รหัสพนักงาน · ชื่อ · วันพ้นสภาพ', rows: null });
       }
       if (p.name === 'Not Found') {
         const rule = MISS_RULES.find((r) => r.key === 'name');
-        out.push({ ...rule, where: p.resigned.source === 'web' ? 'กรอกชื่อในเว็บได้เลย' : 'Resigned คอลัมน์ B ชื่อ', rows: null });
+        out.push({ ...rule, where: p.resigned.source === 'web' ? 'กรอกชื่อในเว็บได้เลย' : 'ชีต Resigned ช่องชื่อ', rows: null });
       }
       return out;
     }
@@ -378,7 +378,7 @@
         kpiCard('linear-gradient(90deg,#f59e0b,#f97316)', 'ถึง Target แล้ว', fmt(pass), 'คน',
           g.people ? `คิดเป็น ${fmt1(pass / g.people * 100)}% ของคนที่แสดง` : 'ยังไม่มีคนในกลุ่มนี้'),
         kpiCard('linear-gradient(90deg,#8b5cf6,#6366f1)', 'ยอดหยิบรวมกลุ่มใหม่', fmt(g.total), 'ชิ้น',
-          'ผลรวมคอลัมน์ E ของกลุ่มนี้')
+          'ผลรวมยอดหยิบ (Total Pick) ของกลุ่มนี้')
       ].join('');
     }
 
@@ -460,7 +460,7 @@
     if (window.V3Shared && $('newStaffTable')) {
       window.V3Shared.table($('newStaffTable'), 'new-staff', [...shown].sort((a, b) => (a.days ?? 9999) - (b.days ?? 9999)), [
         { title: 'User ID', value: (p) => p.id },
-        { title: 'ชื่อ (2ND)', value: (p) => p.name + (p.resigned ? ' [ออกแล้ว]' : ''), html: nameCell },
+        { title: 'ชื่อ', value: (p) => p.name + (p.resigned ? ' [ออกแล้ว]' : ''), html: nameCell },
         { title: 'กะ', value: (p) => p.shift },
         { title: 'วันเริ่มงาน', value: (p) => p.start || '', html: (p) => dmy(p.start) + `<span class="sub">${p.hasRosterStart ? 'จากทะเบียน' : 'วันแรกที่พบผลงาน'}</span>` },
         { title: 'อายุงาน (วัน)', value: (p) => p.days ?? 0, num: true },
@@ -485,7 +485,7 @@
       data: {
         labels: items.map((p) => (p.resigned ? '⛔ ' : '') + (p.name.length > 26 ? p.name.slice(0, 25) + '…' : p.name)),
         datasets: [{
-          label: 'Productivity (เฉลี่ย AF)',
+          label: 'Productivity (ค่าเฉลี่ยต่อชั่วโมง)',
           data: items.map((p) => Number(p.stats.average.toFixed(1))),
           backgroundColor: items.map((p) => (p.stats.average >= t ? '#10b981' : '#f43f5e')),
           borderRadius: 6, barThickness: 16
@@ -592,7 +592,7 @@
         kpiCard('linear-gradient(90deg,#f59e0b,#f97316)', 'เทียบเดือนก่อน', `${fmt(improved)}/${fmt(dropped)}`, 'ดีขึ้น/แย่ลง',
           'เทียบค่าเฉลี่ยเดือนล่าสุดกับเดือนก่อนของแต่ละคน'),
         kpiCard('linear-gradient(90deg,#8b5cf6,#6366f1)', 'ยอดหยิบรวมกลุ่มเก่า', fmt(g.total), 'ชิ้น',
-          gNew.total ? `กลุ่มใหม่ ${fmt(gNew.total)} ชิ้น` : 'ผลรวมคอลัมน์ E ของกลุ่มนี้')
+          gNew.total ? `กลุ่มใหม่ ${fmt(gNew.total)} ชิ้น` : 'ผลรวมยอดหยิบ (Total Pick) ของกลุ่มนี้')
       ].join('');
     }
 
@@ -630,7 +630,7 @@
             }
           },
           {
-            type: 'line', label: 'Productivity (เฉลี่ย AF)', data: months.map((m) => (m.average === null ? null : Number(m.average.toFixed(1)))),
+            type: 'line', label: 'Productivity (ค่าเฉลี่ยต่อชั่วโมง)', data: months.map((m) => (m.average === null ? null : Number(m.average.toFixed(1)))),
             borderColor: '#f43f5e', backgroundColor: '#f43f5e', tension: 0.35, borderWidth: 3,
             pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2,
             spanGaps: true, yAxisID: 'y1',
@@ -683,7 +683,7 @@
       window.V3Shared.table($('oldStaffTable'), 'old-staff',
         [...shown].sort((a, b) => (b.stats.average ?? -1) - (a.stats.average ?? -1)), [
         { title: 'User ID', value: (p) => p.id },
-        { title: 'ชื่อ (2ND)', value: (p) => p.name + (p.resigned ? ' [ออกแล้ว]' : ''), html: nameCell },
+        { title: 'ชื่อ', value: (p) => p.name + (p.resigned ? ' [ออกแล้ว]' : ''), html: nameCell },
         { title: 'กะ', value: (p) => p.shift },
         { title: 'วันเริ่มงาน', value: (p) => p.start || '', html: (p) => dmy(p.start) + `<span class="sub">${p.hasRosterStart ? 'จากทะเบียน' : 'วันแรกที่พบผลงาน'}</span>` },
         { title: 'อายุงาน (วัน)', value: (p) => p.days ?? 0, num: true },
