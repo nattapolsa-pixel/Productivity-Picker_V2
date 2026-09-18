@@ -79,6 +79,15 @@
      ถ้าหุบตามจะเห็นจุดเดียว จึงกางทั้งเดือนแบบหน้าภาพรวม แล้วเน้นวันที่อยู่ในตัวกรองไว้ */
   let dailyMonth = '';
 
+  /* มุมมองของการ์ดเปรียบเทียบ: แยกรายวันในเดือนนั้น (ตั้งต้น) หรือรวมทั้งเดือนเป็นแท่งเดียว
+     ตั้งต้นเป็นรายวัน เพราะรวมทั้งเดือนจะเห็นแค่ค่าเฉลี่ย มองไม่ออกว่าวันไหนตก */
+  const VIEW_KEY = 'pickProductivityEffBreakdownView:v3';
+  let groupView = (() => {
+    try { return localStorage.getItem(VIEW_KEY) === 'month' ? 'month' : 'day'; }
+    catch (e) { return 'day'; }
+  })();
+  const SERIES = ['#6366f1', '#14b8a6', '#8b5cf6', '#f59e0b', '#f43f5e', '#0ea5e9', '#10b981', '#ec4899'];
+
   /* ── จัดกลุ่มข้อมูล ──
      ทุกกลุ่มส่งแถวดิบเข้า M.aggregate() ครั้งเดียว จึงได้ sum/count ของกลุ่มตรง */
   function bucket(rows, keyOf) {
@@ -169,6 +178,27 @@
     return out;
   }
 
+  /* ค่ารายวันของแต่ละมิติในเดือนที่กางอยู่
+     คืน { names, byName } โดย byName[name] = อาร์เรย์ % ของแต่ละวัน (null = วันนั้นไม่มีแถวที่นับได้)
+     คิดทีละวันด้วย M.aggregate ของแถววันนั้น จึงยังเป็น sum/count ครั้งเดียวต่อวัน ไม่ได้เฉลี่ยซ้อน */
+  function dailySeries(monthDays, rows, keyOf, targetValue) {
+    const byDate = bucket(rows, (r) => M.date(r[2]));
+    const names = [];
+    const byName = {};
+    monthDays.forEach((d, i) => {
+      const groups = bucket(byDate.get(d.date) || [], keyOf);
+      groups.forEach((list, name) => {
+        if (!names.includes(name)) {
+          names.push(name);
+          byName[name] = monthDays.map(() => null);
+        }
+        const st = M.aggregate(list);
+        byName[name][i] = effOf(st.average, targetValue);
+      });
+    });
+    return { names, byName };
+  }
+
   function buildModel() {
     const data = S.visible();                          // กรองวันที่ + ระบบ + กะ ชุดเดียวกับทุกหน้า
     const target = overallTarget();
@@ -180,6 +210,7 @@
        ไม่ใช่ช่วงวันที่ที่กรอง เพราะค่าเริ่มต้นเป็นวันเดียว แท่งส่วนใหญ่จะขึ้น "ไม่ตัดสิน" จนเทียบอะไรไม่ได้
        ส่วนการ์ด KPI ด้านบนและตารางรายวันยังยึดช่วงวันที่ที่กรองตามเดิม */
     const monthRows = monthKey ? allRows.filter((r) => M.date(r[2]).slice(0, 7) === monthKey) : allRows;
+    const monthDays = daysOfMonth(monthKey, allRows, target);
     const all = M.aggregate(data);
 
     /* รายวัน */
@@ -248,7 +279,10 @@
 
     return {
       data, target, all, days, judgedDays, hitDays, judgedPeople, hitPeople, persons,
-      allRows, monthKey, monthDays: daysOfMonth(monthKey, allRows, target), monthList,
+      allRows, monthKey, monthDays, monthList, monthRows,
+      dailyShift: dailySeries(monthDays, monthRows, (r) => M.shiftKey(r), target),
+      dailySystem: dailySeries(monthDays, monthRows, (r) => M.system(r), target),
+      dailyPay: dailySeries(monthDays, monthRows, payKey, target),
       shifts, systems, bpsEarly, payTypes, zones,
       eff: effOf(all.average, target)
     };
@@ -392,6 +426,69 @@
   }
 
   /* กราฟแท่งใบเดียวรวมกะ (AG) กับระบบ เหมือน V2 ที่วางกะ A/B และ PTT/BPS ไว้ใบเดียวกัน */
+  /* กราฟเส้นรายวันแยกมิติ — 30 วัน คูณหลายชุดข้อมูล ตัวเลขบนกราฟใส่ไม่ได้ ต้องดูที่ทูลทิป
+     เส้นประ 100% คือเส้นถึงเป้า อยู่เหนือเส้นคือทำได้เกินเป้าในวันนั้น */
+  function drawDailyBreakdown(canvasId, model, series, labelOf) {
+    if (typeof Chart === 'undefined') return;
+    const days = model.monthDays;
+    const names = series.names.slice().sort((a, b) => String(a).localeCompare(String(b), 'th'));
+    draw(canvasId, {
+      type: 'line',
+      data: {
+        labels: days.map((d) => String(Number(d.date.slice(8, 10)))),
+        datasets: names.map((name, i) => ({
+          label: labelOf ? labelOf(name) : name,
+          data: series.byName[name],
+          borderColor: SERIES[i % SERIES.length],
+          backgroundColor: SERIES[i % SERIES.length],
+          borderWidth: 2.5, tension: .3, spanGaps: false,
+          pointRadius: 3.5, pointHoverRadius: 7,
+          datalabels: { display: false }
+        })).concat([{
+          label: 'Baseline 100%', data: days.map(() => 100),
+          borderColor: 'rgba(100,116,139,.75)', borderWidth: 2, borderDash: [6, 4],
+          pointRadius: 0, fill: false, datalabels: { display: false }
+        }])
+      },
+      options: {
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 9, padding: 14, font: { size: 11 } } },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,.94)', padding: 11, cornerRadius: 9,
+            callbacks: {
+              title: (items) => dmy(days[items[0].dataIndex].date),
+              label: (ctx) => (ctx.raw === null || ctx.raw === undefined
+                ? ctx.dataset.label + ': ไม่มีแถวที่นับได้'
+                : ctx.dataset.label + ': ' + fmt(ctx.raw, 1) + '%')
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { autoSkip: false, maxRotation: 0, minRotation: 0, font: { size: 10.5, weight: '600' } },
+            title: { display: true, text: 'วันที่ · ' + monthLabel(model.monthKey), font: { size: 10.5 } }
+          },
+          y: {
+            beginAtZero: true, grace: '10%',
+            grid: { color: 'rgba(148,163,184,.22)' },
+            ticks: { callback: (v) => v + '%', font: { size: 10.5 } },
+            title: { display: true, text: '% ที่ทำได้เทียบเป้า', font: { size: 10.5 } }
+          }
+        }
+      }
+    });
+  }
+
+  function viewTogHtml(id) {
+    return '<div class="seg" data-eff-view="' + id + '" style="margin-bottom:10px;">'
+      + '<button type="button" data-gview="day"' + (groupView === 'day' ? ' class="active"' : '') + '>📅 แยกรายวัน</button>'
+      + '<button type="button" data-gview="month"' + (groupView === 'month' ? ' class="active"' : '') + '>📊 รวมทั้งเดือน</button>'
+      + '</div>';
+  }
+
   function drawGroupChart(model) {
     if (typeof Chart === 'undefined') return;
     const cats = model.shifts.map((x) => ({ label: x.label, s: x.s, kind: 'แยกตามกะ' }))
@@ -670,10 +767,17 @@
       + '<h3>🅰️🅱️ % Efficiency แยกตามกะ และระบบ</h3>'
       + '<div class="sub">กะอ่านตามที่ Sheet บันทึกไว้ (ไม่เดาจากเวลา) · '
       + 'ระบบแยกจากประเภทงานที่ Sheet บันทึกไว้ · ทุกแท่งเทียบ Target รวม ' + fmt(t) + ' หยิบ/ชม. · '
-      + '<b>ใช้ข้อมูลทั้งเดือน ' + monthLabel(model.monthKey) + '</b> เลื่อนเดือนได้ที่การ์ดกราฟรายวันด้านบน</div></div>'
+      + '<b>เดือน ' + monthLabel(model.monthKey) + '</b> เลื่อนเดือนได้ที่การ์ดกราฟรายวันด้านบน · '
+      + (groupView === 'day'
+        ? 'มุมมองรายวันแยกเส้นละกะและละระบบ ตัวเลขดูที่ทูลทิปเพราะ 30 วันคูณหลายเส้นใส่ป้ายไม่ได้'
+        : 'มุมมองรวมทั้งเดือนเป็นแท่งเดียวต่อประเภท') + '</div></div>'
       + '<span class="pill">' + monthLabel(model.monthKey) + '</span>'
       + '</div>'
-      + '<div class="chartbox tall"><canvas id="v3EffGroupChart"></canvas></div>'
+      + viewTogHtml('group')
+      + (groupView === 'day'
+        ? '<div class="chartbox tall"><canvas id="v3EffShiftDayChart"></canvas></div>'
+          + '<div class="chartbox tall" style="margin-top:14px;"><canvas id="v3EffSystemDayChart"></canvas></div>'
+        : '<div class="chartbox tall"><canvas id="v3EffGroupChart"></canvas></div>')
       + '<div class="note v3-notice">ถัง "ไม่ระบุกะ" คือแถวที่ Sheet เว้นกะไว้ว่าง หรือเป็น Not Found Data / #N/A / ขีด — '
       + 'ไม่ใช่กะจริง ต้องเติมข้อมูลก่อนจะเชื่อเลขของถังนี้ได้ · '
       + 'ถัง "ไม่ระบุประเภทงาน" คือประเภทงานที่ Sheet บันทึกไว้แต่เทียบกับเกณฑ์ที่ใช้ ไม่ได้ (เช่น ช่วยงานส่วนอื่น) จึงไม่รู้ว่าเป็น PTT หรือ BPS</div>'
@@ -683,10 +787,14 @@
       + '<div class="staff-card-head"><div>'
       + '<h3>🧾 % Efficiency แยกตามประเภทการจ้าง</h3>'
       + '<div class="sub">มิติที่หน้า Efficiency ของ V2 ไม่มี — Sheet บันทึกไว้ว่าแถวนั้นเป็นพนักงาน รายวัน หรือ รายเดือน · '
-      + '<b>ใช้ข้อมูลทั้งเดือน ' + monthLabel(model.monthKey) + '</b></div></div>'
+      + '<b>เดือน ' + monthLabel(model.monthKey) + '</b> · '
+      + (groupView === 'day' ? 'มุมมองรายวัน เส้นละประเภทการจ้าง' : 'มุมมองรวมทั้งเดือน') + '</div></div>'
       + '<span class="pill">' + fmt(model.payTypes.length) + ' ประเภทที่พบจริง</span>'
       + '</div>'
-      + '<div class="chartbox"><canvas id="v3EffPayChart"></canvas></div>'
+      + viewTogHtml('pay')
+      + (groupView === 'day'
+        ? '<div class="chartbox tall"><canvas id="v3EffPayDayChart"></canvas></div>'
+        : '<div class="chartbox"><canvas id="v3EffPayChart"></canvas></div>')
       + '<div class="note v3-notice">แสดงเฉพาะประเภทการจ้างที่มีอยู่จริงในเดือนนี้ ไม่เติมประเภทที่ไม่พบ · '
       + (payNote || 'ยังไม่มีข้อมูลในช่วงที่เลือก')
       + ' · แถวที่ไม่ได้ระบุประเภทการจ้างจัดไว้ในถัง "ไม่ระบุ" ตามค่าจริง ไม่เดาให้เป็นรายเดือน</div>'
@@ -723,6 +831,15 @@
     host.innerHTML = pageHtml(model);
 
     /* ปุ่มเลือกช่วงของกราฟรายวัน — เปลี่ยนแค่มุมมอง ไม่แตะตัวเลข */
+    host.querySelectorAll('[data-eff-view] button[data-gview]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.gview === groupView) return;
+        groupView = btn.dataset.gview;
+        try { localStorage.setItem(VIEW_KEY, groupView); } catch (e) { /* โหมดส่วนตัวเขียนไม่ได้ ไม่เป็นไร */ }
+        renderAll();
+      });
+    });
+
     host.querySelectorAll('[data-eff-month]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const step = btn.dataset.effMonth;
@@ -739,8 +856,15 @@
     });
 
     drawDailyChart(model);
-    drawGroupChart(model);
-    drawPayChart(model);
+    if (groupView === 'day') {
+      drawDailyBreakdown('v3EffShiftDayChart', model, model.dailyShift, shiftLabel);
+      drawDailyBreakdown('v3EffSystemDayChart', model, model.dailySystem,
+        (k) => SYSTEM_LABEL[k] || (k === 'Not Found' ? 'ไม่ระบุประเภทงาน' : k));
+    } else {
+      drawGroupChart(model);
+    }
+    if (groupView === 'day') drawDailyBreakdown('v3EffPayDayChart', model, model.dailyPay, null);
+    else drawPayChart(model);
     dailyTable(model);
     zoneTable(model);
     payTable(model);
