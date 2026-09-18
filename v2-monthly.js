@@ -203,13 +203,13 @@
             // เส้นค่าเฉลี่ยรวมของเดือน ให้เห็นแนวโน้มทั้งเดือนคู่กับแท่งรายประเภท
             type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน',
             data: months.map((m) => Number(m.average) || 0),
-            borderColor: '#0f172a', backgroundColor: '#fff', borderWidth: 3,
-            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#0f172a', pointBorderWidth: 2.5,
+            borderColor: '#f43f5e', backgroundColor: '#fff', borderWidth: 3,
+            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2.5,
             tension: .3, fill: false, order: 0,
             datalabels: {
               // ตัวเลขของเส้นลอยเหนือจุด มีขอบขาวหนา จึงไม่จมกับเส้นและอยู่คนละระดับกับป้ายในแท่ง
               align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
-              color: '#0f172a', font: { size: 12.5, weight: '800' },
+              color: '#be123c', font: { size: 12.5, weight: '800' },
               textStrokeColor: '#fff', textStrokeWidth: 5,
               formatter: (v) => fmt1(v)
             }
@@ -319,7 +319,7 @@
       + '<section class="card wide" style="margin-bottom:18px;">'
         + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนแยกตามประเภท</h3>'
         + '<div class="sub">กดปุ่มเพื่อสลับมุมมอง · ตัวเลขในแท่งเป็นค่าเฉลี่ยต่อชั่วโมงของประเภทนั้น (ปัดเป็นจำนวนเต็ม)'
-        + ' · เส้นดำ = ค่าเฉลี่ยรวมของเดือน · เส้นประ = เป้า'
+        + ' · เส้นแดง = ค่าเฉลี่ยรวมของเดือน · เส้นประ = เป้า'
         + ' · แท่งที่เตี้ยเกินกว่าจะใส่ป้ายได้ให้อ่านจากตารางท้ายการ์ด</div></div>'
         + '<div class="seg" id="v3MonthlyModeTog">'
         + MODES.map((m) => '<button type="button" data-mmode="' + m.key + '"'
