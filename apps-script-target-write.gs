@@ -15,7 +15,7 @@
  * สิ่งที่สคริปต์นี้ทำไม่ได้ตามที่ออกแบบไว้
  *   - ไม่แตะแท็บ Results Master / 2ND / Update name / Zone_V2 เลย
  *   - ไม่ลบแถวและไม่ลบแท็บ เขียนเฉพาะ 'V3 Target' กับแท็บ log
- *   - รับได้เฉพาะ 23 คีย์ที่กำหนดไว้ และค่าต้องเป็นจำนวนเต็ม 1-1000
+ *   - รับได้เฉพาะ 20 คีย์ที่กำหนดไว้ และค่าต้องเป็นจำนวนเต็ม 1-1000
  *     คีย์แปลกปลอมหรือค่านอกช่วงถูกปฏิเสธทั้งคำขอ ไม่เขียนบางส่วน
  *
  * ขั้นตอนติดตั้ง (ทำครั้งเดียว ต้องทำในบัญชี Google ที่แก้ Sheet ได้)
@@ -46,13 +46,13 @@ var WRITE_TOKEN = 'CHANGE-ME-ตั้งโทเคนของคุณเอ
 var MIN_TARGET = 1;
 var MAX_TARGET = 1000;
 
-/** 23 คีย์ที่อนุญาต ต้องตรงกับ DEFAULT_TARGETS ใน script.js และช่องในหน้าต่างตั้งค่า */
+/** 20 คีย์ที่อนุญาต ต้องตรงกับ DEFAULT_TARGETS ใน script.js และช่องในหน้าต่างตั้งค่า */
 var TARGET_KEYS = [
   'overall', 'fullRack', 'halfRack', 'ea', 'pickToSort', 'mezzanine', 'training',
-  'fullRackAaAf', 'fullRackAg', 'fullRackAhAi', 'fullRackAlBlBmAm',
+  'fullRackAhAi', 'fullRackAlBlBmAm',
   'halfRackAjAk', 'halfRackAnCaBnDa', 'halfRackBgBh', 'halfRackBiBk',
   'halfRackCbDbDcCc', 'halfRackCdCe', 'halfRackDdDe', 'halfRackCfDf',
-  'microEa', 'microFa', 'pickToSortBe', 'mezzanineHb'
+  'microEa', 'microFa', 'pickToSortBe'
 ];
 
 function doGet() {

@@ -16,8 +16,6 @@
     "pickToSort": 200,
     "mezzanine": 1,
     "training": 100,
-    "fullRackAaAf": 1,
-    "fullRackAg": 100,
     "fullRackAhAi": 150,
     "fullRackAlBlBmAm": 140,
     "halfRackAjAk": 150,
@@ -30,7 +28,6 @@
     "halfRackCfDf": 150,
     "microEa": 180,
     "microFa": 150,
-    "pickToSortBe": 200,
-    "mezzanineHb": 1
+    "pickToSortBe": 200
   }
 }

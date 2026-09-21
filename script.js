@@ -16,8 +16,6 @@ const DEFAULT_TARGETS = Object.freeze({
   pickToSort: 170,
   mezzanine: 170,
   training: 100,
-  fullRackAaAf: 170,
-  fullRackAg: 170,
   fullRackAhAi: 170,
   fullRackAlBlBmAm: 170,
   halfRackAjAk: 170, // ย้ายมาจาก Full Rack - คง Target 170 ไว้ (ไม่ใช่ 200 ตาม Zone อื่นในกลุ่ม Half Rack)
@@ -31,7 +29,6 @@ const DEFAULT_TARGETS = Object.freeze({
   microEa: 170,
   microFa: 170,
   pickToSortBe: 170,
-  mezzanineHb: 170,
 });
 
 function setCookie(name, value, days = 365) {
@@ -455,8 +452,9 @@ const ZONE_GROUPS = [
     title: "Picking Productivity - Full Rack (หยิบ)",
     target: TARGETS.fullRack,
     zones: [
-      { key: "fullRackAaAf", title: "Picking Productivity - Zone AA-AF", label: "AA-AF" },
-      { key: "fullRackAg", title: "Picking Productivity - Zone AG", label: "AG" },
+      /* Zone AA-AF และ AG เลิกใช้แล้ว ถอดออก 21/09/2569 (งานสุดท้าย 19/07/2026)
+         ผลงานย้อนหลังไม่ถูกลบตามกฎ V1 แต่แถวที่ต้นทางเขียน Position ว่า "AG-AH"
+         จะไปเข้าโซน AH-AI ตามรหัสที่เหลือ ส่วน "AA" ไปกอง Not Found */
       { key: "fullRackAhAi", title: "Picking Productivity - Zone AH-AI", label: "AH-AI" },
       { key: "fullRackAlBlBmAm", title: "Picking Productivity - Zone AL-BL-BM-AM", label: "AL-BL-BM-AM" },
     ],
@@ -502,14 +500,11 @@ const ZONE_GROUPS = [
       { key: "pickToSortBe", title: "Picking Productivity - Zone BE", label: "BE" },
     ],
   },
-  {
-    key: "mezzanine",
-    title: "Picking Productivity - Mezzanine",
-    target: TARGETS.overall,
-    zones: [
-      { key: "mezzanineHb", title: "Picking Productivity - Zone HB", label: "HB" },
-    ],
-  },
+  /* กลุ่ม Mezzanine มีโซนเดียวคือ HB ซึ่งเลิกใช้แล้ว (งานสุดท้าย 18/07/2026)
+     จึงถอดทั้งกลุ่มออกจากแกนโซน 21/09/2569 — แถวที่เขียน "HB-HA" ไปกอง Not Found
+     TARGETS.mezzanine ยังอยู่ เพราะแกน "ประเภทงาน" (Pick Type คอลัมน์ AK) ใช้ค่านั้น
+     ผ่าน getPickTypeTarget() แยกจากแกนโซน (ตรวจแล้วประเภทงาน Mezzanine ไม่มีแถวเลยทั้งชุด
+     แต่ไม่ถอดแกนนั้นในรอบนี้ เพราะกระทบโครง payload ของ V1) */
 ];
 
 const BU_GROUPS = [
