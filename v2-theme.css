@@ -2142,3 +2142,65 @@ th.num {
     margin-bottom: 2px;
   }
 }
+
+/* ── ชิปบอกที่มาของ Target บนแถบตัวกรอง + กล่องสถานะในหน้าต่างตั้งค่า ──
+   Target ของทีมมาจาก data/targets.json ส่วนที่ปรับในเครื่องมีผลแค่เครื่องนั้น
+   จึงต้องเห็นด้วยตาว่ากำลังดูเลขชุดไหน ไม่ต้องเดา */
+.sysbar .teamtarget {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.sysbar .teamtarget[hidden] { display: none !important; }
+.sysbar .teamtarget[data-state="team"] { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.sysbar .teamtarget[data-state="reset"] { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.sysbar .teamtarget[data-state="override"] { background: #fff7ed; border-color: #fdba74; color: #c2410c; }
+.sysbar .teamtarget[data-state="error"] { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.sysbar .teamtarget button {
+  border: 0;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  background: currentColor;
+  color: #fff;
+  filter: saturate(1.1);
+}
+.sysbar .teamtarget button:hover { opacity: .85; }
+
+.target-team-info {
+  display: grid;
+  gap: .5rem;
+  margin: 0 0 1rem;
+  padding: .8rem .9rem;
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 14px;
+  background: rgba(148, 163, 184, .08);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.target-team-info p { margin: 0; }
+.target-team-info code { font-size: .78rem; }
+.target-team-info .tt-ok { color: #047857; font-weight: 700; }
+.target-team-info .tt-warn { color: #c2410c; font-weight: 700; }
+.target-team-info .tt-note { color: var(--text-muted, #64748b); font-size: .76rem; }
+.target-team-info button { justify-self: start; }
+.target-team-info textarea {
+  margin-top: .4rem;
+  font-family: var(--font-mono, monospace);
+  font-size: .72rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, .4);
+  padding: .4rem;
+}
+@media (max-width: 900px) {
+  .sysbar .teamtarget { white-space: normal; }
+}

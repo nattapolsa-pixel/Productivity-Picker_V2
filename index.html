@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="v2-theme.css?v=20260917-v2shell-24">
+  <link rel="stylesheet" href="v2-theme.css?v=20260921-teamtarget-1">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -173,6 +173,9 @@
             style="border:0; background:linear-gradient(135deg,#0284c7,#2563eb); color:#fff; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:4px;">⚙️
             ตั้งค่า Target</button>
         </div>
+        <!-- บอกว่าเลข Target ที่เห็นเป็นค่าของทีมหรือของเครื่องนี้
+             ถ้าไม่บอก สองคนเห็นเลขต่างกันแล้วไม่มีทางรู้ว่าเพราะอะไร -->
+        <span class="teamtarget" id="teamTargetChip" data-state="team" hidden></span>
 
         <span class="lab">วันที่:</span>
         <div class="datebar">
@@ -809,8 +812,12 @@
       </div>
 
       <p class="target-dialog-desc">
-        เปลี่ยนค่า Target แล้ว Dashboard จะคำนวณสี สถานะ และคำสรุปใหม่ทันทีในเครื่องนี้
+        ค่า Target ที่ทุกคนเห็นเหมือนกันมาจากไฟล์ <code>data/targets.json</code> ของทีม
+        การปรับในหน้านี้มีผลกับเครื่องนี้เท่านั้น ถ้าจะให้ทุกคนเห็นตาม ต้องส่งค่าไปให้ผู้ดูแลอัปเดตไฟล์
       </p>
+      <!-- สถานะค่าของทีม + ปุ่มคัดลอกค่าไปวางในไฟล์ + ปุ่มคืนค่าเดิมของเครื่องนี้
+           อยู่นอก <form> เพื่อไม่ให้ปุ่มไปกระตุ้น submit ของฟอร์มตั้งค่า -->
+      <div class="target-team-info" id="targetTeamInfo"></div>
 
       <form id="targetSettingsForm" class="target-form">
         <label class="target-field">
@@ -883,9 +890,9 @@
 
   <script src="data-client.js?v=20260916-1"></script>
   <script src="metrics.js?v=20260917-1"></script>
-  <script src="script.js?v=v3-sheet-20260917-1"></script>
+  <script src="script.js?v=v3-sheet-20260921-teamtarget-2"></script>
   <script src="insights.js?v=20260918-2"></script>
-  <script src="v2-shell.js?v=20260917-v2shell-27"></script>
+  <script src="v2-shell.js?v=20260921-teamtarget-1"></script>
   <script src="v2-views.js?v=20260918-2"></script>
   <script src="v2-roster-write.js?v=20260918-2"></script>
   <script src="v2-staff.js?v=20260918-2"></script>

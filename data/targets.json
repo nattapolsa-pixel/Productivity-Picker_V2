@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-21",
+  "note": "Target กลางของทีม — แก้ไฟล์นี้แล้ว push ทุกคนเห็นค่าเดียวกัน",
+  "targets": {
+    "overall": 170,
+    "fullRack": 170,
+    "halfRack": 200,
+    "ea": 170,
+    "pickToSort": 170,
+    "mezzanine": 170,
+    "training": 100,
+    "fullRackAaAf": 170,
+    "fullRackAg": 170,
+    "fullRackAhAi": 170,
+    "fullRackAlBlBmAm": 170,
+    "halfRackAjAk": 170,
+    "halfRackAnCa": 200,
+    "halfRackBnDa": 200,
+    "halfRackBgBh": 200,
+    "halfRackBiBk": 200,
+    "halfRackCbDbDcCc": 200,
+    "halfRackCdCe": 200,
+    "halfRackDdDe": 200,
+    "halfRackCfDf": 200,
+    "microEa": 170,
+    "microFa": 170,
+    "pickToSortBe": 170,
+    "mezzanineHb": 170
+  }
+}

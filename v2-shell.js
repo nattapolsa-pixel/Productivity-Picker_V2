@@ -203,9 +203,14 @@
     targetInput.addEventListener('change', commit);
     targetInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') commit(); });
     // ถ้าตั้งค่าจากหน้าต่าง Target ให้ช่องนี้ตามไปด้วย
-    document.addEventListener('v3-render', () => {
+    const syncTargetInput = () => {
       if (document.activeElement !== targetInput) targetInput.value = currentTarget();
-    });
+    };
+    document.addEventListener('v3-render', syncTargetInput);
+    /* 'v3-targets' ยิงจาก updateTargets() ทันทีที่ค่าเปลี่ยน ไม่ต้องรอข้อมูลชุดแรก
+       เพราะ Target ของทีม (data/targets.json) มาถึงก่อน v3-render ครั้งแรกเสมอ
+       ถ้ารอ v3-render ช่องนี้จะค้างเลขเก่าของเครื่องนั้นให้เห็นอยู่พักหนึ่ง */
+    document.addEventListener('v3-targets', syncTargetInput);
   }
 
   /* ── V2 เปลี่ยนวันแล้วโหลดทันที ที่นี่จึงกดปุ่มยืนยันที่ซ่อนไว้ให้เอง ── */
