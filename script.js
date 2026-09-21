@@ -104,15 +104,14 @@ let currentMonthlyChartMode = "affiliation";
    ใครปรับก็เห็นคนละเลข แล้วมาถามกันว่าทำไมของตัวเองไม่เหมือนของคนอื่น
    จึงย้ายแหล่งความจริงไปที่ไฟล์ data/targets.json ซึ่ง push ขึ้นไปพร้อมเว็บ
    ทุกเครื่องโหลดไฟล์นี้ตอนเปิดหน้า แล้ว "ทับ" ค่าที่เก็บไว้ในเครื่องเสมอ
-   ค่าที่เครื่องนั้นเคยตั้งไว้ไม่ถูกลบทิ้ง ย้ายไปเก็บที่ TARGET_LOCAL_BACKUP_KEY
-   เพื่อให้กดคัดลอกส่งให้ผู้ดูแลตั้งเป็นค่าของทีมได้ ── */
+   ในหน้าต่างตั้งค่าบอกแค่ "อัปเดตล่าสุด" ของค่าชุดนี้ ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ
+   เพราะคนใช้งานไม่ควรต้องรู้ว่าเบื้องหลังเก็บค่าไว้ที่ไหน ── */
 const TEAM_TARGETS_URL = "data/targets.json";
 const TARGET_LOCAL_BACKUP_KEY = "pickProductivityTargetsLocalBackup:v3";
 let teamTargets = null;        // ค่าของทีมที่โหลดสำเร็จ (null = ยังไม่ได้ / โหลดไม่ได้)
 let teamTargetsMeta = { updatedAt: "", note: "" };
 let teamTargetsError = "";
 let targetOverride = false;    // true = เครื่องนี้ปรับเองหลังรับค่าของทีมมาแล้ว
-let localBackupTargets = readLocalBackupTargets();
 
 function sanitizeTargetSet(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -129,13 +128,21 @@ function diffTargetKeys(a, b) {
   return Object.keys(DEFAULT_TARGETS).filter((key) => Number(a[key]) !== Number(b[key]));
 }
 
-function readLocalBackupTargets() {
+/* เคยเก็บค่าเดิมของเครื่องไว้ที่คีย์นี้ตอนที่ยังมีปุ่มคัดลอก/คืนค่า
+   ตอนนี้ไม่มีปุ่มนั้นแล้ว จึงลบทิ้งไม่ให้ค้างเป็นขยะในเครื่องผู้ใช้ */
+function clearLegacyTargetBackup() {
   try {
-    const saved = localStorage.getItem(TARGET_LOCAL_BACKUP_KEY);
-    return saved ? sanitizeTargetSet(JSON.parse(saved)) : null;
+    localStorage.removeItem(TARGET_LOCAL_BACKUP_KEY);
   } catch (error) {
-    return null;
+    /* เครื่องที่ปิด localStorage ไม่ต้องทำอะไร */
   }
+}
+
+/* "2026-09-21" → "21/09/2569" ให้ตรงกับรูปแบบวันที่ที่ใช้ทั้งเว็บ */
+function teamTargetsUpdatedLabel() {
+  const m = String(teamTargetsMeta.updatedAt || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return String(teamTargetsMeta.updatedAt || "");
+  return m[3] + "/" + m[2] + "/" + (Number(m[1]) + 543);
 }
 
 /* โหลดค่าของทีมแล้วทับค่าในเครื่อง คืน true เมื่ออ่านไฟล์ได้
@@ -155,16 +162,7 @@ async function loadTeamTargets() {
     };
     teamTargetsError = "";
 
-    const changed = diffTargetKeys(TARGETS, next);
-    if (changed.length) {
-      // เก็บค่าเดิมของเครื่องนี้ไว้ก่อนทับ ไม่ให้คนที่ตั้งไว้ต้องไล่จำเลขเอง
-      localBackupTargets = sanitizeTargetSet(TARGETS);
-      try {
-        localStorage.setItem(TARGET_LOCAL_BACKUP_KEY, JSON.stringify(localBackupTargets));
-      } catch (error) {
-        console.warn("LocalStorage save target backup failed", error);
-      }
-    }
+    clearLegacyTargetBackup();
     applyTeamTargets("ใช้ Target ของทีม");
     return true;
   } catch (error) {
@@ -190,21 +188,6 @@ function applyTeamTargets(sourceLabel) {
   updateTargets(teamTargets, sourceLabel || "ใช้ Target ของทีม", { fromTeam: true });
 }
 
-/* ข้อความไฟล์ data/targets.json ของค่าที่เห็นอยู่ ใช้กับปุ่มคัดลอก
-   ให้วางทับไฟล์ได้ทั้งก้อน ไม่ต้องมาประกอบ JSON เอง */
-function teamTargetsFileText() {
-  const now = new Date();
-  const stamp = now.getFullYear()
-    + "-" + String(now.getMonth() + 1).padStart(2, "0")
-    + "-" + String(now.getDate()).padStart(2, "0");
-  return JSON.stringify({
-    version: 1,
-    updatedAt: stamp,
-    note: "Target กลางของทีม — แก้ไฟล์นี้แล้ว push ทุกคนเห็นค่าเดียวกัน",
-    targets: sanitizeTargetSet(TARGETS),
-  }, null, 2);
-}
-
 /* ชิปบนแถบตัวกรอง บอกตรง ๆ ว่าเลขที่เห็นเป็นของทีมหรือของเครื่องนี้
    เพราะถ้าเงียบไว้ สองคนเห็นเลขต่างกันแล้วไม่มีทางรู้ว่าเพราะอะไร */
 function renderTargetSourceChip() {
@@ -214,8 +197,7 @@ function renderTargetSourceChip() {
   if (teamTargetsError) {
     chip.hidden = false;
     chip.dataset.state = "error";
-    chip.innerHTML = "⚠️ โหลด Target ของทีมไม่ได้ · ใช้ค่าในเครื่องนี้"
-      + " <button type=\"button\" data-team-target-open>ดูรายละเอียด</button>";
+    chip.textContent = "⚠️ โหลด Target ของทีมไม่ได้ · ใช้ค่าในเครื่องนี้";
     return;
   }
   if (!teamTargets) {
@@ -229,77 +211,30 @@ function renderTargetSourceChip() {
       + " <button type=\"button\" data-team-target-apply>ใช้ค่าของทีม</button>";
     return;
   }
-
-  const backupDiff = localBackupTargets ? diffTargetKeys(localBackupTargets, teamTargets) : [];
   chip.hidden = false;
-  if (backupDiff.length) {
-    chip.dataset.state = "reset";
-    chip.innerHTML = "✅ ใช้ Target ของทีมแล้ว · ค่าเดิมของเครื่องนี้ต่าง " + backupDiff.length + " ช่อง"
-      + " <button type=\"button\" data-team-target-open>ดู / คัดลอก</button>";
-    return;
-  }
   chip.dataset.state = "team";
-  chip.textContent = "✅ Target ของทีม" + (teamTargetsMeta.updatedAt ? " · " + teamTargetsMeta.updatedAt : "");
+  const label = teamTargetsUpdatedLabel();
+  chip.textContent = "✅ Target ของทีม" + (label ? " · " + label : "");
 }
 
-// กล่องอธิบายในหน้าต่างตั้งค่า Target พร้อมปุ่มคัดลอก / คืนค่าเดิมของเครื่อง
+/* ในหน้าต่างตั้งค่า บอกแค่ "อัปเดตล่าสุด" ของค่าชุดที่กำลังใช้
+   ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ เพราะคนใช้งานไม่ควรต้องรู้ว่าเบื้องหลังเก็บค่าไว้ที่ไหน */
 function renderTargetTeamInfo() {
   const box = document.querySelector("#targetTeamInfo");
   if (!box) return;
-  const parts = [];
 
   if (teamTargetsError) {
-    parts.push("<p class=\"tt-warn\">⚠️ โหลดค่าของทีมไม่ได้ (" + escapeHtml(teamTargetsError)
-      + ") เลขที่เห็นเป็นค่าของเครื่องนี้ จึงอาจไม่ตรงกับคนอื่น</p>");
-  } else if (teamTargets) {
-    parts.push("<p><strong>ค่าของทีม</strong>"
-      + (teamTargetsMeta.updatedAt ? " · อัปเดต " + escapeHtml(teamTargetsMeta.updatedAt) : "")
-      + (teamTargetsMeta.note ? "<br><span class=\"tt-note\">" + escapeHtml(teamTargetsMeta.note) + "</span>" : "")
-      + "</p>");
-    const diff = diffTargetKeys(TARGETS, teamTargets);
-    parts.push(diff.length
-      ? "<p class=\"tt-warn\">🔶 เลขที่เห็นอยู่ต่างจากของทีม " + diff.length + " ช่อง — คนอื่นจะไม่เห็นชุดนี้</p>"
-      : "<p class=\"tt-ok\">✅ ตรงกับค่าของทีม ทุกคนเห็นเลขเดียวกัน</p>");
-  } else {
-    parts.push("<p class=\"tt-note\">กำลังโหลดค่าของทีม…</p>");
-  }
-
-  const backupDiff = localBackupTargets ? diffTargetKeys(localBackupTargets, TARGETS) : [];
-  if (backupDiff.length) {
-    parts.push("<p>ค่าที่เครื่องนี้เคยตั้งไว้เอง (ต่างจากที่เห็นอยู่ " + backupDiff.length + " ช่อง): "
-      + backupDiff.map((key) => escapeHtml(key) + " = " + localBackupTargets[key]).join(" · ") + "</p>");
-    parts.push("<button type=\"button\" class=\"btn-target-secondary\" data-target-restore-local>คืนค่าเดิมของเครื่องนี้</button>");
-  }
-
-  parts.push("<button type=\"button\" class=\"btn-target-secondary\" data-target-copy>"
-    + "📤 คัดลอกค่าที่เห็นอยู่เป็นไฟล์ targets.json</button>");
-  parts.push("<p class=\"tt-note\">อยากให้ทุกคนเห็นเลขชุดนี้ ให้กดคัดลอกแล้วส่งให้ผู้ดูแลวางทับไฟล์ "
-    + "<code>data/targets.json</code> แล้ว push — ค่าที่ปรับในหน้านี้มีผลกับเครื่องนี้เท่านั้น</p>");
-  parts.push("<span id=\"targetCopyNote\" class=\"tt-note\"></span>");
-  box.innerHTML = parts.join("");
-}
-
-async function copyTeamTargetsText() {
-  const note = document.querySelector("#targetCopyNote");
-  const text = teamTargetsFileText();
-  try {
-    await navigator.clipboard.writeText(text);
-    if (note) note.textContent = "คัดลอกแล้ว นำไปวางทับไฟล์ data/targets.json ได้เลย";
+    box.innerHTML = "<p class=\"tt-warn\">⚠️ โหลดค่าของทีมไม่ได้ (" + escapeHtml(teamTargetsError)
+      + ") เลขที่เห็นเป็นค่าของเครื่องนี้ จึงอาจไม่ตรงกับคนอื่น</p>";
     return;
-  } catch (error) {
-    console.warn("Clipboard write failed", error);
   }
-  // เครื่องที่ clipboard ใช้ไม่ได้ ต้องยังเอาข้อความออกไปได้ ไม่ปล่อยให้ตัน
-  if (note) {
-    note.textContent = "คัดลอกอัตโนมัติไม่ได้ — เลือกข้อความด้านล่างแล้วกด Ctrl+C";
-    const area = document.createElement("textarea");
-    area.value = text;
-    area.rows = 8;
-    area.readOnly = true;
-    area.style.width = "100%";
-    note.appendChild(area);
-    area.select();
+  if (!teamTargets) {
+    box.innerHTML = "<p class=\"tt-note\">กำลังโหลดค่าล่าสุด…</p>";
+    return;
   }
+  const label = teamTargetsUpdatedLabel();
+  box.innerHTML = "<p class=\"tt-note\">อัปเดตล่าสุด "
+    + (label ? "<strong>" + escapeHtml(label) + "</strong>" : "ไม่ทราบวันที่") + "</p>";
 }
 
 
@@ -6502,21 +6437,9 @@ function initializeTargetSettings() {
     if (!ok) loadStoredTargetsIdb();
   });
 
-  // ชิปกับกล่องอธิบายถูกเขียน innerHTML ใหม่ทุกครั้ง จึงผูก listener ที่ตัวกล่องครั้งเดียว
+  // ชิปถูกเขียน innerHTML ใหม่ทุกครั้ง จึงผูก listener ที่ตัวชิปครั้งเดียว
   document.querySelector("#teamTargetChip")?.addEventListener("click", (event) => {
     if (event.target.closest("[data-team-target-apply]")) applyTeamTargets("ใช้ Target ของทีม");
-    else if (event.target.closest("[data-team-target-open]")) openTargetSettings();
-  });
-
-  document.querySelector("#targetTeamInfo")?.addEventListener("click", (event) => {
-    if (event.target.closest("[data-target-copy]")) {
-      void copyTeamTargetsText();
-      return;
-    }
-    if (event.target.closest("[data-target-restore-local]") && localBackupTargets) {
-      updateTargets(localBackupTargets, "คืนค่า Target ของเครื่องนี้");
-      setSyncStatus("คืนค่า Target ของเครื่องนี้แล้ว · คนอื่นยังเห็นค่าของทีม");
-    }
   });
 
   targetSettingsButton?.addEventListener("click", openTargetSettings);

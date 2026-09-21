@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="v2-theme.css?v=20260921-guide-2">
+  <link rel="stylesheet" href="v2-theme.css?v=20260921-guide-3">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -831,11 +831,10 @@
       </div>
 
       <p class="target-dialog-desc">
-        ค่า Target ที่ทุกคนเห็นเหมือนกันมาจากไฟล์ <code>data/targets.json</code> ของทีม
-        การปรับในหน้านี้มีผลกับเครื่องนี้เท่านั้น ถ้าจะให้ทุกคนเห็นตาม ต้องส่งค่าไปให้ผู้ดูแลอัปเดตไฟล์
+        เปลี่ยนค่า Target แล้ว Dashboard จะคำนวณสี สถานะ และคำสรุปใหม่ทันที
       </p>
-      <!-- สถานะค่าของทีม + ปุ่มคัดลอกค่าไปวางในไฟล์ + ปุ่มคืนค่าเดิมของเครื่องนี้
-           อยู่นอก <form> เพื่อไม่ให้ปุ่มไปกระตุ้น submit ของฟอร์มตั้งค่า -->
+      <!-- บอกแค่วันที่อัปเดตของค่าชุดที่กำลังใช้ ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ
+           อยู่นอก <form> เพื่อไม่ให้อะไรในนี้ไปกระตุ้น submit ของฟอร์มตั้งค่า -->
       <div class="target-team-info" id="targetTeamInfo"></div>
 
       <form id="targetSettingsForm" class="target-form">
@@ -909,7 +908,7 @@
 
   <script src="data-client.js?v=20260916-1"></script>
   <script src="metrics.js?v=20260917-1"></script>
-  <script src="script.js?v=v3-sheet-20260921-teamtarget-2"></script>
+  <script src="script.js?v=v3-sheet-20260921-simple-1"></script>
   <script src="insights.js?v=20260918-2"></script>
   <script src="v2-shell.js?v=20260921-guide-1"></script>
   <script src="v2-views.js?v=20260918-2"></script>
@@ -920,7 +919,7 @@
   <script src="v2-incentive.js?v=20260918-2"></script>
   <script src="v2-monthly.js?v=20260918-9"></script>
   <script src="v2-duplicate.js?v=20260918-1"></script>
-  <script src="v2-guide.js?v=20260921-guide-1"></script>
+  <script src="v2-guide.js?v=20260921-guide-2"></script>
 </body>
 
 </html>
