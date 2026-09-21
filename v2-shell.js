@@ -27,7 +27,8 @@
     tenured: 'พนักงานเกิน 3 เดือน',
     'below-target': 'ไม่ถึงเป้า (แยกตามโซน)',
     quality: 'Not Found & ตรวจข้อมูล',
-    method: 'สูตร & แหล่งข้อมูล'
+    method: 'สูตร & แหล่งข้อมูล',
+    guide: '📖 คู่มือการใช้เว็บ'
   };
 
   const navButtons = Array.from(document.querySelectorAll('.nav-item[data-tab]'));

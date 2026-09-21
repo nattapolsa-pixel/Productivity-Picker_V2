@@ -2204,3 +2204,207 @@ th.num {
 @media (max-width: 900px) {
   .sysbar .teamtarget { white-space: normal; }
 }
+
+/* ── ดาวบนเมนูแนะนำ (ภาพรวมวันนี้ / แผนผังโซน) ──
+   ใช้โครงเดียวกับ .nav-danger-text + .nav-badge ที่มีอยู่แล้ว
+   คือให้ชื่อเมนูยืดเต็ม แล้วดันดาวไปชิดขวา */
+.nav-label {
+  flex: 1;
+}
+
+.nav-star {
+  flex-shrink: 0;
+  font-size: 12px;
+  line-height: 1;
+  filter: saturate(1.15);
+}
+
+.nav-item.active .nav-star {
+  filter: brightness(1.25);
+}
+
+/* ── หน้าคู่มือการใช้เว็บ (v2-guide.js) ── */
+.guide-wrap {
+  display: grid;
+  gap: 1rem;
+  max-width: 1080px;
+}
+
+.guide-card {
+  background: var(--bg-surface-elevated, #fff);
+  border: 1px solid rgba(148, 163, 184, .26);
+  border-radius: var(--radius, 18px);
+  padding: 1.1rem 1.25rem 1.25rem;
+}
+
+.guide-card > h2 {
+  margin: 0 0 .75rem;
+  font-size: 1.06rem;
+  font-weight: 800;
+  color: var(--text-primary, #1e293b);
+}
+
+.guide-card h3 {
+  margin: 1.1rem 0 .5rem;
+  font-size: .9rem;
+  font-weight: 800;
+  color: var(--text-accent, #4f46e5);
+}
+
+.guide-card h3:first-of-type {
+  margin-top: .25rem;
+}
+
+.guide-card p {
+  margin: 0 0 .6rem;
+  font-size: .86rem;
+  line-height: 1.68;
+  color: var(--text-primary, #1e293b);
+}
+
+.guide-warn {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.guide-note {
+  padding: .6rem .75rem;
+  border-left: 3px solid rgba(99, 102, 241, .55);
+  border-radius: 0 8px 8px 0;
+  background: rgba(99, 102, 241, .07);
+  font-size: .82rem !important;
+  color: var(--text-muted, #475569) !important;
+}
+
+.guide-card.guide-warn {
+  border-color: rgba(251, 146, 60, .45);
+  background: rgba(255, 247, 237, .7);
+}
+
+.guide-steps,
+.guide-list {
+  margin: 0 0 .6rem;
+  padding-left: 1.3rem;
+  font-size: .86rem;
+  line-height: 1.75;
+  color: var(--text-primary, #1e293b);
+}
+
+.guide-steps > li,
+.guide-list > li {
+  margin-bottom: .35rem;
+}
+
+.guide-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.guide-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 7px;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
+.guide-dot-good { background: #16a34a; }
+.guide-dot-warn { background: #ea580c; }
+.guide-dot-bad { background: #e11d48; }
+
+.guide-formula {
+  margin: 0 0 .7rem;
+  padding: .7rem .85rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, .055);
+  border: 1px dashed rgba(100, 116, 139, .45);
+  font-family: var(--font-mono, monospace);
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+}
+
+.guide-terms {
+  margin: 0;
+  display: grid;
+  gap: .55rem;
+}
+
+.guide-terms dt {
+  font-size: .86rem;
+  font-weight: 800;
+  color: var(--text-primary, #1e293b);
+}
+
+.guide-terms dd {
+  margin: .1rem 0 0;
+  padding-left: .9rem;
+  border-left: 2px solid rgba(148, 163, 184, .4);
+  font-size: .84rem;
+  line-height: 1.65;
+  color: var(--text-muted, #475569);
+}
+
+.guide-trap {
+  border: 1px solid rgba(148, 163, 184, .28);
+  border-radius: 11px;
+  margin-bottom: .5rem;
+  background: var(--bg-surface-elevated, #fff);
+}
+
+.guide-trap > summary {
+  cursor: pointer;
+  padding: .6rem .8rem;
+  font-size: .86rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+  list-style-position: inside;
+}
+
+.guide-trap[open] > summary {
+  border-bottom: 1px solid rgba(148, 163, 184, .22);
+}
+
+.guide-trap > div {
+  padding: .65rem .85rem .75rem;
+  font-size: .84rem;
+  line-height: 1.7;
+  color: var(--text-muted, #475569);
+}
+
+/* ตารางในคู่มือเป็นเนื้อหาอ่าน ไม่ใช่ตารางข้อมูลที่เรียงได้ จึงให้ข้อความตัดบรรทัดตามปกติ */
+.guide-table td,
+.guide-table th {
+  white-space: normal !important;
+  vertical-align: top;
+  font-size: .82rem;
+  line-height: 1.6;
+}
+
+.guide-table .guide-q {
+  color: var(--text-muted, #64748b);
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .guide-card { padding: .9rem 1rem 1rem; }
+  .guide-table td, .guide-table th { font-size: .78rem; }
+}
+
+/* .affiliation-table ของ V2 ตั้ง min-width: 1040px ไว้สำหรับตารางข้อมูลที่มีหลายคอลัมน์
+   ตารางในคู่มือเป็นเนื้อหาอ่าน 2-3 คอลัมน์ ควรหุบตามจอ ไม่ใช่ดันหน้าให้เลื่อนแนวนอน
+   และ grid item มี min-width: auto อยู่แล้ว จึงต้องปล่อยเป็น 0 ให้การ์ดหุบได้จริง */
+.guide-wrap > * {
+  min-width: 0;
+}
+
+.guide-card .affiliation-table-wrap {
+  overflow-x: auto;
+}
+
+.guide-table {
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: fixed;
+}

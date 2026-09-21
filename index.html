@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="v2-theme.css?v=20260921-teamtarget-1">
+  <link rel="stylesheet" href="v2-theme.css?v=20260921-guide-2">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -35,7 +35,7 @@
               <rect x="14" y="3" width="7" height="7" rx="1" />
               <rect x="3" y="14" width="7" height="7" rx="1" />
               <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg> ภาพรวมวันนี้</button>
+            </svg> <span class="nav-label">ภาพรวมวันนี้</span><span class="nav-star" title="เมนูแนะนำ ดูก่อนเมนูอื่น" aria-label="เมนูแนะนำ">⭐</span></button>
           <button class="nav nav-item" data-page="monthly" data-tab="monthly"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 17 9 11 13 15 21 7" />
               <polyline points="15 7 21 7 21 13" />
@@ -57,7 +57,7 @@
               <polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21" />
               <line x1="8" y1="3" x2="8" y2="18" />
               <line x1="16" y1="6" x2="16" y2="21" />
-            </svg> แผนผังโซน</button>
+            </svg> <span class="nav-label">แผนผังโซน</span><span class="nav-star" title="เมนูแนะนำ ดูก่อนเมนูอื่น" aria-label="เมนูแนะนำ">⭐</span></button>
           <button class="nav nav-item" data-page="hours" data-tab="hours"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="9" />
               <path d="M12 7v5l3 3" />
@@ -103,6 +103,16 @@
               <path d="M14.6 9.2A2.7 2.7 0 0 0 9.4 10c0 2.8 5.2 1.6 5.2 4.2a2.7 2.7 0 0 1-5.2.6" />
               <line x1="12" y1="6.4" x2="12" y2="17.6" />
             </svg> Incentive</button>
+        </div>
+
+        <!-- ══ 4. ช่วยเหลือ ══ -->
+        <div class="nav-group">
+          <div class="nav-group-title"><span class="nav-group-num">4</span>ช่วยเหลือ</div>
+          <button class="nav nav-item" data-page="guide" data-tab="guide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2z" />
+              <line x1="9" y1="7" x2="15" y2="7" />
+              <line x1="9" y1="11" x2="15" y2="11" />
+            </svg> คู่มือการใช้เว็บ</button>
         </div>
 
         <!-- เมนูที่ถอดออกชั่วคราว (อันดับพนักงาน, ประเภทงาน & โซน, ทะเบียน, สังกัด, กะ & BU,
@@ -775,6 +785,15 @@
         </section>
       </section>
 
+      <!-- TAB: คู่มือการใช้เว็บ — เนื้อหาทั้งหมดวาดจาก v2-guide.js ลงใน #v3Guide
+           เขียนเป็นภาษาคนอ่าน ไม่ใช่สเปก และดึงค่าจริง (Target ของทีม ช่วงข้อมูล)
+           มาแสดงด้วย เพื่อไม่ให้คู่มือกับหน้าเว็บพูดไม่ตรงกันเมื่อค่าเปลี่ยน -->
+      <section class="page tab-panel" id="tab-guide" data-page="guide">
+        <div class="panel-header"><h1 class="panel-title">คู่มือการใช้เว็บ</h1></div>
+        <p class="panel-desc">แต่ละเมนูไว้ดูอะไร ตัวเลขมาจากไหน และมีเงื่อนไขอะไรที่ต้องรู้ก่อนเชื่อตัวเลข</p>
+        <div id="v3Guide"></div>
+      </section>
+
       <!-- TAB: RACK -->
       </main>
   </div>
@@ -892,7 +911,7 @@
   <script src="metrics.js?v=20260917-1"></script>
   <script src="script.js?v=v3-sheet-20260921-teamtarget-2"></script>
   <script src="insights.js?v=20260918-2"></script>
-  <script src="v2-shell.js?v=20260921-teamtarget-1"></script>
+  <script src="v2-shell.js?v=20260921-guide-1"></script>
   <script src="v2-views.js?v=20260918-2"></script>
   <script src="v2-roster-write.js?v=20260918-2"></script>
   <script src="v2-staff.js?v=20260918-2"></script>
@@ -901,6 +920,7 @@
   <script src="v2-incentive.js?v=20260918-2"></script>
   <script src="v2-monthly.js?v=20260918-9"></script>
   <script src="v2-duplicate.js?v=20260918-1"></script>
+  <script src="v2-guide.js?v=20260921-guide-1"></script>
 </body>
 
 </html>
