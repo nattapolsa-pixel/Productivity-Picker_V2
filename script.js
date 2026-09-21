@@ -102,16 +102,23 @@ let currentMonthlyChartMode = "affiliation";
    เว็บเป็น static และอ่าน Sheet แบบ read-only จึงไม่มีที่เก็บค่ากลางบนเซิร์ฟเวอร์
    เดิม Target เก็บอยู่ใน localStorage / cookie / IndexedDB ของเครื่องแต่ละคน
    ใครปรับก็เห็นคนละเลข แล้วมาถามกันว่าทำไมของตัวเองไม่เหมือนของคนอื่น
-   จึงย้ายแหล่งความจริงไปที่ไฟล์ data/targets.json ซึ่ง push ขึ้นไปพร้อมเว็บ
-   ทุกเครื่องโหลดไฟล์นี้ตอนเปิดหน้า แล้ว "ทับ" ค่าที่เก็บไว้ในเครื่องเสมอ
-   ในหน้าต่างตั้งค่าบอกแค่ "อัปเดตล่าสุด" ของค่าชุดนี้ ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ
+   จึงย้ายแหล่งความจริงออกจากเครื่องผู้ใช้ อ่านตามลำดับนี้
+     1. แท็บ Target ในสเปรดชีต (ค่าสด — ปุ่มบันทึกในหน้าเว็บเขียนลงที่นี่
+        ผ่าน apps-script-target-write.gs) อ่านแบบอ่านอย่างเดียวเหมือนแท็บอื่น
+     2. data/targets.json ที่ push ขึ้นไปพร้อมเว็บ (ค่าสำรอง + ที่เก็บ config ปลายทางเขียน)
+     3. ค่าที่เคยเก็บใน IndexedDB ตามพฤติกรรมเดิม (กันหน้าไม่มี Target ใช้)
+   ค่าที่ได้จะ "ทับ" ค่าที่เก็บไว้ในเครื่องเสมอ ค่าของทีมจึงชนะทุกครั้งที่รีเฟรช
+   ในหน้าต่างตั้งค่าบอกแค่ "อัปเดตล่าสุด" ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ
    เพราะคนใช้งานไม่ควรต้องรู้ว่าเบื้องหลังเก็บค่าไว้ที่ไหน ── */
 const TEAM_TARGETS_URL = "data/targets.json";
 const TARGET_LOCAL_BACKUP_KEY = "pickProductivityTargetsLocalBackup:v3";
 let teamTargets = null;        // ค่าของทีมที่โหลดสำเร็จ (null = ยังไม่ได้ / โหลดไม่ได้)
-let teamTargetsMeta = { updatedAt: "", note: "" };
+let teamTargetsMeta = { updatedAt: "", note: "", by: "", from: "" };
 let teamTargetsError = "";
 let targetOverride = false;    // true = เครื่องนี้ปรับเองหลังรับค่าของทีมมาแล้ว
+let teamTargetsWrite = { url: "", token: "", sheetTab: "", sheetId: "" }; // config ปลายทางเขียน จาก targets.json
+let teamTargetSaving = false;
+let teamTargetSaveNote = "";
 
 function sanitizeTargetSet(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -138,40 +145,160 @@ function clearLegacyTargetBackup() {
   }
 }
 
-/* "2026-09-21" → "21/09/2569" ให้ตรงกับรูปแบบวันที่ที่ใช้ทั้งเว็บ */
+/* "2026-09-21" หรือ "2026-09-21T14:30:00+07:00" → "21/09/2569" (+ เวลาถ้ามี)
+   ให้ตรงกับรูปแบบวันที่ที่ใช้ทั้งเว็บ */
 function teamTargetsUpdatedLabel() {
-  const m = String(teamTargetsMeta.updatedAt || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return String(teamTargetsMeta.updatedAt || "");
-  return m[3] + "/" + m[2] + "/" + (Number(m[1]) + 543);
+  const text = String(teamTargetsMeta.updatedAt || "");
+  const m = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return text;
+  const day = m[3] + "/" + m[2] + "/" + (Number(m[1]) + 543);
+  return m[4] ? day + " " + m[4] + ":" + m[5] : day;
 }
 
-/* โหลดค่าของทีมแล้วทับค่าในเครื่อง คืน true เมื่ออ่านไฟล์ได้
+/* อ่านแท็บ Target จากสเปรดชีตแบบอ่านอย่างเดียว
+   ใช้ gviz เพราะระบุแท็บด้วย "ชื่อ" ได้ ไม่ต้องรู้ gid — แท็บนี้สคริปต์สร้างเองตอนบันทึกครั้งแรก
+   ข้อเสียของ gviz ที่ทำให้ source.js เลี่ยง (ตัดแถวตาม filter / รหัสผสมตัวอักษรหาย)
+   ไม่กระทบที่นี่ เพราะแท็บนี้มีแค่ชื่อคีย์กับจำนวนเต็ม 24 แถว ไม่มี filter และไม่มีรหัสพนักงาน */
+async function fetchTargetsFromSheet(tabName, sheetId) {
+  if (!sheetId) throw new Error("ยังไม่ได้ตั้ง sheetId ใน data/targets.json");
+  const url = "https://docs.google.com/spreadsheets/d/" + sheetId
+    + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tabName) + "&t=" + Date.now();
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error("HTTP " + response.status);
+  const text = await response.text();
+  if (/^\s*</.test(text)) throw new Error("ไม่พบแท็บ " + tabName);
+
+  const rows = text.trim().split(/\r?\n/).map((line) => line
+    .split(",")
+    .map((cell) => cell.trim().replace(/^"|"$/g, "").replace(/""/g, '"')));
+  const raw = {};
+  let updatedAt = "";
+  let updatedBy = "";
+  rows.forEach((cells) => {
+    const key = cells[0];
+    if (!key || !(key in DEFAULT_TARGETS)) return;   // ข้ามหัวตารางและคีย์แปลกปลอม
+    const value = Number(cells[1]);
+    if (!Number.isFinite(value) || value <= 0) return;
+    raw[key] = Math.round(value);
+    if (!updatedAt && cells[2]) updatedAt = cells[2];
+    if (!updatedBy && cells[3]) updatedBy = cells[3];
+  });
+  const found = Object.keys(raw).length;
+  // ครึ่ง ๆ กลาง ๆ อ่านผิดยิ่งกว่าไม่ใช้เลย จึงยอมรับเฉพาะตอนได้ครบทุกคี่ย์
+  if (found !== Object.keys(DEFAULT_TARGETS).length) {
+    throw new Error("แท็บ " + tabName + " มีค่าไม่ครบ (" + found + "/" + Object.keys(DEFAULT_TARGETS).length + ")");
+  }
+  return { targets: sanitizeTargetSet(raw), updatedAt, updatedBy };
+}
+
+/* โหลดค่าของทีมแล้วทับค่าในเครื่อง คืน true เมื่ออ่านค่าได้จากที่ใดที่หนึ่ง
    คืน false เพื่อให้ผู้เรียกถอยไปใช้ค่าที่เคยเก็บใน IndexedDB ตามพฤติกรรมเดิม */
 async function loadTeamTargets() {
+  let fileTargets = null;
+  let filePayload = null;
   try {
     const response = await fetch(TEAM_TARGETS_URL + "?t=" + Date.now(), { cache: "no-store" });
     if (!response.ok) throw new Error("HTTP " + response.status);
-    const payload = await response.json();
-    const next = sanitizeTargetSet(payload && payload.targets);
-    if (!next) throw new Error("ไม่พบค่า targets ในไฟล์");
-
-    teamTargets = next;
-    teamTargetsMeta = {
-      updatedAt: String((payload && payload.updatedAt) || ""),
-      note: String((payload && payload.note) || ""),
+    filePayload = await response.json();
+    fileTargets = sanitizeTargetSet(filePayload && filePayload.targets);
+    teamTargetsWrite = {
+      url: String((filePayload && filePayload.write && filePayload.write.url) || ""),
+      token: String((filePayload && filePayload.write && filePayload.write.token) || ""),
+      sheetTab: String((filePayload && filePayload.sheetTab) || ""),
+      sheetId: String((filePayload && filePayload.sheetId) || ""),
     };
-    teamTargetsError = "";
-
-    clearLegacyTargetBackup();
-    applyTeamTargets("ใช้ Target ของทีม");
-    return true;
   } catch (error) {
+    console.warn("Team target file load failed", error);
+  }
+
+  /* อ่านค่าสดจากแท็บก็ต่อเมื่อตั้งปลายทางเขียนไว้แล้ว
+     ถ้ายังไม่ตั้ง แท็บนั้นยังไม่มี การยิงไปก็ได้ error เปล่า ๆ ทุกครั้งที่เปิดหน้า */
+  let sheetResult = null;
+  if (teamTargetsWrite.sheetTab && teamTargetsWrite.url) {
+    try {
+      sheetResult = await fetchTargetsFromSheet(teamTargetsWrite.sheetTab, teamTargetsWrite.sheetId);
+    } catch (error) {
+      console.warn("Team target sheet load failed", error);
+    }
+  }
+
+  if (sheetResult) {
+    teamTargets = sheetResult.targets;
+    teamTargetsMeta = {
+      updatedAt: sheetResult.updatedAt,
+      note: "",
+      by: sheetResult.updatedBy,
+      from: "sheet",
+    };
+  } else if (fileTargets) {
+    teamTargets = fileTargets;
+    teamTargetsMeta = {
+      updatedAt: String((filePayload && filePayload.updatedAt) || ""),
+      note: String((filePayload && filePayload.note) || ""),
+      by: "",
+      from: "file",
+    };
+  } else {
     teamTargets = null;
-    teamTargetsError = error.message || String(error);
-    console.warn("Team target load failed", error);
+    teamTargetsError = "อ่านค่าของทีมไม่ได้ทั้งจากแท็บในชีตและไฟล์สำรอง";
     renderTargetSourceChip();
     renderTargetTeamInfo();
     return false;
+  }
+
+  teamTargetsError = "";
+  clearLegacyTargetBackup();
+  applyTeamTargets("ใช้ Target ของทีม");
+  return true;
+}
+
+function teamTargetWriteReady() {
+  return Boolean(teamTargetsWrite.url && teamTargetsWrite.token);
+}
+
+/* กดบันทึกในหน้าเว็บ → ยิงค่าที่เห็นอยู่ไปที่ apps-script-target-write.gs
+   ส่งเป็น text/plain เพื่อให้เป็น simple request ไม่มี preflight
+   (Apps Script ตอบ 302 ไป googleusercontent ซึ่ง preflight ผ่านไม่ได้) */
+async function saveTeamTargets() {
+  if (!teamTargetWriteReady() || teamTargetSaving) return;
+  teamTargetSaving = true;
+  teamTargetSaveNote = "กำลังบันทึกเป็นค่าของทีม…";
+  renderTargetTeamInfo();
+  try {
+    const response = await fetch(teamTargetsWrite.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        token: teamTargetsWrite.token,
+        targets: sanitizeTargetSet(TARGETS),
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const result = await response.json();
+    if (!result || result.ok !== true) {
+      throw new Error((result && result.error) || "ปลายทางตอบว่าบันทึกไม่สำเร็จ");
+    }
+    teamTargetsMeta = {
+      updatedAt: String(result.updatedAt || ""),
+      note: "",
+      by: String(result.updatedBy || ""),
+      from: "sheet",
+    };
+    teamTargets = sanitizeTargetSet(TARGETS);
+    targetOverride = false;
+    teamTargetSaveNote = result.changed
+      ? "บันทึกเป็นค่าของทีมแล้ว " + result.changed + " ช่อง · คนอื่นรีเฟรชแล้วเห็นตาม"
+      : "ค่าตรงกับของทีมอยู่แล้ว ไม่มีอะไรต้องบันทึก";
+    setSyncStatus("บันทึก Target ของทีมแล้ว");
+  } catch (error) {
+    console.warn("Team target save failed", error);
+    teamTargetSaveNote = "บันทึกไม่สำเร็จ: " + (error.message || String(error))
+      + " · ค่าที่ปรับยังมีผลกับเครื่องนี้";
+  } finally {
+    teamTargetSaving = false;
+    renderTargetSourceChip();
+    renderTargetTeamInfo();
   }
 }
 
@@ -207,7 +334,13 @@ function renderTargetSourceChip() {
   if (targetOverride) {
     chip.hidden = false;
     chip.dataset.state = "override";
+    /* ปุ่มบันทึกอยู่ตรงนี้ด้วย เพราะจุดที่ผู้ใช้เพิ่งรู้ว่าเลขไม่ตรงกับทีม
+       คือจุดที่ควรกดบันทึกได้เลย ไม่ต้องกลับไปเปิดหน้าต่างตั้งค่าอีกรอบ */
     chip.innerHTML = "🔶 Target ส่วนตัว · คนอื่นไม่เห็นเลขชุดนี้"
+      + (teamTargetWriteReady()
+        ? " <button type=\"button\" data-target-save-team" + (teamTargetSaving ? " disabled" : "") + ">"
+          + (teamTargetSaving ? "กำลังบันทึก…" : "บันทึกให้ทั้งทีม") + "</button>"
+        : "")
       + " <button type=\"button\" data-team-target-apply>ใช้ค่าของทีม</button>";
     return;
   }
@@ -218,7 +351,8 @@ function renderTargetSourceChip() {
 }
 
 /* ในหน้าต่างตั้งค่า บอกแค่ "อัปเดตล่าสุด" ของค่าชุดที่กำลังใช้
-   ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ เพราะคนใช้งานไม่ควรต้องรู้ว่าเบื้องหลังเก็บค่าไว้ที่ไหน */
+   บวกปุ่มบันทึกเป็นค่าของทีมเมื่อตั้งปลายทางเขียนไว้แล้ว
+   ไม่มีขั้นตอนอื่นให้ผู้ใช้ทำ เพราะคนใช้งานไม่ควรต้องรู้ว่าเบื้องหลังเก็บค่าไว้ที่ไหน */
 function renderTargetTeamInfo() {
   const box = document.querySelector("#targetTeamInfo");
   if (!box) return;
@@ -232,9 +366,27 @@ function renderTargetTeamInfo() {
     box.innerHTML = "<p class=\"tt-note\">กำลังโหลดค่าล่าสุด…</p>";
     return;
   }
+
   const label = teamTargetsUpdatedLabel();
-  box.innerHTML = "<p class=\"tt-note\">อัปเดตล่าสุด "
-    + (label ? "<strong>" + escapeHtml(label) + "</strong>" : "ไม่ทราบวันที่") + "</p>";
+  const parts = ["<p class=\"tt-note\">อัปเดตล่าสุด "
+    + (label ? "<strong>" + escapeHtml(label) + "</strong>" : "ไม่ทราบวันที่")
+    + (teamTargetsMeta.by ? " · โดย " + escapeHtml(teamTargetsMeta.by) : "") + "</p>"];
+
+  if (teamTargetWriteReady()) {
+    const dirty = diffTargetKeys(TARGETS, teamTargets).length;
+    parts.push("<button type=\"button\" class=\"btn-target-team\" data-target-save-team"
+      + (teamTargetSaving || !dirty ? " disabled" : "") + ">"
+      + (teamTargetSaving ? "กำลังบันทึก…" : "💾 บันทึกเป็นค่าของทีม")
+      + (dirty && !teamTargetSaving ? " (" + dirty + " ช่อง)" : "") + "</button>");
+    parts.push("<p class=\"tt-note\">" + (dirty
+      ? "กดแล้วทุกคนจะเห็นเลขชุดนี้เมื่อรีเฟรช"
+      : "ค่าที่เห็นตรงกับของทีมอยู่แล้ว") + "</p>");
+  }
+  if (teamTargetSaveNote) {
+    parts.push("<p class=\"" + (teamTargetSaveNote.indexOf("ไม่สำเร็จ") >= 0 ? "tt-warn" : "tt-ok")
+      + "\">" + escapeHtml(teamTargetSaveNote) + "</p>");
+  }
+  box.innerHTML = parts.join("");
 }
 
 
@@ -1304,6 +1456,7 @@ function updateTargets(nextTargets, sourceLabel, options = {}) {
   targetOverride = options.fromTeam
     ? false
     : Boolean(teamTargets) && diffTargetKeys(TARGETS, teamTargets).length > 0;
+  if (!options.keepSaveNote) teamTargetSaveNote = "";
 
   saveTargetsToStorage();
   renderTargetSourceChip();
@@ -6437,9 +6590,14 @@ function initializeTargetSettings() {
     if (!ok) loadStoredTargetsIdb();
   });
 
-  // ชิปถูกเขียน innerHTML ใหม่ทุกครั้ง จึงผูก listener ที่ตัวชิปครั้งเดียว
+  // ชิปกับกล่องถูกเขียน innerHTML ใหม่ทุกครั้ง จึงผูก listener ที่ตัวกล่องครั้งเดียว
   document.querySelector("#teamTargetChip")?.addEventListener("click", (event) => {
-    if (event.target.closest("[data-team-target-apply]")) applyTeamTargets("ใช้ Target ของทีม");
+    if (event.target.closest("[data-target-save-team]")) void saveTeamTargets();
+    else if (event.target.closest("[data-team-target-apply]")) applyTeamTargets("ใช้ Target ของทีม");
+  });
+
+  document.querySelector("#targetTeamInfo")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-target-save-team]")) void saveTeamTargets();
   });
 
   targetSettingsButton?.addEventListener("click", openTargetSettings);

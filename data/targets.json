@@ -1,7 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
   "updatedAt": "2026-09-21",
-  "note": "Target กลางของทีม — แก้ไฟล์นี้แล้ว push ทุกคนเห็นค่าเดียวกัน",
+  "note": "ค่าสำรองของ Target — ค่าที่ใช้จริงอ่านจากแท็บ sheetTab ถ้าตั้งค่า write ไว้แล้ว",
+  "sheetTab": "V3 Target",
+  "sheetId": "1PMnlyYHswnV0nE73Alxh-ocIFtTipB9LMzACdNM9GFs",
+  "write": {
+    "url": "",
+    "token": ""
+  },
   "targets": {
     "overall": 150,
     "fullRack": 140,
