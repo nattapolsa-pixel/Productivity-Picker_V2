@@ -10,6 +10,25 @@
         จึงกลับมาทำงานเองเมื่อ element ปรากฏอีกครั้ง ไม่ต้องแก้สูตรหรือโค้ดคำนวณ
 -->
 
+<!-- ===== tab-incentive ===== ถอดออกตามที่ผู้ใช้สั่ง 21/09/2569
+     ตัวเรนเดอร์อยู่ครบที่ v2-incentive.js และ index.html ยังโหลดไฟล์นั้นอยู่
+     ไฟล์นั้น return ทั้งตัวทันทีเมื่อหา #v3Incentive ไม่เจอ (v2-incentive.js:21-22)
+     จึงไม่ผูก listener และไม่คิดเลขอะไรเลย — เอา section นี้กับปุ่มเมนูกลับมาแล้วหน้าทำงานทันที
+     คืนปุ่มเมนู: <button class="nav nav-item" data-page="incentive" data-tab="incentive">…svg… Incentive</button>
+     ในกลุ่ม 3 พนักงาน ต่อจาก เจาะลึกรายบุคคล -->
+<!-- TAB: Incentive — ลอกจากหน้า incentive ของ V2 -->
+      <section class="page tab-panel" id="tab-incentive" data-page="incentive">
+        <div class="panel-header">
+          <div>
+            <h1 class="panel-title">Incentive (ประมาณการเบี้ยขยัน)</h1>
+          </div>
+          <p class="panel-desc">ตั้งเกณฑ์แล้วดูว่าต้องใช้งบเท่าไร ใครได้เท่าไร
+            · เป็นการประมาณการบนหน้าเว็บเท่านั้น ไม่ได้ผูกกับระบบจ่ายเงินจริง และไม่เขียนกลับ Google Sheet
+           · คิดจาก Productivity รายคน เทียบ Target ของโซนที่สังกัด</p>
+        </div>
+        <div id="v3Incentive"></div>
+      </section>
+
 <!-- ===== tab-staff ===== -->
 <section class="tab-panel" id="tab-staff"><div class="panel-header"><h1 class="panel-title">ทะเบียนพนักงาน & ผลงานรายบุคคล</h1></div><p class="panel-desc">ทะเบียนปัจจุบันจาก 2ND เชื่อม User ID กับผลงานช่วงวันที่เลือก · คนที่ไม่มีผลงานยังแสดงในทะเบียน · ไม่ทับกะ/โซน/สังกัดย้อนหลังด้วยทะเบียนปัจจุบัน</p><div id="v3Staff"></div></section>
 

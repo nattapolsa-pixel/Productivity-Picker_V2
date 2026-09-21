@@ -98,11 +98,6 @@
               <path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
               <path d="M19 4.5l1.6 1.6L19 7.7" />
             </svg> เจาะลึกรายบุคคล</button>
-          <button class="nav nav-item" data-page="incentive" data-tab="incentive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="8.5" />
-              <path d="M14.6 9.2A2.7 2.7 0 0 0 9.4 10c0 2.8 5.2 1.6 5.2 4.2a2.7 2.7 0 0 1-5.2.6" />
-              <line x1="12" y1="6.4" x2="12" y2="17.6" />
-            </svg> Incentive</button>
         </div>
 
         <!-- ══ 4. ช่วยเหลือ ══ -->
@@ -115,7 +110,7 @@
             </svg> คู่มือการใช้เว็บ</button>
         </div>
 
-        <!-- เมนูที่ถอดออกชั่วคราว (อันดับพนักงาน, ประเภทงาน & โซน, ทะเบียน, สังกัด, กะ & BU,
+        <!-- เมนูที่ถอดออกชั่วคราว (Incentive ถอด 21/09/2569, อันดับพนักงาน, ประเภทงาน & โซน, ทะเบียน, สังกัด, กะ & BU,
              รายการต้นทาง, สูตร & แหล่งข้อมูล) เก็บมาร์กอัปไว้ที่ parked/sections.html
              พร้อมขั้นตอนนำกลับ -->
       </div>
@@ -260,19 +255,6 @@
             · ไม่มีข้อมูลระดับ SKU และโซนที่หยิบจริงรายรายการ จึงใช้โซนสังกัดเป็นตัวแทน</p>
         </div>
         <div id="v3Individual"></div>
-      </section>
-
-      <!-- TAB: Incentive — ลอกจากหน้า incentive ของ V2 -->
-      <section class="page tab-panel" id="tab-incentive" data-page="incentive">
-        <div class="panel-header">
-          <div>
-            <h1 class="panel-title">Incentive (ประมาณการเบี้ยขยัน)</h1>
-          </div>
-          <p class="panel-desc">ตั้งเกณฑ์แล้วดูว่าต้องใช้งบเท่าไร ใครได้เท่าไร
-            · เป็นการประมาณการบนหน้าเว็บเท่านั้น ไม่ได้ผูกกับระบบจ่ายเงินจริง และไม่เขียนกลับ Google Sheet
-           · คิดจาก Productivity รายคน เทียบ Target ของโซนที่สังกัด</p>
-        </div>
-        <div id="v3Incentive"></div>
       </section>
 
 <section class="tab-panel" id="tab-hours"><div class="panel-header"><h1 class="panel-title">ปริมาณงานรายชั่วโมง</h1></div><p class="panel-desc">ยอดจากข้อมูลรายชั่วโมง ตามหัวตาราง 07:00 ถึง 06:00 · วันที่ยึดวันที่ในชีต เช่นเดียวกับ V1 · ไม่ปรับเวลาเพิ่ม</p><div id="v3Hours"></div></section>
@@ -918,7 +900,7 @@
   <script src="v2-incentive.js?v=20260918-2"></script>
   <script src="v2-monthly.js?v=20260918-9"></script>
   <script src="v2-duplicate.js?v=20260918-1"></script>
-  <script src="v2-guide.js?v=20260921-guide-2"></script>
+  <script src="v2-guide.js?v=20260921-noincentive-1"></script>
 </body>
 
 </html>
