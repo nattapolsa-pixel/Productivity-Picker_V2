@@ -21,8 +21,7 @@ const DEFAULT_TARGETS = Object.freeze({
   fullRackAhAi: 170,
   fullRackAlBlBmAm: 170,
   halfRackAjAk: 170, // ย้ายมาจาก Full Rack - คง Target 170 ไว้ (ไม่ใช่ 200 ตาม Zone อื่นในกลุ่ม Half Rack)
-  halfRackAnCa: 200,
-  halfRackBnDa: 200,
+  halfRackAnCaBnDa: 200, // AN, CA, BN, DA เป็นโซนเดียวกัน (Half Rack ของ Max mart) รวมจากเดิมที่แยกเป็น AN-CA กับ BN-DA
   halfRackBgBh: 200,
   halfRackBiBk: 200,
   halfRackCbDbDcCc: 200,
@@ -76,7 +75,13 @@ function readStoredTargets() {
       }
     }
     // ย้าย Key เดิมที่ผู้ใช้เคยตั้งค่าไว้ ไม่ให้ค่าที่ตั้งเองหายเวลา Zone ย้ายกลุ่ม
-    const RENAMED_TARGET_KEYS = { fullRackAjAk: "halfRackAjAk" };
+    /* AN-CA กับ BN-DA รวมเป็น AN-CA-BN-DA แล้ว ถ้าเคยตั้งค่าไว้ให้ยกค่าเดิมมาใช้
+       เอาของ AN-CA ก่อน เพราะลำดับคีย์ในนี้เป็นตัวกำหนดว่าใครชนะเมื่อมีทั้งคู่ */
+    const RENAMED_TARGET_KEYS = {
+      fullRackAjAk: "halfRackAjAk",
+      halfRackAnCa: "halfRackAnCaBnDa",
+      halfRackBnDa: "halfRackAnCaBnDa",
+    };
     Object.keys(RENAMED_TARGET_KEYS).forEach((oldKey) => {
       const newKey = RENAMED_TARGET_KEYS[oldKey];
       if (saved[oldKey] !== undefined && saved[newKey] === undefined) {
@@ -463,8 +468,15 @@ const ZONE_GROUPS = [
     zones: [
       // AJ-AK ย้ายมาจากกลุ่ม Full Rack - legacySource ไว้อ่าน payload จาก Apps Script รุ่นก่อนย้าย (ลบออกได้หลัง deploy .gs ใหม่แล้ว)
       { key: "halfRackAjAk", title: "Picking Productivity - Zone AJ-AK", label: "AJ-AK", legacySource: { groupKey: "fullRack", zoneKey: "fullRackAjAk" } },
-      { key: "halfRackAnCa", title: "Picking Productivity - Zone AN-CA", label: "AN-CA" },
-      { key: "halfRackBnDa", title: "Picking Productivity - Zone BN-DA", label: "BN-DA" },
+      /* AN, CA, BN, DA เป็นโซนเดียวกัน (Half Rack ของ Max mart) ตามข้อมูลหลังบ้านที่แก้ใหม่ 21/09/2569
+         v1-engine.js เป็น read-only จึงยังส่งมาแยกเป็น halfRackAnCa กับ halfRackBnDa
+         mergeSources สั่งให้บวกสองถังนั้นเข้าโซนนี้ (ถ้าวันหน้า engine ส่งคีย์รวมมาเอง จะใช้ของ engine ก่อน ไม่นับซ้ำ)
+         label ต้องเป็นรหัสคั่นด้วย - ล้วน ๆ เพราะ insights.js แยกรหัสโซนจาก label.split('-') */
+      { key: "halfRackAnCaBnDa", title: "Picking Productivity - Zone AN-CA-BN-DA (Max mart)", label: "AN-CA-BN-DA",
+        mergeSources: [
+          { groupKey: "halfRack", zoneKey: "halfRackAnCa" },
+          { groupKey: "halfRack", zoneKey: "halfRackBnDa" },
+        ] },
       { key: "halfRackBgBh", title: "Picking Productivity - Zone BG-BH", label: "BG-BH" },
       { key: "halfRackBiBk", title: "Picking Productivity - Zone BI-BK", label: "BI-BK" },
       { key: "halfRackCbDbDcCc", title: "Picking Productivity - Zone CB-DB-DC-CC", label: "CB-DB-DC-CC" },
@@ -4718,10 +4730,17 @@ function mergeDailySummary(combined, day, dateKey = "") {
 
   ZONE_GROUPS.forEach((group) => {
     group.zones.forEach((zone) => {
-      // อ่าน path ปัจจุบันก่อน ถ้าไม่มีค่อย fallback ไป path เดิม (payload เก่าที่ Zone ยังอยู่กลุ่มก่อนย้าย)
-      const zoneBucket = day.zones?.[group.key]?.[zone.key]
-        || (zone.legacySource ? day.zones?.[zone.legacySource.groupKey]?.[zone.legacySource.zoneKey] : null);
-      addRawBucket(combined.zones[group.key][zone.key], zoneBucket);
+      // อ่าน path ปัจจุบันก่อน ถ้าไม่มีค่อย fallback ไป path เดิม (payload เก่าที่ Zone ยังอยู่กลุ่มก่อนย้าย
+      // หรือโซนที่รวมกันแล้วแต่ engine ยังส่งมาแยก — mergeSources บวกทุกถังต้นทางเข้าโซนเดียว)
+      const current = day.zones?.[group.key]?.[zone.key];
+      if (current) {
+        addRawBucket(combined.zones[group.key][zone.key], current);
+      } else {
+        const sources = zone.mergeSources || (zone.legacySource ? [zone.legacySource] : []);
+        sources.forEach((source) => {
+          addRawBucket(combined.zones[group.key][zone.key], day.zones?.[source.groupKey]?.[source.zoneKey]);
+        });
+      }
     });
   });
 
