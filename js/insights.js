@@ -177,6 +177,17 @@
   function destroyBelowTargetChart(){
     if(belowTargetChart){try{belowTargetChart.destroy();}catch(e){}belowTargetChart=null;}
   }
+  function closeBelowPeoplePopup(){const el=$('v3BelowPeoplePopup');if(el)el.remove();}
+  function showBelowPeoplePopup(group){
+    closeBelowPeoplePopup();
+    const sortPeople=(a,b)=>a.gap-b.gap||a.name.localeCompare(b.name,'th');
+    const below=group.below.slice().sort(sortPeople), pass=group.all.filter(x=>!x.below).sort((a,b)=>b.average-a.average||a.name.localeCompare(b.name,'th'));
+    const personRow=(x,failed)=>`<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)}</b><small>${esc(x.id)} · ${fmt(x.count)} แถว · ${fmt(x.total)} Total Pick</small></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;
+    const host=document.createElement('div');host.id='v3BelowPeoplePopup';host.className='v3-popup-backdrop';host.innerHTML=`<div class="v3-people-popup" role="dialog" aria-modal="true"><button class="v3-popup-close" type="button" aria-label="ปิด">×</button><div class="v3-popup-kicker">ZONE PERFORMANCE</div><h2>${esc(group.zone.label)}</h2><p class="v3-popup-sub">${esc(labels[group.zone.group]||'ไม่พบประเภทงาน')} · Target ${fmt(group.target)} หยิบ/ชม. · ${fmt(group.all.length)} คน</p><div class="v3-popup-summary"><span class="bad"><b>${fmt(below.length)}</b> ไม่ผ่าน</span><span class="good"><b>${fmt(pass.length)}</b> ผ่าน</span></div><section class="v3-people-section fail"><h3>ไม่ผ่าน Target <em>${fmt(below.length)} คน</em></h3>${below.length?below.map(x=>personRow(x,true)).join(''):'<div class="v3-empty">ไม่มีคนไม่ผ่านใน Zone นี้</div>'}</section><section class="v3-people-section pass"><h3>ผ่าน Target <em>${fmt(pass.length)} คน</em></h3>${pass.length?pass.map(x=>personRow(x,false)).join(''):'<div class="v3-empty">ยังไม่มีคนผ่านใน Zone นี้</div>'}</section></div>`;
+    document.body.appendChild(host);
+    host.addEventListener('click',(e)=>{if(e.target===host||e.target.closest('.v3-popup-close'))closeBelowPeoplePopup();});
+    document.addEventListener('keydown',function escPopup(e){if(e.key==='Escape'){closeBelowPeoplePopup();document.removeEventListener('keydown',escPopup);}});
+  }
   function drawBelowTargetChart(groups){
     const el=$('v3BelowTargetChart');
     if(!el||typeof Chart==='undefined')return;
@@ -191,6 +202,8 @@
         {label:'ถึงเป้า (คน)',data:list.map(z=>z.all.length-z.below.length),backgroundColor:'#10b981',borderRadius:6,stack:'s'}
       ]},
       options:{maintainAspectRatio:false,
+        onClick:(event,elements)=>{if(elements&&elements.length)showBelowPeoplePopup(list[elements[0].index]);},
+        onHover:(event,elements)=>{event.native.target.style.cursor=elements&&elements.length?'pointer':'default';},
         plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,padding:14,font:{size:11}}},
           datalabels:{color:'#fff',font:{size:10,weight:'700'},formatter:v=>v>0?v:''},
           tooltip:{backgroundColor:'rgba(15,23,42,.92)',padding:10,cornerRadius:8,callbacks:{afterBody:items=>{
