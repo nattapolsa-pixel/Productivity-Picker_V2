@@ -5,8 +5,10 @@
   "sheetTab": "V3 Target",
   "sheetId": "1PMnlyYHswnV0nE73Alxh-ocIFtTipB9LMzACdNM9GFs",
   "write": {
-    "url": "",
-    "token": ""
+    "url": "https://script.google.com/macros/s/AKfycbyby7nOGMZe-w8pph0IZ7jz9WqQ17pwFhfW4TdWgoi1PJlkvXhYuNzHav48WBNsOkcGjg/exec"
+  },
+  "rosterWrite": {
+    "url": "https://script.google.com/macros/s/AKfycbyby7nOGMZe-w8pph0IZ7jz9WqQ17pwFhfW4TdWgoi1PJlkvXhYuNzHav48WBNsOkcGjg/exec"
   },
   "targets": {
     "overall": 150,

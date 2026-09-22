@@ -1,7 +1,6 @@
 /* v2-roster-write.js — หน้าต่างกรอกข้อมูลพนักงานที่ยังไม่มีทะเบียน
-   ตอนนี้ยังไม่ส่งข้อมูลออกไปที่ Google Sheet ตามที่ผู้ใช้สั่ง
-   กรอกแล้วเก็บไว้ในเครื่องนี้ (localStorage) และ Export CSV ไปกรอกใน Sheet เองได้
-   ไม่มีการเรียก Apps Script และไม่มีกล่องตั้งค่า URL/โทเคนในหน้าเว็บ
+   ข้อมูลสถานะยังเก็บในเครื่องด้วย localStorage แต่ข้อมูลพนักงานที่ยังทำงานอยู่
+   จะส่งเข้า Apps Script ของ V3 ได้เมื่อมีการตั้งค่า rosterWrite ใน data/targets.json
 
    สถานะการจ้างเลือกได้ 2 แบบ ปลายทางต่างกัน
      ยังทำงานอยู่ → ชีต 2ND คอลัมน์ C–M (ทะเบียนพนักงาน)
@@ -14,6 +13,8 @@
   'use strict';
 
   const DRAFT_KEY = 'pickProductivityRosterDraft:v1';
+  const CONFIG_URL = 'data/targets.json';
+  let writeConfigPromise = null;
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
   const dmy = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -52,6 +53,28 @@
   function saveDrafts(all) {
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify(all)); return true; }
     catch (e) { return false; }
+  }
+  function loadWriteConfig() {
+    if (writeConfigPromise) return writeConfigPromise;
+    writeConfigPromise = fetch(CONFIG_URL + '?t=' + Date.now(), { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : {})
+      .then((cfg) => {
+        const w = cfg && cfg.rosterWrite;
+        return { url: String((w && w.url) || '').trim() };
+      }).catch(() => ({ url: '' }));
+    return writeConfigPromise;
+  }
+  async function writeRosterToSheet(userId, fields, overwrite, status) {
+    const cfg = await loadWriteConfig();
+    if (!cfg.url) return { configured: false };
+    const response = await fetch(cfg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ rows: [{ userId, fields, overwrite: Boolean(overwrite), status: status || 'active' }] })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || ('HTTP ' + response.status));
+    return { configured: true, result };
   }
   function draftOf(id) {
     const d = loadDrafts()[id];
@@ -147,7 +170,8 @@
     return `<div class="rw-panel" data-rw-form data-rw-id="${esc(person.id)}">
       <h4>ระบุว่ารหัส ${esc(person.id)} คือใคร</h4>
       <p>${head}
-        <br><b>ยังไม่ส่งเข้า Google Sheet</b> — บันทึกไว้ในเครื่องนี้ก่อน แล้ว Export CSV ไปกรอกใน Sheet เอง</p>
+        <br><b>ข้อมูลพนักงานที่ยังทำงานอยู่จะบันทึกเข้าแท็บ 2ND</b> และผู้ที่ลาออกจะบันทึกเข้าแท็บ Resigned
+        เมื่อเชื่อมต่อ Apps Script แล้ว</p>
       <div class="rw-statusrow">
         <span class="rw-statuslabel">สถานะการจ้าง</span>
         <div class="rw-seg" role="group" aria-label="สถานะการจ้าง">
@@ -167,7 +191,7 @@
         </label>`).join('')}
       </div>
       <div class="rw-actions">
-        <button type="button" data-rw-submit class="rw-btn rw-btn-primary">${resigned ? 'บันทึกว่าออกแล้ว' : 'บันทึกไว้ในเครื่อง'}</button>
+        <button type="button" data-rw-submit class="rw-btn rw-btn-primary">${resigned ? 'บันทึกว่าออกแล้ว' : 'บันทึกเข้า 2ND'}</button>
         ${state.hasDraft ? '<button type="button" data-rw-delete class="rw-btn rw-btn-ghost">ลบที่กรอกไว้</button>' : ''}
         <button type="button" data-rw-cancel class="rw-btn">ปิด</button>
       </div>
@@ -219,8 +243,12 @@
         if (iso) fields.resignedDate = dmy(iso);   // เก็บให้ตรงกับ date ที่แปลงแล้ว
         all[person.id] = { status: 'resigned', fields, date: iso, savedAt: new Date().toLocaleString('th-TH') };
         if (!saveDrafts(all)) { say('บันทึกไม่สำเร็จ เบราว์เซอร์ปิด localStorage อยู่', 'warn'); return; }
-        say(`บันทึกว่ารหัสนี้ <b>ออกแล้ว</b>${iso ? ' (พ้นสภาพ ' + dmy(iso) + ')' : ''} · จะขึ้น Remark แดงและถูกซ่อนตามปุ่มซ่อนคนที่ออกแล้ว`, 'good');
-        if (onRerender) setTimeout(onRerender, 700);
+        say('กำลังบันทึกเข้าแท็บ Resigned…', '');
+        writeRosterToSheet(person.id, fields, false, 'resigned').then((out) => {
+          if (!out.configured) say('ยังไม่ได้ตั้งค่า Apps Script · เก็บไว้ในเครื่องแล้ว ใช้ Export CSV ได้', 'warn');
+          else say('บันทึกเข้าแท็บ <b>Resigned</b> แล้ว', 'good');
+          if (onRerender) setTimeout(onRerender, 700);
+        }).catch((error) => say(`บันทึกเข้า Resigned ไม่สำเร็จ: ${esc(error.message)} · ข้อมูลยังเก็บไว้ในเครื่อง`, 'warn'));
         return;
       }
 
@@ -230,8 +258,17 @@
       delete fields.resignedDate;
       all[person.id] = { status: 'active', fields, date: '', savedAt: new Date().toLocaleString('th-TH') };
       if (!saveDrafts(all)) { say('บันทึกไม่สำเร็จ เบราว์เซอร์ปิด localStorage อยู่', 'warn'); return; }
-      say(`บันทึกไว้ในเครื่องแล้ว ${own.filter((k) => fields[k]).length} ช่อง · กด <b>Export CSV ที่กรอกไว้</b> ด้านบนเพื่อเอาไปใส่ใน Sheet`, 'good');
-      if (onRerender) setTimeout(onRerender, 700);
+      say('กำลังบันทึกเข้าแท็บ 2ND…', '');
+      writeRosterToSheet(person.id, fields, false).then((out) => {
+        if (!out.configured) {
+          say(`ยังไม่ได้ตั้งค่า Apps Script · เก็บไว้ในเครื่องแล้ว ${own.filter((k) => fields[k]).length} ช่อง · ใช้ Export CSV ได้`, 'warn');
+        } else {
+          say(`บันทึกเข้าแท็บ <b>2ND</b> แล้ว ${own.filter((k) => fields[k]).length} ช่อง · ระบบจะอัปเดต AG–AK จากสูตรของ Sheet`, 'good');
+        }
+        if (onRerender) setTimeout(onRerender, 700);
+      }).catch((error) => {
+        say(`บันทึกเข้า Sheet ไม่สำเร็จ: ${esc(error.message)} · ข้อมูลยังเก็บไว้ในเครื่องและ Export CSV ได้`, 'warn');
+      });
     });
 
     const del = panel.querySelector('[data-rw-delete]');
@@ -284,7 +321,7 @@
     statusHtml() {
       const list = draftList();
       const out = list.filter((d) => d.status === 'resigned').length;
-      return `<span class="rw-status">📝 กรอกแล้วเก็บไว้ในเครื่องนี้ ยังไม่ส่งเข้า Sheet`
+      return `<span class="rw-status">📝 สถานะการกรอกเก็บไว้ในเครื่อง · ข้อมูล active จะส่งเข้า 2ND เมื่อมี Apps Script`
         + (list.length
           ? ` · <b>${fmt(list.length)}</b> รหัส (ระบุว่าออกแล้ว <b>${fmt(out)}</b>)`
             + ` <button type="button" class="rw-link" data-rw-export>Export CSV ที่กรอกไว้</button>`

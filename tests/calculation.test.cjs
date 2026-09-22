@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-require('../source.js');require('../v1-engine.js');require('../metrics.js');
+require('../js/source.js');require('../js/v1-engine.js');require('../js/metrics.js');
 const source=require('../data/snapshot.json'), M=V3Metrics;
 const rows=source.sheets['Results Master'].rows.filter(r=>M.date(r[2]));
 const index=V1Engine.buildIndex(source.sheets);

@@ -1,7 +1,7 @@
 // Regenerate the read-only preview data directly from the configured Google Sheet.
 const fs = require('node:fs');
 const path = require('node:path');
-require('../source.js');
+require('../js/source.js');
 (async () => {
   const source = await V3Source.download();
   const output = path.join(__dirname,'../data/snapshot.json');

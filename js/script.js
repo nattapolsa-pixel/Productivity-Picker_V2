@@ -255,7 +255,7 @@ async function loadTeamTargets() {
 }
 
 function teamTargetWriteReady() {
-  return Boolean(teamTargetsWrite.url && teamTargetsWrite.token);
+  return Boolean(teamTargetsWrite.url);
 }
 
 /* กดบันทึกในหน้าเว็บ → ยิงค่าที่เห็นอยู่ไปที่ apps-script-target-write.gs
@@ -271,7 +271,6 @@ async function saveTeamTargets() {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify({
-        token: teamTargetsWrite.token,
         targets: sanitizeTargetSet(TARGETS),
       }),
       signal: AbortSignal.timeout(30000),
