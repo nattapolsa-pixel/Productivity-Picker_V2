@@ -5,7 +5,7 @@ window.V3Data = (() => {
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
-      const worker = new Worker('data-worker.js');
+      const worker = new Worker('js/data-worker.js');
       const timer = setTimeout(() => {worker.terminate(); reject(new Error('Google Sheet ตอบกลับช้า กรุณาลองรีเฟรชอีกครั้ง'));}, 150000);
       const finish = () => {clearTimeout(timer); worker.terminate();};
       worker.onerror = e => {finish();reject(new Error(e.message));};
