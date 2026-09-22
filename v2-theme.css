@@ -2221,7 +2221,6 @@ th.num {
 .guide-wrap {
   display: grid;
   gap: 1.15rem;
-  max-width: 1080px;
 }
 
 .guide-wrap > * {
@@ -2231,7 +2230,9 @@ th.num {
 /* ── หัวหน้า ── */
 .guide-hero {
   display: grid;
-  gap: 1.1rem;
+  grid-template-columns: minmax(280px, 1fr) minmax(300px, 1.15fr);
+  align-items: center;
+  gap: 1.1rem 1.6rem;
   padding: 1.5rem 1.6rem;
   border-radius: var(--radius, 18px);
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #0ea5e9 100%);
@@ -2258,15 +2259,16 @@ th.num {
 
 .guide-hero-text p:last-child {
   margin: 0 !important;
-  max-width: 62ch;
   font-size: .87rem !important;
   line-height: 1.7;
   color: rgba(255, 255, 255, .88) !important;
 }
 
+/* 2x2 คงที่ ไม่ใช้ auto-fit เพราะความกว้างที่เหลือข้างข้อความพอดีกับ 3 ใบ
+   แล้วใบที่สี่ตกบรรทัดเหลือช่องว่างข้าง ๆ */
 .guide-hero-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: .6rem;
 }
 
@@ -2408,25 +2410,6 @@ th.num {
   font-weight: 500;
 }
 
-/* ── กล่องข้อความเน้น ── */
-.guide-callout {
-  display: block;
-  margin: .55rem 0 .65rem !important;
-  padding: .6rem .8rem;
-  border-left: 3px solid #6366f1;
-  border-radius: 0 10px 10px 0;
-  background: rgba(99, 102, 241, .07);
-  font-size: .82rem !important;
-  line-height: 1.68;
-  color: var(--text-muted, #475569) !important;
-}
-
-.guide-callout.is-warn {
-  border-left-color: #f59e0b;
-  background: rgba(245, 158, 11, .1);
-  color: #9a3412 !important;
-}
-
 /* ── ขั้นตอน ── */
 .guide-steps {
   counter-reset: gstep;
@@ -2518,14 +2501,10 @@ th.num {
   color: var(--text-muted, #475569);
 }
 
-.guide-row dd .guide-callout {
-  margin-bottom: 0 !important;
-}
-
 /* ── การ์ดศัพท์ ── */
 .guide-terms {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
   gap: .7rem;
 }
 
@@ -2603,7 +2582,7 @@ th.num {
 
 .guide-menu {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
   gap: .65rem;
 }
 
@@ -2650,187 +2629,9 @@ th.num {
 .guide-q::before { content: '\201C'; }
 .guide-q::after { content: '\201D'; }
 
-/* ── สูตร ── */
-.guide-formula {
-  margin: 0 0 .7rem;
-  padding: .7rem .85rem;
-  border-radius: 12px;
-  border: 1px dashed rgba(100, 116, 139, .45);
-  background: rgba(15, 23, 42, .05);
-}
-
-.guide-formula figcaption {
-  margin-bottom: .3rem;
-  font-size: .68rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--text-muted, #64748b);
-}
-
-.guide-formula code {
-  display: block;
-  font-family: var(--font-mono, monospace);
-  font-size: .8rem;
-  font-weight: 700;
-  line-height: 1.6;
-  color: var(--text-primary, #1e293b);
-  background: transparent;
-  padding: 0;
-}
-
-/* ── ชิปสถานะ / เกณฑ์สี ── */
-.guide-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .4rem;
-  margin-bottom: .65rem;
-}
-
-.guide-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: .3rem;
-  padding: .22rem .6rem;
-  border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, .4);
-  background: rgba(148, 163, 184, .12);
-  font-size: .76rem;
-  font-weight: 800;
-  color: var(--text-muted, #475569);
-  white-space: nowrap;
-}
-
-.guide-chip.is-good { border-color: #a7f3d0; background: #ecfdf5; color: #047857; }
-.guide-chip.is-warn { border-color: #fdba74; background: #fff7ed; color: #c2410c; }
-.guide-chip.is-bad { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
-
-/* ── หัวข้อพับ (กับดัก / ถามบ่อย) ── */
-.guide-acc {
-  display: grid;
-  gap: .45rem;
-}
-
-.guide-trap {
-  border: 1px solid rgba(148, 163, 184, .26);
-  border-radius: 12px;
-  background: var(--bg-surface-elevated, #fff);
-  overflow: hidden;
-}
-
-.guide-trap > summary {
-  display: flex;
-  align-items: center;
-  gap: .55rem;
-  padding: .68rem .85rem;
-  font-size: .86rem;
-  font-weight: 700;
-  color: var(--text-primary, #1e293b);
-  cursor: pointer;
-  list-style: none;
-  transition: .15s;
-}
-
-.guide-trap > summary::-webkit-details-marker { display: none; }
-
-.guide-trap > summary::before {
-  content: '+';
-  flex-shrink: 0;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: .95rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.guide-trap[open] > summary::before { content: '\2212'; }
-
-.guide-trap > summary:hover {
-  background: rgba(148, 163, 184, .07);
-}
-
-.guide-trap[open] > summary {
-  border-bottom: 1px solid rgba(148, 163, 184, .22);
-}
-
-.guide-trap > div {
-  padding: .7rem .85rem .8rem 2.15rem;
-  font-size: .83rem;
-  line-height: 1.75;
-  color: var(--text-muted, #475569);
-}
-
-/* ── รายการสิ่งที่ทำไม่ได้ ── */
-.guide-cant {
-  display: grid;
-  gap: .45rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.guide-cant > li {
-  display: grid;
-  gap: .1rem;
-  padding: .6rem .8rem .6rem 2rem;
-  position: relative;
-  border: 1px solid rgba(148, 163, 184, .24);
-  border-radius: 11px;
-  background: rgba(244, 63, 94, .045);
-}
-
-.guide-cant > li::before {
-  content: '\2715';
-  position: absolute;
-  left: .75rem;
-  top: .72rem;
-  font-size: .78rem;
-  font-weight: 800;
-  color: #e11d48;
-}
-
-.guide-cant b {
-  font-size: .85rem;
-  color: var(--text-primary, #1e293b);
-}
-
-.guide-cant span {
-  font-size: .8rem;
-  line-height: 1.6;
-  color: var(--text-muted, #64748b);
-}
-
-/* ── ปุ่มกลับขึ้นบน ── */
-.guide-back {
-  margin: 0 !important;
-  text-align: center;
-}
-
-.guide-back button {
-  padding: .45rem 1.1rem;
-  border: 1px solid rgba(148, 163, 184, .4);
-  border-radius: 999px;
-  background: var(--bg-surface-elevated, #fff);
-  font: inherit;
-  font-size: .8rem;
-  font-weight: 700;
-  color: var(--text-muted, #475569);
-  cursor: pointer;
-  transition: .15s;
-}
-
-.guide-back button:hover {
-  border-color: #6366f1;
-  color: #4338ca;
-}
-
 @media (max-width: 900px) {
-  .guide-hero { padding: 1.15rem 1.15rem 1.25rem; }
+  /* หัวหน้าเลิกวางสองคอลัมน์ ไม่งั้น 280px + 300px ล้นจอ 375px */
+  .guide-hero { grid-template-columns: 1fr; padding: 1.15rem 1.15rem 1.25rem; }
   .guide-hero h1 { font-size: 1.32rem; }
   .guide-card { padding: .95rem 1rem 1.1rem; }
   .guide-head { gap: .6rem; }
@@ -2842,12 +2643,11 @@ th.num {
 }
 
 @media print {
-  .guide-toc, .guide-back { display: none !important; }
+  .guide-toc { display: none !important; }
   .guide-hero { background: none !important; color: #1e293b !important; box-shadow: none !important; border: 1px solid #cbd5e1; }
   .guide-hero h1, .guide-stat strong { color: #1e293b !important; }
   .guide-eyebrow, .guide-hero-text p:last-child, .guide-stat span { color: #475569 !important; }
   .guide-stat { background: #f8fafc !important; border-color: #cbd5e1 !important; }
-  .guide-trap > div { display: block !important; }
 }
 
 /* ปุ่มบันทึกเป็นค่าของทีม — อยู่ทั้งในหน้าต่างตั้งค่าและบนชิป
