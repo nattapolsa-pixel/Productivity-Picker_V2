@@ -222,6 +222,18 @@
     const worst=withMiss.find(z=>z.zone.key!=='unknown')||withMiss[0]||null;
     const unknownGroup=groups.find(z=>z.zone.key==='unknown')||null;
     const colorPct=missPct>=50?'#e11d48':missPct>=25?'#ea580c':'#16a34a';
+    const typeMeta={fullRack:{icon:'▦',title:'Full Rack',tone:'blue'},halfRack:{icon:'▥',title:'Half Rack',tone:'violet'},ea:{icon:'▤',title:'Micro Rack',tone:'teal'},pickToSort:{icon:'⇥',title:'Pick to Sort',tone:'orange'},mezzanine:{icon:'⌂',title:'Mezzanine',tone:'slate'}};
+    const typeRows=Object.keys(typeMeta).map((key)=>{
+      const items=groups.filter((g)=>g.zone.group===key);
+      const all=items.reduce((n,g)=>n+g.all.length,0), miss=items.reduce((n,g)=>n+g.below.length,0);
+      return {...typeMeta[key],key,all,miss,share:all?miss/all*100:0,zoneCount:items.length};
+    }).filter((x)=>x.all>0).sort((a,b)=>b.miss-a.miss||b.all-a.all);
+    const typeCards=`<div class="v3-type-zone-grid">${typeRows.map((x)=>`<div class="v3-type-zone-card ${x.tone}">
+      <div class="v3-type-zone-icon">${x.icon}</div><div class="v3-type-zone-main"><div class="v3-type-zone-title">${x.title}</div>
+      <div class="v3-type-zone-meta">${fmt(x.zoneCount)} โซน · ${fmt(x.all)} คน</div></div>
+      <div class="v3-type-zone-score"><strong>${fmt(x.miss)}</strong><span>คนไม่ถึงเป้า</span></div>
+      <div class="v3-type-zone-track"><i style="width:${Math.min(100,x.share)}%"></i></div><div class="v3-type-zone-percent">${fmt(x.share,1)}%</div>
+    </div>`).join('')}</div>`;
 
     destroyBelowTargetChart();
     host.innerHTML=statCards([
@@ -234,6 +246,7 @@
     ])
     +`<div class="card wide"><h3>⚠️ พนักงานที่ยังไม่ถึง Target ของโซน</h3>
       <div class="sub">เทียบ Productivity รายคนกับ Target ของโซนหลักที่ทำแถวมากที่สุด · โซนไหนตั้ง Target เองไว้จะใช้ค่านั้นก่อน Target ตามประเภทงาน</div>
+      <div class="v3-type-zone-heading"><span>ภาพรวมตามประเภทงาน</span><small>ดูว่ากลุ่มงานใดมีคนต่ำกว่าเป้ามากที่สุด</small></div>${typeCards}
       <div class="chartbox tall"><canvas id="v3BelowTargetChart"></canvas></div>
       <div class="note v3-notice">นับเฉพาะคนที่มีแถวเข้าเฉลี่ย · ค่าเฉลี่ยรายคนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น ไม่ได้เฉลี่ยค่าเฉลี่ยซ้ำ · เท่ากับเป้านับว่าผ่าน · คนหนึ่งคนนับครั้งเดียวที่โซนหลัก
         ${unknownGroup?`<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownGroup.all.length)} คนที่ข้อมูลโซนไม่ตรงกฎโซนของ V1 (ไม่ถึงเป้า ${fmt(unknownGroup.below.length)} คน) กองนี้เทียบกับ Target รวม ${fmt(unknownGroup.target)} เพราะไม่รู้ประเภทงาน ต้องเติม Zone ให้ถูกก่อนจะเชื่อเลขของกองนี้ได้`:''}</div></div>
