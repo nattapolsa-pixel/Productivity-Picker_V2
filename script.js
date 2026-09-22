@@ -915,7 +915,23 @@ function formatSyncTime(date) {
   }).format(date);
 }
 
+/* ค่า Pick/Hr แสดงเป็นจำนวนเต็ม ปัดแบบ .5 ขึ้น ตามที่ผู้ใช้สั่ง 21/09/2569
+   ปัดตอน "แสดงผล" เท่านั้น การตัดสินผ่าน/ไม่ผ่านและเกณฑ์สียังคิดจากค่าไม่ปัดตามกฎเดิม
+   และปัดจากค่าดิบครั้งเดียว ไม่ปัดซ้อนจากค่าที่ปัด 1 ตำแหน่งมาแล้ว */
 function formatNumber(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("th-TH", {
+    maximumFractionDigits: 0,
+  }).format(number);
+}
+
+/* สัดส่วน % ยังต้องการทศนิยม 1 ตำแหน่ง จึงแยกออกจาก formatNumber */
+function formatShare(value) {
   const number = Number(value);
 
   if (!Number.isFinite(number)) {
@@ -935,7 +951,7 @@ function formatProductivityValue(value) {
   }
 
   return new Intl.NumberFormat("th-TH", {
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 0,
   }).format(number);
 }
 
@@ -3200,7 +3216,7 @@ function renderShiftVisual(shifts) {
           className: info.className,
           progress: info.progress,
           targetMark: 100,
-          note: `Target ≥ ${target} | Share ${formatNumber(shift.share || 0)}%`,
+          note: `Target ≥ ${target} | Share ${formatShare(shift.share || 0)}%`,
         };
       })
     : [];
@@ -3540,7 +3556,7 @@ function renderPresentSummary(payload) {
     { label: "Shift ที่ควรดู", value: weakestShift ? (weakestShift.label || weakestShift.title || "-") : "-", note: weakestShift ? `Avg ${formatNumber(weakestShift.average)} · ${formatInteger(weakestShift.count || 0)} รายการ` : "ยังไม่มีข้อมูล", className: weakestShift && Number(weakestShift.average || 0) >= TARGETS.overall ? "is-good" : "is-warning" },
     { label: "Training ดีขึ้น/ผ่านเป้า", value: `${trainingPositiveRate}%`, note: `${formatInteger(trainingPositive)} จาก ${formatInteger(trainingSummary.withData)} คน`, className: trainingPositiveRate >= 60 ? "is-good" : trainingPositiveRate > 0 ? "is-warning" : "is-empty" },
     { label: "Zone ต่ำกว่าเป้า", value: formatInteger(weakZones.length), note: weakZones[0] ? `${weakZones[0].label} ต่ำสุด` : "ไม่มี Zone ต่ำกว่าเป้า", className: weakZones.length > 0 ? "is-warning" : "is-good" },
-    { label: "BU Focus", value: focusBu ? (focusBu.label || focusBu.title || "BU") : "-", note: focusBu ? `Avg ${formatNumber(focusBu.average)} · Share ${formatNumber(focusBu.share || 0)}%` : "ยังไม่มีข้อมูล Punthai/Mart", className: focusBu && Number(focusBu.average || 0) >= TARGETS.overall ? "is-good" : "is-warning" },
+    { label: "BU Focus", value: focusBu ? (focusBu.label || focusBu.title || "BU") : "-", note: focusBu ? `Avg ${formatNumber(focusBu.average)} · Share ${formatShare(focusBu.share || 0)}%` : "ยังไม่มีข้อมูล Punthai/Mart", className: focusBu && Number(focusBu.average || 0) >= TARGETS.overall ? "is-good" : "is-warning" },
     { label: "Pick to Sort", value: formatNumber(pickToSortItem.average), note: pickToSortItem.count > 0 ? `${pickToSortInfo.gapText} · ${formatInteger(pickToSortItem.count)} รายการ` : "ยังไม่มีข้อมูล Pick to Sort", className: pickToSortItem.count > 0 ? pickToSortInfo.className : "is-empty" },
   ];
 
@@ -3811,7 +3827,7 @@ function renderPickToSortDashboard(payload = {}) {
             <span>${escapeHtml(item.title || item.label || "BU")}</span>
             <strong>${formatNumber(item.average)}</strong>
           </div>
-          <small>${itemInfo.gapText} · ${formatInteger(item.count || 0)} รายการ · Share ${formatNumber(item.share || 0)}%</small>
+          <small>${itemInfo.gapText} · ${formatInteger(item.count || 0)} รายการ · Share ${formatShare(item.share || 0)}%</small>
           <div class="progress-track"><div class="progress-fill" style="width:${Math.min(itemInfo.progress, 100)}%"></div></div>
         </article>
       `;
@@ -3827,7 +3843,7 @@ function renderPickToSortDashboard(payload = {}) {
             <span>${escapeHtml(item.label || item.title || "Shift")}</span>
             <strong>${formatNumber(item.average)}</strong>
           </div>
-          <small>${itemInfo.gapText} · ${formatInteger(item.count || 0)} รายการ · Share ${formatNumber(item.share || 0)}%</small>
+          <small>${itemInfo.gapText} · ${formatInteger(item.count || 0)} รายการ · Share ${formatShare(item.share || 0)}%</small>
           <div class="progress-track"><div class="progress-fill" style="width:${Math.min(itemInfo.progress, 100)}%"></div></div>
         </article>
       `;
@@ -3942,7 +3958,7 @@ function renderShiftBreakdown(shifts, payload = {}) {
       <div class="shift-value">-</div>
       <div class="shift-meta">
         <span>Target ≥ ${target}</span>
-        <span>Share ${formatNumber(item.share || 0)}%</span>
+        <span>Share ${formatShare(item.share || 0)}%</span>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${Math.min(info.progress, 100)}%"></div></div>
       <div class="shift-foot">
@@ -3968,7 +3984,7 @@ function renderBuDetailRows(details) {
   const rows = details.map((detail) => {
     const target = Number(detail.target || TARGETS.overall);
     const info = getStatusInfo(detail.average, target);
-    const weightText = typeof detail.mainKpi === "number" ? `${formatNumber(detail.mainKpi)}%` : "-";
+    const weightText = typeof detail.mainKpi === "number" ? `${formatShare(detail.mainKpi)}%` : "-";
 
     return `
       <div class="bu-detail-row ${info.className}">
@@ -4021,7 +4037,7 @@ function renderBuBreakdown(buItems, payload = {}) {
       <div class="bu-value">-</div>
       <div class="bu-meta">
         <span>Target ≥ ${target}</span>
-        <span>Share ${formatNumber(item.share || 0)}%</span>
+        <span>Share ${formatShare(item.share || 0)}%</span>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${Math.min(info.progress, 100)}%"></div></div>
       <div class="bu-foot">

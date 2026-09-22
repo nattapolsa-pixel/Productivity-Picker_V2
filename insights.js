@@ -14,7 +14,7 @@
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);});}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
-  function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,1),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   /* กดหัวคอลัมน์เพื่อเรียง ครั้งแรกมาก -> น้อย ครั้งที่สองน้อย -> มาก ครั้งที่สามกลับลำดับตั้งต้น
      ต้องเก็บลำดับตั้งต้นไว้ได้ เพราะบางตารางจัดลำดับมาก่อนแล้ว
@@ -92,7 +92,7 @@
     data.forEach(r=>{const z=zone(r);(z?buckets.get(z.key):unknown).push(r);});
     const groups=zones.map(z=>({...z,stats:M.aggregate(buckets.get(z.key))}));if(unknown.length)groups.push({key:'unknown',label:'Not Found',group:'',stats:M.aggregate(unknown)});
     const max=Math.max(1,...groups.map(z=>z.stats.total));
-    $('v3ZoneMap').innerHTML=groups.sort((a,b)=>b.stats.total-a.stats.total).map(z=>{const intensity=z.stats.total/max;const target=z.key==='unknown'?TARGETS.overall:getZoneTarget(z.key,z.group);return `<button class="tile v3-zone" data-zone="${esc(z.label)}" style="background:hsl(245 72% ${94-intensity*43}%);color:${intensity>.57?'white':'#303c63'}"><strong>${esc(z.label)}</strong><small>${esc(labels[z.group]||'ไม่พบโซน')}</small><span>${fmt(z.stats.total)} Total Pick</span><b>${fmt(z.stats.average,1)} <small style="display:inline">Pick/ชม.</small></b><small>Target ${fmt(target)} · ${fmt(z.stats.count)} แถวเข้าเฉลี่ย · ${fmt(z.stats.people)} คน</small></button>`;}).join('');
+    $('v3ZoneMap').innerHTML=groups.sort((a,b)=>b.stats.total-a.stats.total).map(z=>{const intensity=z.stats.total/max;const target=z.key==='unknown'?TARGETS.overall:getZoneTarget(z.key,z.group);return `<button class="tile v3-zone" data-zone="${esc(z.label)}" style="background:hsl(245 72% ${94-intensity*43}%);color:${intensity>.57?'white':'#303c63'}"><strong>${esc(z.label)}</strong><small>${esc(labels[z.group]||'ไม่พบโซน')}</small><span>${fmt(z.stats.total)} Total Pick</span><b>${fmt(z.stats.average,0)} <small style="display:inline">Pick/ชม.</small></b><small>Target ${fmt(target)} · ${fmt(z.stats.count)} แถวเข้าเฉลี่ย · ${fmt(z.stats.people)} คน</small></button>`;}).join('');
     $('v3ZoneMap').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
       const selected=groups.find(z=>z.label===btn.dataset.zone);
       const detail=data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
@@ -102,7 +102,7 @@
       panel.scrollIntoView({behavior:'smooth',block:'start'});
     });
     $('v3ZoneDetail')?.remove();
-    table($('v3ZoneTable'),'zones',groups,[{title:'Zone',value:z=>z.label},{title:'ประเภทงาน',value:z=>labels[z.group]||'Not Found'},{title:'Total Pick',value:z=>z.stats.total,num:true},{title:'Productivity',value:z=>z.stats.average===null?'—':fmt(z.stats.average,1),num:true},{title:'แถวเข้าเฉลี่ย',value:z=>z.stats.count,num:true},{title:'ไม่เข้าเฉลี่ย',value:z=>z.stats.excluded,num:true},{title:'พนักงาน',value:z=>z.stats.people,num:true}]);
+    table($('v3ZoneTable'),'zones',groups,[{title:'Zone',value:z=>z.label},{title:'ประเภทงาน',value:z=>labels[z.group]||'Not Found'},{title:'Total Pick',value:z=>z.stats.total,num:true},{title:'Productivity',value:z=>z.stats.average===null?'—':fmt(z.stats.average,0),num:true},{title:'แถวเข้าเฉลี่ย',value:z=>z.stats.count,num:true},{title:'ไม่เข้าเฉลี่ย',value:z=>z.stats.excluded,num:true},{title:'พนักงาน',value:z=>z.stats.people,num:true}]);
   }
   /* ══════════ หน้าไม่ถึงเป้า (แยกตามโซน) ══════════
      ลอกองค์ประกอบจาก V2 app.js renderBelowTargetPage()/drawBelowTargetChart()
@@ -196,7 +196,7 @@
           tooltip:{backgroundColor:'rgba(15,23,42,.92)',padding:10,cornerRadius:8,callbacks:{afterBody:items=>{
             const z=list[items[0].dataIndex];
             return [`Target โซน: ${fmt(z.target)} หยิบ/ชม.`,`ประเภท: ${labels[z.zone.group]||'ไม่พบโซน'}`,
-              `ค่าเฉลี่ยโซน: ${fmt(z.average,1)} หยิบ/ชม.`];
+              `ค่าเฉลี่ยโซน: ${fmt(z.average,0)} หยิบ/ชม.`];
           }}}},
         scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:10.5}}},
           y:{stacked:true,beginAtZero:true,suggestedMax:Math.ceil(maxTotal*1.35),
@@ -227,7 +227,7 @@
     host.innerHTML=statCards([
       ['ไม่ถึงเป้า',fmt(below.length),'คน',`จากทั้งหมด ${fmt(list.length)} คนที่นับได้`,below.length?'#e11d48':'#16a34a'],
       ['สัดส่วนที่ไม่ถึงเป้า',fmt(missPct,1)+'%','',`ถึงเป้า ${fmt(list.length-below.length)} คน`,colorPct],
-      ['ช่องว่างเฉลี่ย',fmt(avgGap,1),'หยิบ/ชม.','ต่ำกว่า Target ของโซนเฉลี่ย','#ea580c'],
+      ['ช่องว่างเฉลี่ย',fmt(avgGap,0),'หยิบ/ชม.','ต่ำกว่า Target ของโซนเฉลี่ย','#ea580c'],
       ['โซนที่ต้องดูก่อน',worst?esc(worst.zone.label):'—','',
         worst?`ไม่ถึงเป้า ${fmt(worst.below.length)} / ${fmt(worst.all.length)} คน`:'ทุกโซนถึงเป้า','#be123c'],
       ['โซนที่มีคนไม่ถึงเป้า',fmt(withMiss.length),`/ ${fmt(groups.length)} โซน`,'นับจากโซนหลักที่ทำงานจริง','#7c3aed']
@@ -253,10 +253,10 @@
       {title:'คนทั้งหมดในโซน',value:z=>z.all.length,num:true},
       {title:'สัดส่วนที่ไม่ถึงเป้า',value:z=>z.all.length?z.below.length/z.all.length*100:0,num:true,
         html:z=>fmt(z.all.length?z.below.length/z.all.length*100:0,1)+'%'},
-      {title:'ค่าเฉลี่ยโซน',value:z=>z.average,num:true,html:z=>fmt(z.average,1)},
+      {title:'ค่าเฉลี่ยโซน',value:z=>z.average,num:true,html:z=>fmt(z.average,0)},
       {title:'Target โซน',value:z=>z.target,num:true},
       {title:'ช่องว่างเฉลี่ยของคนที่ตกเป้า',value:z=>z.avgGap,num:true,sortValue:z=>z.below.length?z.avgGap:null,
-        html:z=>z.below.length?`<span class="staff-down">-${fmt(z.avgGap,1)}</span>`:'—'},
+        html:z=>z.below.length?`<span class="staff-down">-${fmt(z.avgGap,0)}</span>`:'—'},
       {title:'Total Pick',value:z=>z.total,num:true,html:z=>fmt(z.total)}
     ]);
 
@@ -266,9 +266,9 @@
       {title:'รหัสพนักงาน',value:x=>x.id},
       {title:'ชื่อ',value:x=>x.name,html:x=>esc(x.name)+(x.zoneCount>1?`<span class="sub">ทำ ${fmt(x.zoneCount)} โซน</span>`:'')},
       {title:'โซนหลัก',value:x=>x.zone.label,html:x=>`${esc(x.zone.label)}<span class="sub">${fmt(x.zoneRowCount)} แถวในโซนนี้</span>`},
-      {title:'Productivity',value:x=>x.average,num:true,html:x=>`<b style="color:#b91c1c">${fmt(x.average,1)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`},
+      {title:'Productivity',value:x=>x.average,num:true,html:x=>`<b style="color:#b91c1c">${fmt(x.average,0)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`},
       {title:'Target โซน',value:x=>x.target,num:true},
-      {title:'Gap',value:x=>x.gap,num:true,html:x=>`<span class="staff-down">${fmt(x.gap,1)}</span>`},
+      {title:'Gap',value:x=>x.gap,num:true,html:x=>`<span class="staff-down">${fmt(x.gap,0)}</span>`},
       {title:'% Efficiency',value:x=>x.eff,num:true,html:x=>fmt(x.eff,1)+'%'},
       {title:'ชั่วโมงทำงาน',value:x=>x.hours,num:true,html:x=>fmt(x.hours,1)},
       {title:'Total Pick',value:x=>x.total,num:true,html:x=>fmt(x.total)}
@@ -281,7 +281,7 @@
     if(V3Data.filters.system!=='ALL')items=items.filter(i=>i.work.length||(i.master&&M.system({36:i.master[10]})===V3Data.filters.system));
     items.sort((a,b)=>b.s.total-a.s.total);
     $('v3Staff').innerHTML=cards([['พนักงานในมุมมอง',fmt(items.length),'ทะเบียน + คนที่พบในผลงาน'],['มีผลงานในช่วงนี้',fmt(items.filter(i=>i.work.length).length),'นับ User ID ไม่ซ้ำ'],['ไม่มีผลงานช่วงนี้',fmt(items.filter(i=>!i.work.length).length),'ไม่ใช่ข้อสรุปว่าขาดงาน'],['ไม่มีทะเบียน',fmt(items.filter(i=>!i.master).length),'คงยอดย้อนหลังไว้']])+'<div id="v3StaffTable"></div><div id="v3StaffDetail"></div>';
-    table($('v3StaffTable'),'staff',items,[{title:'User ID',value:i=>i.id,html:i=>`<button data-staff="${esc(i.id)}">${esc(i.id)}</button>`},{title:'ชื่อ',value:i=>i.name},{title:'สังกัดปัจจุบัน',value:i=>i.aff},{title:'กะปัจจุบัน',value:i=>i.shift},{title:'สถานะทะเบียน',value:i=>i.status},{title:'Zone ปัจจุบัน',value:i=>i.master?.[9]||'Not Found'},{title:'Total Pick',value:i=>i.s.total,num:true},{title:'Productivity',value:i=>fmt(i.s.average,1),num:true},{title:'วันมีงาน',value:i=>new Set(i.work.map(r=>M.date(r[2]))).size,num:true},{title:'แถวเข้าเฉลี่ย',value:i=>i.s.count,num:true}]);
+    table($('v3StaffTable'),'staff',items,[{title:'User ID',value:i=>i.id,html:i=>`<button data-staff="${esc(i.id)}">${esc(i.id)}</button>`},{title:'ชื่อ',value:i=>i.name},{title:'สังกัดปัจจุบัน',value:i=>i.aff},{title:'กะปัจจุบัน',value:i=>i.shift},{title:'สถานะทะเบียน',value:i=>i.status},{title:'Zone ปัจจุบัน',value:i=>i.master?.[9]||'Not Found'},{title:'Total Pick',value:i=>i.s.total,num:true},{title:'Productivity',value:i=>fmt(i.s.average,0),num:true},{title:'วันมีงาน',value:i=>new Set(i.work.map(r=>M.date(r[2]))).size,num:true},{title:'แถวเข้าเฉลี่ย',value:i=>i.s.count,num:true}]);
     $('v3StaffTable').onclick=e=>{const btn=e.target.closest('[data-staff]');if(btn){selectedStaff=btn.dataset.staff;detail();}};
     function detail(){if(!selectedStaff)return;const item=items.find(i=>i.id===selectedStaff);if(!item)return;$('v3StaffDetail').innerHTML=`<h2 style="margin-top:25px">${esc(item.id)} · ${esc(item.name)}</h2>`+stats(item.work)+'<div id="v3PersonRows"></div>';table($('v3PersonRows'),'person',item.work,recordColumns,{valid:r=>M.number(r[31])>0});}detail();
   }
@@ -330,7 +330,7 @@
       ['Total Pick',fmt(total.total),'ยอดหลัก'],
       ['ผลรวม 24 ช่องเวลา',fmt(hourlySum),diff===0?'ตรงกับ Total Pick พอดี':'ต่างจาก Total Pick '+fmt(diff)],
       ['ชั่วโมงที่หยิบมากสุด',peakIndex>=0&&totals[peakIndex]>0?esc(labels[peakIndex]):'—',totals[peakIndex]>0?fmt(totals[peakIndex])+' ชิ้น · มีงาน '+fmt(activeHours)+' จาก 24 ช่วง':'ยังไม่มียอดในช่วงที่เลือก'],
-      ['พนักงานที่มีงาน',fmt(total.people),fmt(total.count)+' แถวเข้าเฉลี่ย · Productivity '+fmt(total.average,1)+' หยิบ/ชม.']
+      ['พนักงานที่มีงาน',fmt(total.people),fmt(total.count)+' แถวเข้าเฉลี่ย · Productivity '+fmt(total.average,0)+' หยิบ/ชม.']
     ])
     +`<div class="card wide v3-card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;"><h2 style="margin:0;">🕒 ยอดหยิบตามช่วงเวลา (Hourly Activity)</h2><span class="pill" style="background:#f0fdf4;color:#15803d;font-weight:700;">24 ช่วง · ข้อมูลรายชั่วโมง</span></div><div class="sub" style="margin-bottom:12px;">ยอดตามหัวตารางของ Sheet เริ่ม ${esc(labels[0]||'')} ถึง ${esc(labels[23]||'')} · ยึดวันที่ตามที่บันทึกไว้ ไม่ปรับเวลาและไม่ย้ายยอดหลังเที่ยงคืน · ช่วงที่เป็น 0 คือ Sheet ยังไม่มียอดในช่องนั้น</div><div class="chartbox tall"><canvas id="hoursChart"></canvas></div></div>`
     +`<div id="v3HoursTable"></div>`
@@ -354,7 +354,7 @@
       {title:'ช่วงที่หยิบมากสุด',value:p=>p.peakHour||'—'},
       {title:'Total Pick',value:p=>p.stats.total,num:true,html:p=>fmt(p.stats.total)},
       {title:'ผลรวม 24 ช่อง',value:p=>p.hourSum,num:true,html:p=>fmt(p.hourSum)},
-      {title:'Productivity',value:p=>p.stats.average===null?0:p.stats.average,num:true,html:p=>fmt(p.stats.average,1)},
+      {title:'Productivity',value:p=>p.stats.average===null?0:p.stats.average,num:true,html:p=>fmt(p.stats.average,0)},
       {title:'ชั่วโมงทำงาน',value:p=>p.stats.hours,num:true,html:p=>fmt(p.stats.hours,1)}
     ]);
 

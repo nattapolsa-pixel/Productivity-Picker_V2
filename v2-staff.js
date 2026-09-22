@@ -20,8 +20,12 @@
   const $ = (id) => document.getElementById(id);
   const fmt = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
   const fmt1 = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  /* ค่า Pick/Hr แสดงเป็นจำนวนเต็ม ปัด .5 ขี้น ตามที่ผู้ใช้สั่ง 21/09/2569
+     ปัดตอนแสดงผลเท่านั้น เกณฑ์สีและการตัดสินผ่าน/ไม่ผ่านยังคิดจากค่าไม่ปัดตามกฎเดิม
+     fmt1 คงไว้สำหรับ % และชั่วโมงที่ยังต้องการทสนิยม */
+  const prod = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const signed = (v) => (v === null || v === undefined ? '—' : (Number(v) >= 0 ? '+' : '') + fmt1(v));
+  const signed = (v) => (v === null || v === undefined ? '—' : (Number(v) >= 0 ? '+' : '') + prod(v));
   const THAI_MONTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
   const monthLabel = (key) => {
     if (!key) return '—';
@@ -213,7 +217,7 @@
     if (average === null) return '<span class="v3-pill">ไม่มีค่าเฉลี่ย</span>';
     return average >= t
       ? `<span class="v3-pill good">ถึง Target</span>`
-      : `<span class="v3-pill warn">ต่ำกว่า ${fmt1(t - average)}</span>`;
+      : `<span class="v3-pill warn">ต่ำกว่า ${prod(t - average)}</span>`;
   }
 
 
@@ -344,7 +348,7 @@
       { title: 'ยอดหยิบทั้งหมด', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
       { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true,
         sortValue: (x) => x.p.stats.average,
-        html: (x) => fmt1(x.p.stats.average) + `<span class="sub">${fmt(x.p.stats.count)} แถวเข้าเฉลี่ย</span>` },
+        html: (x) => prod(x.p.stats.average) + `<span class="sub">${fmt(x.p.stats.count)} แถวเข้าเฉลี่ย</span>` },
       { title: 'Zone', value: (x) => x.p.zone.label,
         html: (x) => (x.p.zone.label === 'Not Found'
           ? '<span class="staff-miss-none">Not Found</span>'
@@ -371,10 +375,10 @@
       $('newStaffKpis').innerHTML = [
         kpiCard('linear-gradient(90deg,#3b82f6,#6366f1)', 'พนักงานใหม่ที่แสดง', fmt(g.people), 'คน',
           `จากทั้งกลุ่ม ${fmt(newAll.length)} คน · ออกแล้ว ${fmt(resCount)} คน`),
-        kpiCard('linear-gradient(90deg,#10b981,#059669)', 'Productivity เฉลี่ยกลุ่มใหม่ ⚡', fmt1(g.average), 'หยิบ/ชม.',
+        kpiCard('linear-gradient(90deg,#10b981,#059669)', 'Productivity เฉลี่ยกลุ่มใหม่ ⚡', prod(g.average), 'หยิบ/ชม.',
           `${fmt(g.count)} แถวเข้าเฉลี่ย · Target ${fmt(t)}`),
         kpiCard('linear-gradient(90deg,#f43f5e,#ec4899)', 'ส่วนต่างจากพนักงานเก่า', signed(gap), 'หยิบ/ชม.',
-          gOld.average !== null ? `กลุ่มเก่าเฉลี่ย ${fmt1(gOld.average)} หยิบ/ชม.` : 'ยังไม่มีข้อมูลกลุ่มเก่า'),
+          gOld.average !== null ? `กลุ่มเก่าเฉลี่ย ${prod(gOld.average)} หยิบ/ชม.` : 'ยังไม่มีข้อมูลกลุ่มเก่า'),
         kpiCard('linear-gradient(90deg,#f59e0b,#f97316)', 'ถึง Target แล้ว', fmt(pass), 'คน',
           g.people ? `คิดเป็น ${fmt1(pass / g.people * 100)}% ของคนที่แสดง` : 'ยังไม่มีคนในกลุ่มนี้'),
         kpiCard('linear-gradient(90deg,#8b5cf6,#6366f1)', 'ยอดหยิบรวมกลุ่มใหม่', fmt(g.total), 'ชิ้น',
@@ -394,7 +398,7 @@
       const first = curve.find((c) => c.average !== null);
       const last = [...curve].reverse().find((c) => c.average !== null);
       $('newStaffCurvePill').textContent = first && last && first !== last
-        ? `สัปดาห์ ${first.week} ${fmt1(first.average)} → สัปดาห์ ${last.week} ${fmt1(last.average)} (${signed(last.average - first.average)})`
+        ? `สัปดาห์ ${first.week} ${prod(first.average)} → สัปดาห์ ${last.week} ${prod(last.average)} (${signed(last.average - first.average)})`
         : 'ข้อมูลยังไม่พอทำเส้นพัฒนา';
     }
     draw('newStaffCurveChart', {
@@ -410,7 +414,7 @@
               display: (c) => c.dataset.data[c.dataIndex] !== null, anchor: 'end', align: 'top', offset: 6,
               color: '#3730a3', backgroundColor: 'rgba(255,255,255,.96)', borderColor: 'rgba(99,102,241,.3)',
               borderWidth: 1, borderRadius: 4, padding: { top: 2, right: 5, bottom: 2, left: 5 },
-              font: { weight: '700', size: 10.5 }, formatter: (v) => fmt1(v)
+              font: { weight: '700', size: 10.5 }, formatter: (v) => prod(v)
             }
           },
           {
@@ -466,9 +470,9 @@
         { title: 'อายุงาน (วัน)', value: (p) => p.days ?? 0, num: true },
         { title: 'วันที่มีงาน', value: (p) => p.workDays, num: true },
         { title: 'Total Pick', value: (p) => p.stats.total, num: true, html: (p) => fmt(p.stats.total) },
-        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average, html: (p) => fmt1(p.stats.average) },
+        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average, html: (p) => prod(p.stats.average) },
         { title: 'เทียบ Target', value: (p) => (p.stats.average === null ? '' : (p.stats.average >= t ? 'ถึง' : 'ต่ำกว่า')), html: (p) => statusPill(p.stats.average) },
-        { title: 'สัปดาห์แรก → ล่าสุด', value: (p) => (p.weekDelta === null ? 0 : p.weekDelta), num: true, sortValue: (p) => p.weekDelta, html: (p) => (p.weekDelta === null ? '—' : `${signed(p.weekDelta)}<span class="sub">${fmt1(p.firstWeekAvg)} → ${fmt1(p.lastWeekAvg)}</span>`) },
+        { title: 'สัปดาห์แรก → ล่าสุด', value: (p) => (p.weekDelta === null ? 0 : p.weekDelta), num: true, sortValue: (p) => p.weekDelta, html: (p) => (p.weekDelta === null ? '—' : `${signed(p.weekDelta)}<span class="sub">${prod(p.firstWeekAvg)} → ${prod(p.lastWeekAvg)}</span>`) },
         { title: 'แถวเข้าเฉลี่ย', value: (p) => p.stats.count, num: true }
       ]);
     }
@@ -496,14 +500,14 @@
         layout: { padding: { top: 8, right: 66, bottom: 8, left: 6 } },
         plugins: {
           legend: { display: false },
-          datalabels: { anchor: 'end', align: 'end', color: '#334155', font: { weight: '700', size: 10.5 }, formatter: (v) => fmt1(v) },
+          datalabels: { anchor: 'end', align: 'end', color: '#334155', font: { weight: '700', size: 10.5 }, formatter: (v) => prod(v) },
           tooltip: {
             callbacks: {
               title: (c) => items[c[0].dataIndex].name,
               label: (ctx) => {
                 const p = items[ctx.dataIndex];
                 return [' User ID: ' + p.id,
-                  ' Productivity: ' + fmt1(p.stats.average) + ' หยิบ/ชม.',
+                  ' Productivity: ' + prod(p.stats.average) + ' หยิบ/ชม.',
                   ' Total Pick: ' + fmt(p.stats.total) + ' ชิ้น',
                   ' อายุงาน: ' + (p.days === null ? '—' : fmt(p.days) + ' วัน'),
                   p.resigned ? ' พ้นสภาพ ' + dmy(p.resigned.date) : ' ยังทำงานอยู่'];
@@ -536,7 +540,7 @@
       const gap = gOld.average - g.average;
       cards.push(insightCard(gap > 0 ? 'warn' : 'good',
         gap > 0 ? 'คนใหม่ยังตามคนเก่าอยู่' : 'คนใหม่ทำได้ดีกว่าคนเก่าแล้ว',
-        `กลุ่มใหม่เฉลี่ย <b>${fmt1(g.average)}</b> หยิบ/ชม. กลุ่มเก่า <b>${fmt1(gOld.average)}</b> ต่างกัน <b>${fmt1(Math.abs(gap))}</b> หยิบ/ชม. ${gap > 0 ? 'ช่องว่างนี้คือเป้าของการโค้ช' : 'รักษาระดับนี้ไว้และถอดบทเรียนไปใช้กับรุ่นถัดไป'}`));
+        `กลุ่มใหม่เฉลี่ย <b>${prod(g.average)}</b> หยิบ/ชม. กลุ่มเก่า <b>${prod(gOld.average)}</b> ต่างกัน <b>${prod(Math.abs(gap))}</b> หยิบ/ชม. ${gap > 0 ? 'ช่องว่างนี้คือเป้าของการโค้ช' : 'รักษาระดับนี้ไว้และถอดบทเรียนไปใช้กับรุ่นถัดไป'}`));
     }
 
     cards.push(insightCard(pass >= Math.ceil(withAvg.length / 2) ? 'good' : 'warn', 'ความคืบหน้าเทียบ Target',
@@ -546,12 +550,12 @@
 
     if (weakest.length) {
       cards.push(insightCard('warn', 'ควรโค้ชก่อน',
-        weakest.map((p) => `<b>${esc(p.name)}</b> ${fmt1(p.stats.average)} หยิบ/ชม. (อายุงาน ${p.days === null ? '—' : fmt(p.days)} วัน${p.resigned ? ' · ออกแล้ว' : ''})`).join('<br>')));
+        weakest.map((p) => `<b>${esc(p.name)}</b> ${prod(p.stats.average)} หยิบ/ชม. (อายุงาน ${p.days === null ? '—' : fmt(p.days)} วัน${p.resigned ? ' · ออกแล้ว' : ''})`).join('<br>')));
     }
 
     if (improvers.length && improvers[0].weekDelta > 0) {
       cards.push(insightCard('good', 'พัฒนาเร็วที่สุด',
-        improvers.filter((p) => p.weekDelta > 0).map((p) => `<b>${esc(p.name)}</b> ${signed(p.weekDelta)} หยิบ/ชม. (${fmt1(p.firstWeekAvg)} → ${fmt1(p.lastWeekAvg)})`).join('<br>')));
+        improvers.filter((p) => p.weekDelta > 0).map((p) => `<b>${esc(p.name)}</b> ${signed(p.weekDelta)} หยิบ/ชม. (${prod(p.firstWeekAvg)} → ${prod(p.lastWeekAvg)})`).join('<br>')));
     }
 
     if (resCount) {
@@ -585,7 +589,7 @@
       $('oldStaffKpis').innerHTML = [
         kpiCard('linear-gradient(90deg,#3b82f6,#6366f1)', 'พนักงานเก่าที่แสดง', fmt(g.people), 'คน',
           `จากทั้งกลุ่ม ${fmt(oldAll.length)} คน · ออกแล้ว ${fmt(resCount)} คน`),
-        kpiCard('linear-gradient(90deg,#10b981,#059669)', 'Productivity เฉลี่ยกลุ่มเก่า ⚡', fmt1(g.average), 'หยิบ/ชม.',
+        kpiCard('linear-gradient(90deg,#10b981,#059669)', 'Productivity เฉลี่ยกลุ่มเก่า ⚡', prod(g.average), 'หยิบ/ชม.',
           `${fmt(g.count)} แถวเข้าเฉลี่ย · Target ${fmt(t)}`),
         kpiCard('linear-gradient(90deg,#f43f5e,#ec4899)', 'ต่ำกว่า Target', fmt(below), 'คน',
           withAvg.length ? `คิดเป็น ${fmt1(below / withAvg.length * 100)}% ของคนที่มีค่าเฉลี่ย` : 'ยังไม่มีค่าเฉลี่ย'),
@@ -611,7 +615,7 @@
       const withM = months.filter((m) => m.average !== null);
       const f = withM[0], l = withM[withM.length - 1];
       $('oldStaffTrendPill').textContent = f && l && f !== l
-        ? `${monthLabel(f.key)} ${fmt1(f.average)} → ${monthLabel(l.key)} ${fmt1(l.average)} (${signed(l.average - f.average)})`
+        ? `${monthLabel(f.key)} ${prod(f.average)} → ${monthLabel(l.key)} ${prod(l.average)} (${signed(l.average - f.average)})`
         : `${fmt(months.length)} เดือน`;
     }
 
@@ -638,7 +642,7 @@
               display: (c) => c.dataset.data[c.dataIndex] !== null, anchor: 'end', align: 'top', offset: 8,
               color: '#e11d48', backgroundColor: 'rgba(255,255,255,.98)', borderColor: 'rgba(244,63,94,.4)',
               borderWidth: 1.5, borderRadius: 5, padding: { top: 2, right: 5, bottom: 2, left: 5 },
-              font: { weight: '700', size: 10.5 }, formatter: (v) => fmt1(v)
+              font: { weight: '700', size: 10.5 }, formatter: (v) => prod(v)
             }
           },
           {
@@ -689,9 +693,9 @@
         { title: 'อายุงาน (วัน)', value: (p) => p.days ?? 0, num: true },
         { title: 'วันที่มีงาน', value: (p) => p.workDays, num: true },
         { title: 'Total Pick', value: (p) => p.stats.total, num: true, html: (p) => fmt(p.stats.total) },
-        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average, html: (p) => fmt1(p.stats.average) },
+        { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average, html: (p) => prod(p.stats.average) },
         { title: 'เทียบ Target', value: (p) => (p.stats.average === null ? '' : (p.stats.average >= t ? 'ถึง' : 'ต่ำกว่า')), html: (p) => statusPill(p.stats.average) },
-        { title: 'เทียบเดือนก่อน', value: (p) => (p.monthDelta === null ? 0 : p.monthDelta), num: true, sortValue: (p) => p.monthDelta, html: (p) => (p.monthDelta === null ? '—' : `<span class="${p.monthDelta >= 0 ? 'staff-up' : 'staff-down'}">${signed(p.monthDelta)}</span><span class="sub">${monthLabel(p.prevMonth.key)} ${fmt1(p.prevMonth.average)} → ${monthLabel(p.lastMonth.key)} ${fmt1(p.lastMonth.average)}</span>`) },
+        { title: 'เทียบเดือนก่อน', value: (p) => (p.monthDelta === null ? 0 : p.monthDelta), num: true, sortValue: (p) => p.monthDelta, html: (p) => (p.monthDelta === null ? '—' : `<span class="${p.monthDelta >= 0 ? 'staff-up' : 'staff-down'}">${signed(p.monthDelta)}</span><span class="sub">${monthLabel(p.prevMonth.key)} ${prod(p.prevMonth.average)} → ${monthLabel(p.lastMonth.key)} ${prod(p.lastMonth.average)}</span>`) },
         { title: 'แถวเข้าเฉลี่ย', value: (p) => p.stats.count, num: true }
       ]);
     }
@@ -708,13 +712,13 @@
 
     cards.push(insightCard(g.average !== null && g.average >= t ? 'good' : 'warn', 'ภาพรวมกลุ่มเทียบ Target',
       g.average === null ? 'ยังไม่มีค่าเฉลี่ยในช่วงนี้'
-        : `เฉลี่ย <b>${fmt1(g.average)}</b> หยิบ/ชม. เทียบ Target <b>${fmt(t)}</b> ${g.average >= t ? `สูงกว่า <b>${fmt1(g.average - t)}</b>` : `ต่ำกว่า <b>${fmt1(t - g.average)}</b>`} · ต่ำกว่า Target <b>${fmt(below)}</b> คน`));
+        : `เฉลี่ย <b>${prod(g.average)}</b> หยิบ/ชม. เทียบ Target <b>${fmt(t)}</b> ${g.average >= t ? `สูงกว่า <b>${prod(g.average - t)}</b>` : `ต่ำกว่า <b>${prod(t - g.average)}</b>`} · ต่ำกว่า Target <b>${fmt(below)}</b> คน`));
 
     if (withM.length > 1) {
       const f = withM[0], l = withM[withM.length - 1];
       const d = l.average - f.average;
       cards.push(insightCard(d >= 0 ? 'good' : 'warn', 'แนวโน้มตั้งแต่เดือนแรกที่มีข้อมูล',
-        `${monthLabel(f.key)} <b>${fmt1(f.average)}</b> → ${monthLabel(l.key)} <b>${fmt1(l.average)}</b> เปลี่ยน <b>${signed(d)}</b> หยิบ/ชม. ${d >= 0 ? 'ทิศทางดีขึ้น' : 'ต้องหาสาเหตุที่ทำให้ลดลง'}`));
+        `${monthLabel(f.key)} <b>${prod(f.average)}</b> → ${monthLabel(l.key)} <b>${prod(l.average)}</b> เปลี่ยน <b>${signed(d)}</b> หยิบ/ชม. ${d >= 0 ? 'ทิศทางดีขึ้น' : 'ต้องหาสาเหตุที่ทำให้ลดลง'}`));
     }
 
     cards.push(insightCard(improved >= dropped ? 'good' : 'warn', 'เทียบเดือนล่าสุดกับเดือนก่อน',
@@ -722,11 +726,11 @@
 
     if (best.length) {
       cards.push(insightCard('good', 'ทำได้ดีที่สุดในกลุ่ม',
-        best.map((p) => `<b>${esc(p.name)}</b> ${fmt1(p.stats.average)} หยิบ/ชม. (${fmt(p.workDays)} วันที่มีงาน)`).join('<br>')));
+        best.map((p) => `<b>${esc(p.name)}</b> ${prod(p.stats.average)} หยิบ/ชม. (${fmt(p.workDays)} วันที่มีงาน)`).join('<br>')));
     }
     if (worst.length) {
       cards.push(insightCard('warn', 'ควรดูก่อน',
-        worst.map((p) => `<b>${esc(p.name)}</b> ${fmt1(p.stats.average)} หยิบ/ชม.${p.resigned ? ' · ออกแล้ว' : ''} (${fmt(p.workDays)} วันที่มีงาน)`).join('<br>')));
+        worst.map((p) => `<b>${esc(p.name)}</b> ${prod(p.stats.average)} หยิบ/ชม.${p.resigned ? ' · ออกแล้ว' : ''} (${fmt(p.workDays)} วันที่มีงาน)`).join('<br>')));
     }
 
     $('oldStaffInsights').innerHTML = cards.join('');

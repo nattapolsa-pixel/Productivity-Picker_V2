@@ -22,6 +22,10 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
   const fmt1 = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  /* ค่า Pick/Hr แสดงเป็นจำนวนเต็ม ปัด .5 ขี้น ตามที่ผู้ใช้สั่ง 21/09/2569
+     ปัดตอนแสดงผลเท่านั้น เกณฑ์สีและการตัดสินผ่าน/ไม่ผ่านยังคิดจากค่าไม่ปัดตามกฎเดิม
+     fmt1 คงไว้สำหรับ % และชั่วโมงที่ยังต้องการทสนิยม */
+  const prod = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
 
   // พาเลตเดียวกับหน้าอื่นของ V3
   const SERIES = ['#6366f1', '#14b8a6', '#8b5cf6', '#f59e0b', '#f43f5e', '#0ea5e9', '#10b981', '#ec4899', '#a855f7', '#0891b2'];
@@ -158,7 +162,7 @@
               align: 'top', anchor: 'end', offset: 11, clamp: true, clip: false,
               color: '#be123c', font: { size: 13, weight: '800' },
               textStrokeColor: '#fff', textStrokeWidth: 5,
-              formatter: (v) => fmt1(v)
+              formatter: (v) => prod(v)
             }
           },
           {
@@ -189,7 +193,7 @@
                 const gap = (Number(m.average) || 0) - t;
                 return [
                   fmt(m.activeDays) + ' วันที่มีงาน · ' + fmt(m.transactions) + ' แถวที่นับได้',
-                  'เทียบเป้า ' + (gap >= 0 ? '+' : '') + fmt1(gap) + ' หยิบ/ชม.',
+                  'เทียบเป้า ' + (gap >= 0 ? '+' : '') + prod(gap) + ' หยิบ/ชม.',
                   'เฉลี่ยวันละ ' + fmt(m.activeDays ? m.totalPick / m.activeDays : 0) + ' ชิ้น'
                 ];
               }
@@ -267,7 +271,7 @@
               backgroundColor: 'rgba(255,255,255,.94)', borderColor: '#f43f5e',
               borderWidth: 1.5, borderRadius: 8,
               padding: { top: 3, bottom: 3, left: 7, right: 7 },
-              formatter: (v) => fmt1(v)
+              formatter: (v) => prod(v)
             }
           },
           {
@@ -291,7 +295,7 @@
             backgroundColor: 'rgba(15,23,42,.94)', padding: 11, cornerRadius: 10,
             callbacks: {
               title: (items) => months[items[0].dataIndex].labelThai || months[items[0].dataIndex].monthKey,
-              label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : fmt1(item.raw) + ' หยิบ/ชม.')
+              label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : prod(item.raw) + ' หยิบ/ชม.')
             }
           }
         },
@@ -369,7 +373,7 @@
             backgroundColor: 'rgba(15,23,42,.94)', padding: 10, cornerRadius: 9,
             callbacks: {
               title: (items) => months[items[0].dataIndex].labelThai || months[items[0].dataIndex].monthKey,
-              label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : fmt1(item.raw) + ' หยิบ/ชม.')
+              label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : prod(item.raw) + ' หยิบ/ชม.')
             }
           }
         },
@@ -400,8 +404,8 @@
       + '<div><h3 style="font-size:14px; display:flex; align-items:center; gap:8px;">'
       + '<span style="width:12px; height:12px; border-radius:4px; background:' + color + '; flex-shrink:0;"></span>'
       + esc(name) + '</h3>'
-      + '<div class="sub">เฉลี่ยรวม ' + (avg === null ? '—' : fmt1(avg)) + ' หยิบ/ชม. · ถึงเป้า ' + fmt(hit) + ' / ' + fmt(has) + ' เดือน</div></div>'
-      + '<span class="v3-pill ' + pillClass + '">' + (avg === null ? 'ไม่มีข้อมูล' : (avg >= t ? 'ถึงเป้า' : 'ต่ำกว่าเป้า ' + fmt1(t - avg))) + '</span></div>';
+      + '<div class="sub">เฉลี่ยรวม ' + (avg === null ? '—' : prod(avg)) + ' หยิบ/ชม. · ถึงเป้า ' + fmt(hit) + ' / ' + fmt(has) + ' เดือน</div></div>'
+      + '<span class="v3-pill ' + pillClass + '">' + (avg === null ? 'ไม่มีข้อมูล' : (avg >= t ? 'ถึงเป้า' : 'ต่ำกว่าเป้า ' + prod(t - avg))) + '</span></div>';
   }
 
   /* ตารางค่าใต้กราฟ — เดือนเป็นแถว ประเภทเป็นคอลัมน์ อ่านได้ครบทุกค่าโดยไม่ต้องแย่งที่กับกราฟ */
@@ -415,12 +419,12 @@
         if (!hit) return '<td class="num"><span class="staff-miss-none">—</span></td>';
         const v = Number(hit.average) || 0;
         const color = v >= t ? '#059669' : '#b91c1c';
-        return '<td class="num"><b style="color:' + color + '">' + fmt1(v) + '</b>'
+        return '<td class="num"><b style="color:' + color + '">' + prod(v) + '</b>'
           + '<span class="metric-sub">' + fmt(hit.count) + ' แถว</span></td>';
       }).join('');
       const avg = Number(m.average) || 0;
       return '<tr><td><b>' + esc(m.labelThai || m.monthKey) + '</b></td>' + cells
-        + '<td class="num"><b>' + fmt1(avg) + '</b>'
+        + '<td class="num"><b>' + prod(avg) + '</b>'
         + '<span class="metric-sub">' + (avg >= t ? 'ถึงเป้า' : 'ต่ำกว่าเป้า') + '</span></td></tr>';
     }).join('');
     return '<div class="zone-breakdown-wrap"><table class="zone-breakdown-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>';
@@ -456,12 +460,12 @@
     host.innerHTML =
       '<div class="zone-summary" style="margin-bottom:18px;">'
       + [
-        ['เดือนล่าสุด', fmt1(last.average), 'หยิบ/ชม.', esc(last.labelThai || ''), Number(last.average) >= t ? '#16a34a' : '#e11d48'],
-        ['เทียบเดือนก่อน', delta === null ? '—' : (delta >= 0 ? '▲ ' : '▼ ') + fmt1(Math.abs(delta)), delta === null ? '' : 'หยิบ/ชม.',
+        ['เดือนล่าสุด', prod(last.average), 'หยิบ/ชม.', esc(last.labelThai || ''), Number(last.average) >= t ? '#16a34a' : '#e11d48'],
+        ['เทียบเดือนก่อน', delta === null ? '—' : (delta >= 0 ? '▲ ' : '▼ ') + prod(Math.abs(delta)), delta === null ? '' : 'หยิบ/ชม.',
           prev ? 'เทียบกับ ' + esc(prev.labelThai || '') : 'ไม่มีเดือนก่อนให้เทียบ',
           delta === null ? '#64748b' : (delta >= 0 ? '#16a34a' : '#e11d48')],
-        ['เดือนที่ดีที่สุด', best ? fmt1(best.average) : '—', 'หยิบ/ชม.', best ? esc(best.labelThai || '') : '', '#7c3aed'],
-        ['เดือนที่ต่ำสุด', worst ? fmt1(worst.average) : '—', 'หยิบ/ชม.', worst ? esc(worst.labelThai || '') : '', '#ea580c'],
+        ['เดือนที่ดีที่สุด', best ? prod(best.average) : '—', 'หยิบ/ชม.', best ? esc(best.labelThai || '') : '', '#7c3aed'],
+        ['เดือนที่ต่ำสุด', worst ? prod(worst.average) : '—', 'หยิบ/ชม.', worst ? esc(worst.labelThai || '') : '', '#ea580c'],
         ['เดือนที่ถึงเป้า', fmt(hit) + ' / ' + fmt(withAvg.length), 'เดือน', 'เป้า ' + fmt(t) + ' หยิบ/ชม.', hit === withAvg.length ? '#16a34a' : '#0ea5e9']
       ].map(([label, value, unit, detail, color]) =>
         '<div class="zone-stat"><div class="zone-stat-label">' + label + '</div>'

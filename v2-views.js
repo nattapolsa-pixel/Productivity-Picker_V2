@@ -20,6 +20,10 @@
   const $ = (id) => document.getElementById(id);
   const fmt = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
   const fmt1 = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  /* ค่า Pick/Hr แสดงเป็นจำนวนเต็ม ปัด .5 ขี้น ตามที่ผู้ใช้สั่ง 21/09/2569
+     ปัดตอนแสดงผลเท่านั้น เกณฑ์สีและการตัดสินผ่าน/ไม่ผ่านยังคิดจากค่าไม่ปัดตามกฎเดิม
+     fmt1 คงไว้สำหรับ % และชั่วโมงที่ยังต้องการทสนิยม */
+  const prod = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
 
   const TYPE_LABEL = { fullRack: 'Full Rack', halfRack: 'Half Rack', ea: 'Micro Rack', pickToSort: 'Pick to Sort', mezzanine: 'Mezzanine' };
   const TYPE_COLOR = { fullRack: '#6366f1', halfRack: '#8b5cf6', ea: '#14b8a6', pickToSort: '#f59e0b', mezzanine: '#0ea5e9', '': '#94a3b8' };
@@ -282,7 +286,7 @@
             type: 'line', label: 'Productivity (เฉลี่ยต่อชั่วโมง)', data: periods.map((p) => (p.stats.average === null ? null : Number(p.stats.average.toFixed(1)))),
             borderColor: '#f43f5e', backgroundColor: '#f43f5e', borderWidth: 2.5, pointRadius: 3.5,
             tension: .3, fill: false, yAxisID: 'y1', order: 1,
-            datalabels: { align: 'top', color: '#be123c', font: { size: 10, weight: '700' }, formatter: (v) => (v === null ? '' : fmt1(v)) }
+            datalabels: { align: 'top', color: '#be123c', font: { size: 10, weight: '700' }, formatter: (v) => (v === null ? '' : prod(v)) }
           },
           {
             type: 'line', label: `Target ${fmt(target)}`, data: periods.map(() => target),
@@ -351,7 +355,7 @@
           tooltip: { backgroundColor: 'rgba(15,23,42,.92)', padding: 10, cornerRadius: 8,
             callbacks: { afterBody: (items) => {
               const p = withPrev[items[0].dataIndex];
-              return [`${fmt1(p.stats.average)} หยิบ/ชม. (เดิม ${fmt1(p.stats.average - p.prodDelta)})`,
+              return [`${prod(p.stats.average)} หยิบ/ชม. (เดิม ${prod(p.stats.average - p.prodDelta)})`,
                 `ยอดหยิบเปลี่ยน ${p.qtyDeltaPct === null ? '—' : (p.qtyDeltaPct >= 0 ? '+' : '') + fmt1(p.qtyDeltaPct) + '%'}`];
             } } } },
         scales: {
@@ -395,19 +399,19 @@
       ${toggle}
       ${trendMonthNavHtml()}
       ${trendStatCards([
-        [`⚡ Productivity ${unit}ล่าสุด`, fmt1(latest.stats.average), 'หยิบ/ชม.',
+        [`⚡ Productivity ${unit}ล่าสุด`, prod(latest.stats.average), 'หยิบ/ชม.',
           latest.label + (latest.stats.count > 0 && latest.stats.count < THIN_ROWS ? ' ⚠️ แถวเข้าเฉลี่ยน้อย' : ''),
           latest.stats.average !== null && latest.stats.average >= target ? '#16a34a' : '#e11d48'],
         [`📊 เปลี่ยนแปลง ${delta}`,
           latest.prodDeltaPct === null ? '—' : (latest.prodDeltaPct >= 0 ? '▲ ' : '▼ ') + fmt1(Math.abs(latest.prodDeltaPct)),
           latest.prodDeltaPct === null ? '' : '%',
-          latest.prodDelta === null ? `ไม่มี${unit}ก่อนหน้าให้เทียบ` : `${latest.prodDelta >= 0 ? '+' : ''}${fmt1(latest.prodDelta)} หยิบ/ชม.`,
+          latest.prodDelta === null ? `ไม่มี${unit}ก่อนหน้าให้เทียบ` : `${latest.prodDelta >= 0 ? '+' : ''}${prod(latest.prodDelta)} หยิบ/ชม.`,
           latest.prodDeltaPct === null ? '#64748b' : (latest.prodDeltaPct >= 0 ? '#16a34a' : '#e11d48')],
         [`📦 ยอดหยิบ${unit}ล่าสุด`, fmt(latest.stats.total), 'ชิ้น',
           trendPeriodMode === 'day'
             ? `${fmt(latest.stats.count)} แถวเข้าเฉลี่ย · ${fmt(latest.stats.people)} คน`
             : `${fmt(latest.days)} วันทำการ · เฉลี่ย ${fmt(latest.perDay)} ชิ้น/วัน`, '#0ea5e9'],
-        [`🏆 ${unit}ที่ดีที่สุด`, best ? fmt1(best.stats.average) : '—', 'หยิบ/ชม.', best ? best.label : 'ยังไม่มีค่าเฉลี่ย', '#7c3aed'],
+        [`🏆 ${unit}ที่ดีที่สุด`, best ? prod(best.stats.average) : '—', 'หยิบ/ชม.', best ? best.label : 'ยังไม่มีค่าเฉลี่ย', '#7c3aed'],
         [`🎯 ${unit}ที่ถึงเป้า`, `${fmt(hit)} / ${fmt(withAvg.length)}`, unit, `Target ${fmt(target)} หยิบ/ชม.`,
           hit === withAvg.length ? '#16a34a' : '#ea580c']
       ])}
@@ -429,6 +433,8 @@
     const newestFirst = [...periods].reverse();
     if (window.V3Shared && window.V3Shared.table) {
       const signed1 = (v) => (v === null ? '—' : (v >= 0 ? '+' : '') + fmt1(v));
+      // ส่วนต่างที่เป็น Pick/Hr ใช้จำนวนเต็ม ส่วนที่เป็น % ยังคงทสนิยม 1 ตำแหน่ง
+      const signedProd = (v) => (v === null ? '—' : (v >= 0 ? '+' : '') + prod(v));
       const cls = (v) => (v === null ? '' : v >= 0 ? 'staff-up' : 'staff-down');
       window.V3Shared.table($('v3TrendTable'), 'trend-' + trendPeriodMode, newestFirst, [
         { title: '#', value: (p) => newestFirst.indexOf(p) + 1, num: true, html: (p) => `<span class="rank">${newestFirst.indexOf(p) + 1}</span>` },
@@ -442,9 +448,9 @@
           num: true,
           html: (p) => fmt(trendPeriodMode === 'day' ? (p.stats.people ? p.stats.total / p.stats.people : 0) : p.perDay) },
         { title: 'Productivity', value: (p) => (p.stats.average === null ? 0 : p.stats.average), num: true, sortValue: (p) => p.stats.average,
-          html: (p) => `<b style="color:${p.stats.average !== null && p.stats.average >= target ? '#059669' : '#b91c1c'}">${fmt1(p.stats.average)}</b>` },
+          html: (p) => `<b style="color:${p.stats.average !== null && p.stats.average >= target ? '#059669' : '#b91c1c'}">${prod(p.stats.average)}</b>` },
         { title: `Δ Prod ${delta}`, value: (p) => (p.prodDelta === null ? 0 : p.prodDelta), num: true, sortValue: (p) => p.prodDelta,
-          html: (p) => `<span class="${cls(p.prodDelta)}">${signed1(p.prodDelta)}</span>`
+          html: (p) => `<span class="${cls(p.prodDelta)}">${signedProd(p.prodDelta)}</span>`
             + (p.prodDeltaPct === null ? '' : `<span class="sub">${signed1(p.prodDeltaPct)}%</span>`) },
         { title: `Δ ยอดหยิบ ${delta}`, value: (p) => (p.qtyDeltaPct === null ? 0 : p.qtyDeltaPct), num: true, sortValue: (p) => p.qtyDeltaPct,
           html: (p) => `<span class="${cls(p.qtyDeltaPct)}">${signed1(p.qtyDeltaPct)}${p.qtyDeltaPct === null ? '' : '%'}</span>` },
@@ -604,7 +610,7 @@
               borderWidth: 1.5,
               borderRadius: 5,
               padding: { top: 2, right: 5, bottom: 2, left: 5 },
-              formatter: (v) => fmt1(v),
+              formatter: (v) => prod(v),
               font: { weight: '700', size: manyBars ? 9.5 : 11 }
             }
           },
@@ -638,7 +644,7 @@
                 if (ctx.datasetIndex === 0) return ` Total Pick: ${fmt(ctx.parsed.y)} ชิ้น`;
                 if (ctx.datasetIndex === 1) {
                   const s = stats[ctx.dataIndex];
-                  return ` Productivity: ${fmt1(ctx.parsed.y)} หยิบ/ชม. (${fmt(s.count)} แถวเข้าเฉลี่ย)`;
+                  return ` Productivity: ${prod(ctx.parsed.y)} หยิบ/ชม. (${fmt(s.count)} แถวเข้าเฉลี่ย)`;
                 }
                 return ` Target: ${fmt(ctx.parsed.y)}`;
               }
@@ -748,10 +754,10 @@
     if ($('catTotalBadge')) $('catTotalBadge').textContent = `รวม ${fmt(a.total + b.total + c.total)} ชิ้น`;
     if ($('pttSharePct')) $('pttSharePct').textContent = `${pct(a.total).toFixed(1)}%`;
     if ($('pttVal')) $('pttVal').textContent = `${fmt(a.total)} ชิ้น`;
-    if ($('pttSubText')) $('pttSubText').textContent = `${fmt(a.rows)} แถว · Productivity ${fmt1(a.average)} หยิบ/ชม.`;
+    if ($('pttSubText')) $('pttSubText').textContent = `${fmt(a.rows)} แถว · Productivity ${prod(a.average)} หยิบ/ชม.`;
     if ($('bpsSharePct')) $('bpsSharePct').textContent = `${pct(b.total).toFixed(1)}%`;
     if ($('bpsVal')) $('bpsVal').textContent = `${fmt(b.total)} ชิ้น`;
-    if ($('bpsSubText')) $('bpsSubText').textContent = `${fmt(b.rows)} แถว · Productivity ${fmt1(b.average)} หยิบ/ชม.`;
+    if ($('bpsSubText')) $('bpsSubText').textContent = `${fmt(b.rows)} แถว · Productivity ${prod(b.average)} หยิบ/ชม.`;
 
     draw('cat', {
       type: 'doughnut',
@@ -775,7 +781,7 @@
             callbacks: {
               label: (ctx) => {
                 const s = ctx.dataIndex === 0 ? a : b;
-                return [` ${ctx.label}`, ` Total Pick: ${fmt(s.total)} ชิ้น`, ` Productivity: ${fmt1(s.average)} หยิบ/ชม.`];
+                return [` ${ctx.label}`, ` Total Pick: ${fmt(s.total)} ชิ้น`, ` Productivity: ${prod(s.average)} หยิบ/ชม.`];
               }
             }
           }
@@ -819,7 +825,7 @@
             callbacks: {
               label: (ctx) => {
                 const e = entries[ctx.dataIndex];
-                return [` Total Pick: ${fmt(e.stats.total)} ชิ้น`, ` Productivity: ${fmt1(e.stats.average)} หยิบ/ชม.`, ` ${fmt(e.stats.count)} แถวเข้าเฉลี่ย`];
+                return [` Total Pick: ${fmt(e.stats.total)} ชิ้น`, ` Productivity: ${prod(e.stats.average)} หยิบ/ชม.`, ` ${fmt(e.stats.count)} แถวเข้าเฉลี่ย`];
               }
             }
           }
@@ -862,7 +868,7 @@
             callbacks: {
               label: (ctx) => {
                 const e = entries[ctx.dataIndex];
-                return [` ${e.label}`, ` Total Pick: ${fmt(e.stats.total)} ชิ้น`, ` Productivity: ${fmt1(e.stats.average)} หยิบ/ชม.`];
+                return [` ${e.label}`, ` Total Pick: ${fmt(e.stats.total)} ชิ้น`, ` Productivity: ${prod(e.stats.average)} หยิบ/ชม.`];
               }
             }
           }
@@ -897,7 +903,7 @@
             callbacks: {
               afterBody: (items) => {
                 const e = entries[items[0].dataIndex];
-                return `Productivity ${fmt1(e.stats.average)} หยิบ/ชม. · ${fmt(e.stats.count)} แถวเข้าเฉลี่ย`;
+                return `Productivity ${prod(e.stats.average)} หยิบ/ชม. · ${fmt(e.stats.count)} แถวเข้าเฉลี่ย`;
               }
             }
           }
@@ -956,7 +962,7 @@
               borderRadius: 5,
               padding: { top: 2, right: 5, bottom: 2, left: 5 },
               font: { weight: '700', size: 11 },
-              formatter: (v) => fmt1(v)
+              formatter: (v) => prod(v)
             }
           }
         ]
@@ -1025,13 +1031,13 @@
         layout: { padding: { top: 8, right: 62, bottom: 8, left: 6 } },
         plugins: {
           legend: { display: false },
-          datalabels: { anchor: 'end', align: 'end', color: '#334155', font: { weight: '700', size: 10.5 }, formatter: (v) => fmt1(v) },
+          datalabels: { anchor: 'end', align: 'end', color: '#334155', font: { weight: '700', size: 10.5 }, formatter: (v) => prod(v) },
           tooltip: {
             callbacks: {
               title: (c) => items[c[0].dataIndex].name,
               label: (ctx) => {
                 const x = items[ctx.dataIndex];
-                return [' User ID: ' + x.id, ' Productivity: ' + fmt1(x.stats.average) + ' หยิบ/ชม.', ' Total Pick: ' + fmt(x.stats.total) + ' ชิ้น', ' ' + fmt(x.stats.count) + ' แถวเข้าเฉลี่ย'];
+                return [' User ID: ' + x.id, ' Productivity: ' + prod(x.stats.average) + ' หยิบ/ชม.', ' Total Pick: ' + fmt(x.stats.total) + ' ชิ้น', ' ' + fmt(x.stats.count) + ' แถวเข้าเฉลี่ย'];
               }
             }
           },

@@ -256,7 +256,7 @@
           · Total Pick = ผลรวมยอดหยิบของทุกแถวที่มีวันที่ รวมแถวที่ไม่เข้าเฉลี่ยด้วย
           · ชั่วโมงทำงานตามที่ Sheet บันทึก ไม่ลบ 7 ชั่วโมง
           <br>การ์ด “Efficiency เฉลี่ย” เป็นค่าเฉลี่ยของ % รายคนแบบ<b>ไม่ถ่วงน้ำหนัก</b> (คนละเรื่องกับสูตรที่ใช้ ที่รวมครั้งเดียว)
-          ส่วน Productivity ของกลุ่มทั้งหมดที่คิดจาก <b>${fmt(ctx.group.average, 1)}</b> หยิบ/ชม.
+          ส่วน Productivity ของกลุ่มทั้งหมดที่คิดจาก <b>${fmt(ctx.group.average, 0)}</b> หยิบ/ชม.
           จาก ${fmt(ctx.group.count)} แถวที่เข้าเฉลี่ย
           ${unknownZone.length ? `<br><b>กอง Not Found ไม่ใช่โซนจริง</b> — มี ${fmt(unknownZone.length)} คนในช่วงที่เลือกที่โซนหลักเป็น Not Found
             (โซนในต้นทางไม่ตรงกฎโซนของ V1) นับ Productivity ได้ ${fmt(unknownCounted.length)} คน
@@ -302,7 +302,7 @@
       { title: 'Productivity', value: (x) => (x.average === null ? '' : x.average), num: true, sortValue: (x) => x.average,
         html: (x) => (x.average === null
           ? '<span class="sub">ไม่มีแถวเข้าเฉลี่ย</span>'
-          : `<b style="color:${x.below ? '#b91c1c' : '#059669'}">${fmt(x.average, 1)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`) },
+          : `<b style="color:${x.below ? '#b91c1c' : '#059669'}">${fmt(x.average, 0)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`) },
       { title: 'Target โซน', value: (x) => x.target, num: true },
       { title: 'Gap', value: (x) => (x.gap === null ? '' : x.gap), num: true, sortValue: (x) => x.gap,
         html: (x) => (x.gap === null ? '—' : `<span class="${x.gap >= 0 ? 'staff-up' : 'staff-down'}">${signed(x.gap)}</span>`) },
@@ -457,9 +457,9 @@
 
     /* ── การ์ด 5 ใบ ตามลำดับของ V2 (individualScorecardHtml) ── */
     const cards = Sh.statCards([
-      ['⚡ Productivity', person.average === null ? '—' : fmt(person.average, 1), 'หยิบ/ชม.',
+      ['⚡ Productivity', person.average === null ? '—' : fmt(person.average, 0), 'หยิบ/ชม.',
         person.average === null ? 'ไม่มีแถวที่นับได้ จึงไม่ตัดสิน'
-          : `Target ${fmt(person.target)} · ${person.gap >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} ${fmt(Math.abs(person.gap), 1)} · ${fmt(person.count)} แถวเข้าเฉลี่ย`,
+          : `Target ${fmt(person.target)} · ${person.gap >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} ${fmt(Math.abs(person.gap), 0)} · ${fmt(person.count)} แถวเข้าเฉลี่ย`,
         person.average === null ? '#64748b' : person.below ? '#e11d48' : '#16a34a'],
       ['🎯 % Efficiency', person.eff === null ? '—' : fmt(person.eff, 1), '%',
         `เทียบ Target โซน ${person.zone.label} ที่ ${fmt(person.target)} หยิบ/ชม.`,
@@ -468,8 +468,8 @@
         `${fmt(person.workDays)} วันที่มีงาน · ${fmt(person.rows.length)} แถวต้นทาง (รวมแถวที่ไม่เข้าเฉลี่ย)`, '#0ea5e9'],
       ['⏱️ ชั่วโมงทำงาน', fmt(person.hours, 1), 'ชม.',
         person.workDays ? `เฉลี่ย ${fmt(person.hours / person.workDays, 1)} ชม./วันที่มีงาน · ไม่มีข้อมูล OT ในต้นทาง` : 'ไม่มีข้อมูล OT ในต้นทาง', '#7c3aed'],
-      ['📈 วันดีที่สุด / แย่ที่สุด', best ? fmt(best.average, 1) : '—', 'หยิบ/ชม.',
-        best ? `${dmy(best.date)} · ต่ำสุด ${fmt(worst.average, 1)} (${dmy(worst.date)})` : 'ยังไม่มีวันที่นับได้', '#0891b2']
+      ['📈 วันดีที่สุด / แย่ที่สุด', best ? fmt(best.average, 0) : '—', 'หยิบ/ชม.',
+        best ? `${dmy(best.date)} · ต่ำสุด ${fmt(worst.average, 0)} (${dmy(worst.date)})` : 'ยังไม่มีวันที่นับได้', '#0891b2']
     ]);
 
     /* ── การ์ดอธิบาย: เทียบกับค่าเฉลี่ยกลุ่ม และเปอร์เซ็นไทล์ ── */
@@ -477,8 +477,8 @@
     if (person.average !== null && groupAvg !== null) {
       const d = person.average - groupAvg;
       insights.push(insightCard(d >= 0 ? 'good' : 'warn', 'เทียบค่าเฉลี่ยของกลุ่ม',
-        `คนนี้ <b>${fmt(person.average, 1)}</b> หยิบ/ชม. · กลุ่มทั้งหมด <b>${fmt(groupAvg, 1)}</b> หยิบ/ชม.`
-        + ` ${d >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} <b>${fmt(Math.abs(d), 1)}</b>`
+        `คนนี้ <b>${fmt(person.average, 0)}</b> หยิบ/ชม. · กลุ่มทั้งหมด <b>${fmt(groupAvg, 0)}</b> หยิบ/ชม.`
+        + ` ${d >= 0 ? 'สูงกว่า' : 'ต่ำกว่า'} <b>${fmt(Math.abs(d), 0)}</b>`
         + `<br>ค่าเฉลี่ยกลุ่มคิดจากทุกแถวที่นับได้ในช่วงที่เลือก (${fmt(ctx.group.count)} แถว) รวมครั้งเดียวไม่เฉลี่ยซ้ำ`));
     }
     if (pctEff !== null) {
@@ -626,7 +626,7 @@
       { title: 'แถวทั้งหมด', value: (z) => z.rows, num: true },
       { title: 'แถวเข้าเฉลี่ย', value: (z) => z.count, num: true },
       { title: 'Productivity ในโซนนี้', value: (z) => (z.average === null ? '' : z.average), num: true, sortValue: (z) => z.average,
-        html: (z) => (z.average === null ? '<span class="sub">ไม่มีแถวเข้าเฉลี่ย</span>' : fmt(z.average, 1)) },
+        html: (z) => (z.average === null ? '<span class="sub">ไม่มีแถวเข้าเฉลี่ย</span>' : fmt(z.average, 0)) },
       { title: 'Target โซน', value: (z) => z.target, num: true },
       { title: 'เทียบเป้าโซนนี้', value: (z) => (z.average === null ? 'ไม่ตัดสิน' : z.average >= z.target ? 'ถึงเป้า' : 'ต่ำกว่าเป้า'),
         html: (z) => (z.average === null
@@ -652,7 +652,7 @@
       { title: 'Total Pick', value: (d) => d.total, num: true, html: (d) => fmt(d.total) },
       { title: 'ชั่วโมงทำงาน', value: (d) => d.hours, num: true, html: (d) => fmt(d.hours, 1) },
       { title: 'ค่าเฉลี่ย/ชม.', value: (d) => (d.af === null ? '' : d.af), num: true, sortValue: (d) => d.af,
-        html: (d) => (d.af === null ? `<span class="sub">${esc(d.raw || 'ว่าง')}</span>` : fmt(d.af, 1)) },
+        html: (d) => (d.af === null ? `<span class="sub">${esc(d.raw || 'ว่าง')}</span>` : fmt(d.af, 0)) },
       { title: 'Target โซน', value: (d) => d.target, num: true },
       { title: 'เทียบเป้า', value: (d) => (!d.counted ? 'ไม่เข้าเฉลี่ย' : d.af >= d.target ? 'ผ่าน' : 'ไม่ผ่าน'),
         html: (d) => (!d.counted

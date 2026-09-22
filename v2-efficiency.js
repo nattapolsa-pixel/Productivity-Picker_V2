@@ -43,7 +43,7 @@
   const esc = S.esc;
   const fmt = S.fmt;                                   // fmt(null) = '—' อยู่แล้ว
   const pct = (v) => (v === null || v === undefined ? '—' : fmt(v, 1) + '%');
-  const signed = (v) => (v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + fmt(v, 1));
+  const signed = (v) => (v === null || v === undefined ? '—' : (v >= 0 ? '+' : '') + fmt(v, 0));
   const dmy = (iso) => (iso ? String(iso).split('-').reverse().join('/') : '—');
   const ddmm = (iso) => (iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : '');
 
@@ -356,7 +356,7 @@
                 const d = list[ctx.dataIndex];
                 if (ctx.datasetIndex !== 0) return ' เป้ามาตรฐาน 100% (' + fmt(model.target) + ' หยิบ/ชม.)';
                 if (d.s.count === 0) return ' วันนี้ไม่มีแถวที่นับได้ จึงไม่ตัดสิน';
-                return ' Efficiency ' + pct(d.eff) + ' · Productivity ' + fmt(d.s.average, 1)
+                return ' Efficiency ' + pct(d.eff) + ' · Productivity ' + fmt(d.s.average, 0)
                   + ' หยิบ/ชม. · ' + (d.pass ? 'ถึงเป้า' : 'ไม่ถึงเป้า');
               },
               afterBody: (items) => {
@@ -407,7 +407,7 @@
           datalabels: {
             anchor: 'end', align: 'top', color: '#0f172a', font: { weight: '700', size: 10 },
             formatter: (v, ctx) => (v === null ? 'ไม่ตัดสิน'
-              : fmt(v, 1) + '%\n(' + fmt(cats[ctx.dataIndex].s.average, 1) + ' หยิบ/ชม.)')
+              : fmt(v, 1) + '%\n(' + fmt(cats[ctx.dataIndex].s.average, 0) + ' หยิบ/ชม.)')
           }
         }]
       },
@@ -422,7 +422,7 @@
                 const c = cats[ctx.dataIndex];
                 if (c.s.count === 0) return ' ไม่มีแถวที่นับได้ จึงไม่ตัดสิน';
                 return ' Efficiency ' + pct(effOf(c.s.average, model.target))
-                  + ' · Productivity ' + fmt(c.s.average, 1) + ' หยิบ/ชม.';
+                  + ' · Productivity ' + fmt(c.s.average, 0) + ' หยิบ/ชม.';
               },
               afterBody: (items) => {
                 const c = cats[items[0].dataIndex];
@@ -462,7 +462,7 @@
           datalabels: {
             anchor: 'end', align: 'right', clamp: true, color: '#0f172a', font: { weight: '700', size: 10.5 },
             formatter: (v, ctx) => (v === null ? 'ไม่ตัดสิน'
-              : fmt(v, 1) + '%  (' + fmt(cats[ctx.dataIndex].s.average, 1) + ' หยิบ/ชม.)')
+              : fmt(v, 1) + '%  (' + fmt(cats[ctx.dataIndex].s.average, 0) + ' หยิบ/ชม.)')
           }
         }]
       },
@@ -478,7 +478,7 @@
                 const c = cats[ctx.dataIndex];
                 if (c.s.count === 0) return ' ไม่มีแถวที่นับได้ จึงไม่ตัดสิน';
                 return ' Efficiency ' + pct(effOf(c.s.average, model.target))
-                  + ' · Productivity ' + fmt(c.s.average, 1) + ' หยิบ/ชม.';
+                  + ' · Productivity ' + fmt(c.s.average, 0) + ' หยิบ/ชม.';
               },
               afterBody: (items) => {
                 const c = cats[items[0].dataIndex];
@@ -520,7 +520,7 @@
       { title: 'วันที่', value: (d) => dmy(d.date), sortValue: (d) => d.date },
       { title: 'Total Pick', value: (d) => d.s.total, num: true, html: (d) => fmt(d.s.total) },
       { title: 'ชั่วโมงทำงาน', value: (d) => d.s.hours, num: true, html: (d) => fmt(d.s.hours, 1) },
-      { title: 'Productivity (หยิบ/ชม.)', value: (d) => d.s.average, num: true, html: (d) => '<b>' + fmt(d.s.average, 1) + '</b>' },
+      { title: 'Productivity (หยิบ/ชม.)', value: (d) => d.s.average, num: true, html: (d) => '<b>' + fmt(d.s.average, 0) + '</b>' },
       { title: 'Target', value: (d) => model.target, num: true },
       {
         title: '% Efficiency', value: (d) => (d.eff === null ? '—' : d.eff), num: true, sortValue: (d) => d.eff,
@@ -551,7 +551,7 @@
       { title: 'ประเภทงาน', value: (z) => S.zoneLabels[z.zone.group] || 'Not Found' },
       { title: 'Total Pick', value: (z) => z.s.total, num: true, html: (z) => fmt(z.s.total) },
       { title: 'ชั่วโมงทำงาน', value: (z) => z.s.hours, num: true, html: (z) => fmt(z.s.hours, 1) },
-      { title: 'Productivity (หยิบ/ชม.)', value: (z) => z.s.average, num: true, html: (z) => '<b>' + fmt(z.s.average, 1) + '</b>' },
+      { title: 'Productivity (หยิบ/ชม.)', value: (z) => z.s.average, num: true, html: (z) => '<b>' + fmt(z.s.average, 0) + '</b>' },
       { title: 'Target ของโซน', value: (z) => z.target, num: true },
       {
         title: '% Efficiency', value: (z) => (z.eff === null ? '—' : z.eff), num: true, sortValue: (z) => z.eff,
@@ -577,7 +577,7 @@
       { title: 'พนักงาน', value: (p) => p.people, num: true },
       { title: 'Total Pick', value: (p) => p.s.total, num: true, html: (p) => fmt(p.s.total) },
       { title: 'ชั่วโมงทำงาน', value: (p) => p.s.hours, num: true, html: (p) => fmt(p.s.hours, 1) },
-      { title: 'Productivity (หยิบ/ชม.)', value: (p) => p.s.average, num: true, html: (p) => '<b>' + fmt(p.s.average, 1) + '</b>' },
+      { title: 'Productivity (หยิบ/ชม.)', value: (p) => p.s.average, num: true, html: (p) => '<b>' + fmt(p.s.average, 0) + '</b>' },
       { title: 'Target', value: () => model.target, num: true },
       {
         title: '% Efficiency', value: (p) => (p.eff === null ? '—' : p.eff), num: true, sortValue: (p) => p.eff,
@@ -613,15 +613,15 @@
     const zonesJudged = model.zones.filter((z) => z.s.count > 0);
     const zonesPass = zonesJudged.filter((z) => z.pass);
     const payNote = model.payTypes.map((p) => esc(p.key) + ' ' + pct(effOf(p.s.average, t))
-      + ' (' + fmt(p.s.average, 1) + ' หยิบ/ชม. · ' + fmt(p.people) + ' คน)').join(' · ');
+      + ' (' + fmt(p.s.average, 0) + ' หยิบ/ชม. · ' + fmt(p.people) + ' คน)').join(' · ');
 
     /* การ์ด 4 ใบเรียงเหมือน V2: Efficiency เฉลี่ยรวม → สถานะภาพรวม → วันที่ผ่านเกณฑ์ → พนักงานที่ผ่านเกณฑ์ */
     const cards = summaryRow([
       ['🎯 Efficiency เฉลี่ยรวม', pct(model.eff), '',
-        'Productivity ' + fmt(model.all.average, 1) + ' หยิบ/ชม. เทียบเป้า ' + fmt(t), effColor(model.eff)],
+        'Productivity ' + fmt(model.all.average, 0) + ' หยิบ/ชม. เทียบเป้า ' + fmt(t), effColor(model.eff)],
       ['📊 สถานะภาพรวม', model.all.average === null ? 'ไม่ตัดสิน' : (isHit ? 'ถึงเป้า (Hit)' : 'ไม่ถึงเป้า (Miss)'), '',
         model.all.average === null ? 'ยังไม่มีแถวที่นับได้ในช่วงที่เลือก'
-          : (gap >= 0 ? 'เกินเป้า ' + signed(gap) + ' หยิบ/ชม.' : 'ยังขาดอีก ' + fmt(Math.abs(gap), 1) + ' หยิบ/ชม.'),
+          : (gap >= 0 ? 'เกินเป้า ' + signed(gap) + ' หยิบ/ชม.' : 'ยังขาดอีก ' + fmt(Math.abs(gap), 0) + ' หยิบ/ชม.'),
         model.all.average === null ? GREY : (isHit ? GREEN : RED)],
       ['📅 วันที่ผ่านเกณฑ์ (Hit Rate)', fmt(model.hitDays.length) + ' / ' + fmt(model.judgedDays.length), 'วัน',
         (hitDayPct === null ? 'ยังไม่มีวันที่นับได้' : pct(hitDayPct) + ' ของวันที่นับ Productivity ได้')
