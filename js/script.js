@@ -1,5 +1,5 @@
 const RESULTS_API_URL = ""; // V3 uses V3Data; no Apps Script transport.
-const REFRESH_INTERVAL_MS = 60 * 1000;
+const REFRESH_INTERVAL_MS = 0;
 const REQUEST_TIMEOUT_MS = 45000;
 const DAILY_INDEX_TIMEOUT_MS = 90000;
 const DASHBOARD_CACHE_PREFIX = "pickProductivityDashboardCache:v3-sheet-20260916";
@@ -6769,6 +6769,8 @@ V3Data.request().then(index => {
   document.getElementById('v3SourceStatus').textContent = 'เปิดข้อมูลไม่สำเร็จ: ' + error.message + ' • กรุณากดรีเฟรช';
 });
 
-setInterval(() => {
-  loadDashboard({ silent: true });
-}, REFRESH_INTERVAL_MS);
+if (REFRESH_INTERVAL_MS > 0) {
+  setInterval(() => {
+    loadDashboard({ silent: true });
+  }, REFRESH_INTERVAL_MS);
+}
