@@ -2689,3 +2689,66 @@ th.num {
   cursor: not-allowed;
   opacity: .55;
 }
+
+/* ── คู่มือ: กฎร่วมของทุกเมนู + วิธีคิดเลขในการ์ดแต่ละเมนู ──
+   กฎที่ทุกเมนูใช้เหมือนกันเขียนไว้ครั้งเดียวข้างบน ในการ์ดบอกแค่ส่วนที่ต่าง
+   ไม่ต้องเขียนซ้ำ 13 รอบ */
+.guide-basis {
+  margin: 0 0 1.1rem;
+  padding: .8rem .95rem .85rem;
+  border: 1px dashed rgba(99, 102, 241, .45);
+  border-radius: 12px;
+  background: rgba(99, 102, 241, .06);
+}
+
+.guide-basis h4 {
+  margin: 0 0 .5rem;
+  font-size: .8rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: var(--text-accent, #4f46e5);
+}
+
+.guide-basis p {
+  display: grid;
+  grid-template-columns: minmax(108px, 130px) 1fr;
+  gap: .7rem;
+  margin: 0 0 .35rem !important;
+  font-size: .82rem !important;
+  line-height: 1.65;
+  color: var(--text-muted, #475569) !important;
+}
+
+.guide-basis p:last-child { margin-bottom: 0 !important; }
+
+.guide-basis p > span:first-child {
+  font-weight: 800;
+  color: var(--text-primary, #1e293b);
+}
+
+/* บล็อก "คิดยังไง" ในการ์ดเมนู */
+.guide-calc {
+  margin-top: .5rem !important;
+  padding: .45rem .6rem;
+  border-radius: 9px;
+  background: rgba(148, 163, 184, .1);
+  font-size: .78rem !important;
+  line-height: 1.6;
+  color: var(--text-muted, #475569) !important;
+}
+
+.guide-calc > span {
+  display: inline-block;
+  margin-right: .35rem;
+  padding: .05rem .4rem;
+  border-radius: 5px;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: .67rem;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+@media (max-width: 900px) {
+  .guide-basis p { grid-template-columns: 1fr; gap: .1rem; }
+}
