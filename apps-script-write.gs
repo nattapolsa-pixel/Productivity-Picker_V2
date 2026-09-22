@@ -2400,40 +2400,6 @@ function isSafeCallbackName_(callback) {
   return /^[A-Za-z_$][0-9A-Za-z_$]*(\.[A-Za-z_$][0-9A-Za-z_$]*)*$/.test(String(callback || ""));
 }
 
-function installDashboardRefreshTrigger() {
-  const triggers = ScriptApp.getProjectTriggers();
-
-  triggers.forEach((trigger) => {
-    const handler = trigger.getHandlerFunction();
-
-    if (handler === "warmDashboardCache") {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
-
-  ScriptApp.newTrigger("warmDashboardCache")
-    .timeBased()
-    .everyMinutes(1)
-    .create();
-
-  warmDashboardCache();
-}
-
-function warmDashboardCache() {
-  const lock = LockService.getScriptLock();
-
-  if (!lock.tryLock(500)) {
-    return;
-  }
-
-  try {
-    const payload = buildDashboardPayload_("", "");
-    saveDashboardPayload_(getCacheKey_("", ""), payload);
-  } finally {
-    lock.releaseLock();
-  }
-}
-
 const V3_FIELDS_ = {name:3,nickname:4,affiliation:5,role:6,startDate:7,statusWork:8,trainingEnd:9,zone:10,pickType:11,bu:12,shift:13};
 const V3_TARGET_KEYS_ = ['overall','fullRack','halfRack','ea','pickToSort','mezzanine','training','fullRackAhAi','fullRackAlBlBmAm','halfRackAjAk','halfRackAnCaBnDa','halfRackBgBh','halfRackBiBk','halfRackCbDbDcCc','halfRackCdCe','halfRackDdDe','halfRackCfDf','microEa','microFa','pickToSortBe'];
 
