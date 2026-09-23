@@ -95,7 +95,7 @@ const ZONE_GROUPS = [
     title: "Picking Productivity - Full Rack (หยิบ)",
     target: TARGETS.fullRack,
     zones: [
-      { key: "fullRackAaAf", title: "Picking Productivity - Zone AA-AF", label: "AA-AF", codes: ["AA", "AB", "AC", "AD", "AE", "AF"] },
+      { key: "fullRackAaAf", title: "Picking Productivity - Zone AA-AF", label: "AA-AF", codes: ["AA", "AB", "AC", "AD", "AE"] },
       { key: "fullRackAg", title: "Picking Productivity - Zone AG", label: "AG", codes: ["AG"] },
       { key: "fullRackAhAi", title: "Picking Productivity - Zone AH-AI", label: "AH-AI", codes: ["AH", "AI"] },
       { key: "fullRackAlBlBmAm", title: "Picking Productivity - Zone AL-BL-BM-AM", label: "AL-BL-BM-AM", codes: ["AL", "BL", "BM", "AM"] },
@@ -106,6 +106,7 @@ const ZONE_GROUPS = [
     title: "Picking Productivity - Half Rack (หยิบ)",
     target: TARGETS.halfRack,
     zones: [
+      { key: "halfRackAf", title: "Picking Productivity - Zone AF", label: "AF", codes: ["AF"] },
       // AJ-AK ย้ายมาจากกลุ่ม Full Rack (Target ยังคงเป็น 170 ไม่ใช่ 200 ตามกลุ่ม Half Rack)
       { key: "halfRackAjAk", title: "Picking Productivity - Zone AJ-AK", label: "AJ-AK", codes: ["AJ", "AK"] },
       { key: "halfRackAnCa", title: "Picking Productivity - Zone AN-CA", label: "AN-CA", codes: ["AN", "CA"] },

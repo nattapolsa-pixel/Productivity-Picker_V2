@@ -18,6 +18,7 @@ const DEFAULT_TARGETS = Object.freeze({
   training: 100,
   fullRackAhAi: 170,
   fullRackAlBlBmAm: 170,
+  halfRackAf: 200,
   halfRackAjAk: 170, // ย้ายมาจาก Full Rack - คง Target 170 ไว้ (ไม่ใช่ 200 ตาม Zone อื่นในกลุ่ม Half Rack)
   halfRackAnCaBnDa: 200, // AN, CA, BN, DA เป็นโซนเดียวกัน (Half Rack ของ Max mart) รวมจากเดิมที่แยกเป็น AN-CA กับ BN-DA
   halfRackBgBh: 200,
@@ -463,6 +464,7 @@ const ZONE_GROUPS = [
     title: "Picking Productivity - Half Rack (หยิบ)",
     target: TARGETS.halfRack,
     zones: [
+      { key: "halfRackAf", title: "Picking Productivity - Zone AF", label: "AF" },
       // AJ-AK ย้ายมาจากกลุ่ม Full Rack - legacySource ไว้อ่าน payload จาก Apps Script รุ่นก่อนย้าย (ลบออกได้หลัง deploy .gs ใหม่แล้ว)
       { key: "halfRackAjAk", title: "Picking Productivity - Zone AJ-AK", label: "AJ-AK", legacySource: { groupKey: "fullRack", zoneKey: "fullRackAjAk" } },
       /* AN, CA, BN, DA เป็นโซนเดียวกัน (Half Rack ของ Max mart) ตามข้อมูลหลังบ้านที่แก้ใหม่ 21/09/2569
