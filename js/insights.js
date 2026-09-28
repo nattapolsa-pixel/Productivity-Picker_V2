@@ -4,7 +4,7 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=(v,d=0)=>v===null||v===undefined?'—':Number(v).toLocaleString('th-TH',{maximumFractionDigits:d,minimumFractionDigits:d});
   const dmy=iso=>/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))?String(iso).split('-').reverse().join('/'):'—';
-  let source=null,rows=[],roster=new Map(),active='overview',payload=null,tableState={},selectedStaff='';
+  let source=null,rows=[],roster=new Map(),startDateById=new Map(),firstSeenById=new Map(),active='overview',payload=null,tableState={},selectedStaff='';
   const labels={fullRack:'Full Rack',halfRack:'Half Rack',ea:'Micro Rack',pickToSort:'Pick to Sort',mezzanine:'Mezzanine'};
   const zones=ZONE_GROUPS.flatMap(g=>g.zones.map(z=>({...z,group:g.key})));
   const zoneCache=new Map();
@@ -14,6 +14,7 @@
     zoneCache.set(text,found);return found;
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);});}
+  function employeeStartDate(id){return M.tenureStart(String(id||'').trim(),startDateById,firstSeenById);}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
   function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -80,6 +81,7 @@
   const recordColumns=[
     {title:'วันที่',value:r=>M.date(r[2])},
     {title:'User ID',value:r=>r[3]||'Not Found'}, {title:'ชื่อพนักงาน',value:r=>M.personName(r,roster),html:r=>{const nd=M.personName(r,roster);const raw=String(r[1]||'').trim();const nick=M.personNickname(r,roster);const extra=[nick?'ชื่อเล่น '+esc(nick):'',(raw&&raw!==nd)?'ในข้อมูลผลงาน: '+esc(raw):'',M.inRoster(r,roster)?'':'ไม่พบในทะเบียน'].filter(Boolean).join(' · ');return esc(nd)+(extra?`<span class="sub">${extra}</span>`:'');}},
+    {title:'วันเริ่มงาน',value:r=>employeeStartDate(r[3])||'',html:r=>dmy(employeeStartDate(r[3]))},
     {title:'ระบบ',value:r=>M.system(r)}, {title:'กะ',value:r=>r[32]||'Not Found'},
     {title:'Zone',value:r=>r[33]||'Not Found'}, {title:'สังกัด',value:r=>r[34]||'Not Found'},
     {title:'BU',value:r=>r[35]||'Not Found'}, {title:'Type Pick',value:r=>r[36]||'Not Found'},
@@ -127,7 +129,6 @@
 
   /* จับกลุ่มรายคน แล้วหาโซนหลักของแต่ละคนจากจำนวนแถวที่เข้าเฉลี่ย */
   function buildBelowTarget(data){
-    const startMap=M.startDateMap(source.sheets),seenMap=M.firstSeenMap(rows);
     const people=new Map();
     data.forEach(r=>{
       const id=M.userId(r); if(!id)return;
@@ -153,7 +154,7 @@
       const z=zoneByKey.get(main[0])||zoneByKey.get('unknown');
       const average=p.sum/p.count;
       const target=zoneTargetOf(z);
-      list.push({...p,startDate:M.tenureStart(p.id,startMap,seenMap),zone:z,zoneRowCount:main[1],average,target,
+      list.push({...p,startDate:employeeStartDate(p.id),zone:z,zoneRowCount:main[1],average,target,
         gap:average-target,eff:target>0?average/target*100:0,
         below:average<target,zoneCount:p.zoneRows.size});
     });
@@ -304,8 +305,8 @@
     ]);
   }
 
-  function staffPage(){if(!$('v3Staff'))return;const data=visible(),activity=new Map(),startMap=M.startDateMap(source.sheets),seenMap=M.firstSeenMap(rows);data.forEach(r=>{const id=String(r[3]||'Not Found').trim();if(!activity.has(id))activity.set(id,[]);activity.get(id).push(r);});
-    const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=M.aggregate(work);return {id,master,work,s,startDate:M.tenureStart(id,startMap,seenMap),name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
+  function staffPage(){if(!$('v3Staff'))return;const data=visible(),activity=new Map();data.forEach(r=>{const id=String(r[3]||'Not Found').trim();if(!activity.has(id))activity.set(id,[]);activity.get(id).push(r);});
+    const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=M.aggregate(work);return {id,master,work,s,startDate:employeeStartDate(id),name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
     if(V3Data.filters.shift!=='ALL')items=items.filter(i=>i.work.length||i.shift===V3Data.filters.shift);
     if(V3Data.filters.system!=='ALL')items=items.filter(i=>i.work.length||(i.master&&M.system({36:i.master[10]})===V3Data.filters.system));
     items.sort((a,b)=>b.s.total-a.s.total);
@@ -467,7 +468,7 @@
   }
 
   function render(){if(!source)return;try{updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
-  V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));
+  V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
     const warn=(source.warnings||[]);
     $('v3SourceStatus').innerHTML=esc(`${value.index.cacheStatus==='sheet-live'?'Google Sheets ล่าสุด':'ข้อมูลสำรองจาก Google Sheets'} • อ่านเมื่อ ${new Date(source.fetchedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} • ${fmt(value.index.totalRows)} แถวมีวันที่`)

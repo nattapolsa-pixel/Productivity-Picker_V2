@@ -345,6 +345,7 @@
             : '<span class="v3-pill warn">Not Found — ข้อมูลไม่ครบ</span>'))
       },
       { title: 'ชื่อที่พบ', value: (x) => x.p.name, html: (x) => (x.p.name === 'Not Found' ? '<span class="staff-miss-none">ไม่พบชื่อ</span>' : esc(x.p.name)) },
+      { title: 'วันเริ่มงาน', value: (x) => x.p.start || '', html: (x) => dmy(x.p.start) + `<span class="sub">${x.p.hasRosterStart ? 'จากทะเบียน' : 'วันแรกที่พบผลงาน'}</span>` },
       { title: 'ยอดหยิบทั้งหมด', value: (x) => x.p.stats.total, num: true, html: (x) => fmt(x.p.stats.total) },
       { title: 'Productivity', value: (x) => (x.p.stats.average === null ? 0 : x.p.stats.average), num: true,
         sortValue: (x) => x.p.stats.average,

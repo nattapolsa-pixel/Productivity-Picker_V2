@@ -183,6 +183,7 @@
         workDays: p.days.size,
         shift: shift ? shift[0] : 'Not Found',
         startDate,
+        hasRosterStart: startMap.has(p.id),
         tenure: M.daysBetween(startDate, anchor),
         resigned: resignedInfo(p.id, resignedMap)
       });
@@ -291,6 +292,8 @@
           + resignedBadge(x.resigned)
           + `<span class="sub">${esc(x.name !== x.id ? x.name : '-')}`
           + `${x.nick ? ' · ชื่อเล่น ' + esc(x.nick) : ''}${x.master ? '' : ' · ไม่พบในทะเบียน'}</span>` },
+      { title: 'วันเริ่มงาน', value: (x) => x.startDate || '',
+        html: (x) => dmy(x.startDate) + `<span class="sub">${x.hasRosterStart ? 'จากทะเบียน' : 'วันแรกที่พบผลงาน'}</span>` },
       /* สังกัดกับกะรวมช่องเดียว เหมือน V2 */
       { title: 'สังกัด / กะ', value: (x) => ((x.master ? x.master[4] : '') || x.rows[x.rows.length - 1][34] || 'Not Found') + ' ' + x.shift,
         html: (x) => esc((x.master ? x.master[4] : '') || x.rows[x.rows.length - 1][34] || 'Not Found')
