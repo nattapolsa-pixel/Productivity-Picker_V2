@@ -194,8 +194,11 @@
     ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:180},layout:{padding:{top:8,right:10,bottom:2,left:4}},interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',align:'start',labels:{usePointStyle:true,boxWidth:8,padding:14,font:{family:"Prompt",size:11,weight:'600'}}},datalabels:{clip:true,clamp:true},tooltip:{backgroundColor:'rgba(15,23,42,.94)',padding:10,cornerRadius:9,callbacks:{title:items=>items.length?`วันที่ ${dmy(model.days[items[0].dataIndex].date)}`:'',label:item=>item.parsed.y===null?'':item.dataset.label==='Total Pick'?`Total Pick: ${fmt(Math.round(item.parsed.y))} ชิ้น`:`${item.dataset.label}: ${fmt(Math.round(item.parsed.y))} หยิบ/ชม.`}}},scales:{x:{grid:{display:false},ticks:{font:{family:"Prompt",size:9},maxRotation:0,minRotation:0,autoSkip:false}},y:{beginAtZero:true,title:{display:true,text:'Total Pick',font:{family:"Prompt",size:10,weight:'600'}},ticks:{precision:0,callback:v=>fmt(Math.round(v)),font:{family:"Prompt",size:10}}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Productivity',font:{family:"Prompt",size:10,weight:'600'}},ticks:{precision:0,callback:v=>fmt(Math.round(v)),font:{family:"Prompt",size:10}}}}}});
   }
   function zoneMtdDailyHtml(model){
-    const cells=model.days.map(d=>`<div class="v3-zone-mtd-day ${d.total>0?'':'empty'}"><small>${Number(d.date.slice(8))}/${Number(d.date.slice(5,7))}</small><strong>${d.total>0?fmt(Math.round(d.total)):'—'}</strong><span>${d.total>0?'ชิ้น':'ไม่มีข้อมูล'}</span></div>`).join('');
-    return `<div class="v3-zone-mtd-daily"><div class="v3-zone-mtd-daily-head"><b>ยอด Total Pick รายวัน</b><span>แสดงครบทุกวันที่อยู่ในเดือน</span></div><div class="v3-zone-mtd-daily-grid">${cells}</div></div>`;
+    const cells=model.days.map(d=>{
+      const hasPick=Number(d.total)>0,hasProd=d.average!==null&&d.average!==undefined&&Number.isFinite(Number(d.average));
+      return `<div class="v3-zone-mtd-day ${hasPick?'':'empty'}"><small>${Number(d.date.slice(8))}/${Number(d.date.slice(5,7))}</small><strong>${hasPick?fmt(Math.round(d.total)):'—'}</strong><span>${hasPick?'ชิ้น':'ไม่มีข้อมูล'}</span><em>${hasProd?fmt(Math.round(d.average)):'—'}</em><span class="v3-zone-mtd-prod-unit">${hasProd?'Prod/ชม.':'ไม่เข้าเฉลี่ย'}</span></div>`;
+    }).join('');
+    return `<div class="v3-zone-mtd-daily"><div class="v3-zone-mtd-daily-head"><b>ยอดรายวัน · Total Pick + Productivity</b><span>แสดงครบทุกวันที่อยู่ในเดือน</span></div><div class="v3-zone-mtd-daily-grid">${cells}</div></div>`;
   }
   function zonePage(){
     if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;
