@@ -2795,3 +2795,33 @@ th.num {
 .v3-zone-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 13px; font-size: 11px; font-weight: 700; color: #475569; }
 .v3-zone-foot span { display: inline; margin: 0; font-size: inherit; }
 .v3-zone > small:last-child { margin-top: 8px; color: #64748b; }
+
+/* Shared Productivity comparison visible on every page. */
+.v3-period-compare { margin: 10px 0 18px; padding: 14px 16px 16px; border: 1px solid #c7d2fe; border-radius: 16px; background: linear-gradient(135deg, #eef2ff 0%, #f8fbff 52%, #ecfeff 100%); box-shadow: 0 8px 24px rgba(30, 64, 175, .08); }
+.v3-period-compare-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.v3-period-compare-head strong { display: block; color: #1e3a8a; font-size: 15px; }
+.v3-period-compare-head span { display: block; margin-top: 3px; color: #64748b; font-size: 11px; }
+.v3-period-compare-head > small { color: #475569; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.v3-period-compare-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 11px; }
+.v3-period-card { min-width: 0; padding: 12px 13px 10px; border: 1px solid rgba(148, 163, 184, .32); border-radius: 12px; background: rgba(255, 255, 255, .82); }
+.v3-period-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.v3-period-card-head strong { color: #0f172a; font-size: 13px; }
+.v3-period-card-head span { color: #64748b; font-size: 10px; white-space: nowrap; }
+.v3-period-values { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 8px; margin-top: 11px; }
+.v3-period-values > div:not(.v3-period-vs) { min-width: 0; }
+.v3-period-values small, .v3-period-values em { display: block; color: #64748b; font-size: 10px; font-style: normal; }
+.v3-period-values b { display: inline-block; margin-top: 2px; color: #172554; font-size: 23px; line-height: 1; }
+.v3-period-vs { padding-bottom: 3px; color: #94a3b8; font-size: 10px; font-weight: 800; }
+.v3-period-change { margin-top: 10px; font-size: 12px; font-weight: 800; }
+.v3-period-change.up { color: #047857; }
+.v3-period-change.down { color: #be123c; }
+.v3-period-change.flat, .v3-period-change.empty { color: #64748b; }
+.v3-period-range { margin-top: 7px; color: #334155; font-size: 10px; font-weight: 700; }
+.v3-period-range span { margin: 0 3px; color: #94a3b8; font-weight: 500; }
+.v3-period-meta { margin-top: 3px; color: #64748b; font-size: 10px; line-height: 1.45; }
+.v3-period-compare-empty { color: #64748b; font-size: 12px; }
+@media (max-width: 900px) {
+  .v3-period-compare-head { flex-direction: column; gap: 6px; }
+  .v3-period-compare-head > small { white-space: normal; }
+  .v3-period-compare-grid { grid-template-columns: 1fr; }
+}

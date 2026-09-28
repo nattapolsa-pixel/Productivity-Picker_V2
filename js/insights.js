@@ -17,6 +17,48 @@
   function employeeStartDate(id){return M.tenureStart(String(id||'').trim(),startDateById,firstSeenById);}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
   function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function addDays(iso,days){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
+  function rangeRows(list,start,end){return list.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end);});}
+  function rangeLabel(start,end){if(!start&&!end)return 'ไม่มีข้อมูล';if(start===end)return dmy(start);return `${dmy(start)}–${dmy(end)}`;}
+  function comparisonChange(current,previous){
+    if(current.average===null)return {className:'empty',label:'ไม่มีข้อมูลช่วงล่าสุด'};
+    if(previous.average===null)return {className:'empty',label:'ยังไม่มีช่วงก่อนหน้าให้เทียบ'};
+    const delta=current.average-previous.average,pct=previous.average?delta/previous.average*100:null;
+    if(Math.abs(delta)<0.05)return {className:'flat',label:'ทรงตัว · 0.0%'};
+    const sign=delta>0?'+':'';
+    return {className:delta>0?'up':'down',label:`${delta>0?'↑':'↓'} ${sign}${fmt(delta,1)} Pick/ชม. · ${sign}${fmt(pct,1)}%`};
+  }
+  function renderPeriodComparison(){
+    const host=$('v3PeriodCompare');if(!host||!rows.length)return;
+    const filtered=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters));
+    const start=$('startDate')?.value||'',end=$('endDate')?.value||'';
+    const selected=rangeRows(filtered,start,end);
+    const selectedDates=[...new Set(selected.map(r=>M.date(r[2])))].sort();
+    const beforeEnd=filtered.map(r=>M.date(r[2])).filter(d=>!end||d<=end).sort().pop()||'';
+    const anchor=selectedDates[selectedDates.length-1]||beforeEnd;
+    if(!anchor){host.innerHTML='<div class="v3-period-compare-empty">ยังไม่มีข้อมูล Productivity ที่ใช้เปรียบเทียบ</div>';return;}
+    const allDates=[...new Set(filtered.map(r=>M.date(r[2])))].sort();
+    const previousWorkday=allDates.filter(d=>d<anchor).pop()||'';
+    const periods=[
+      {key:'day',title:'ย้อนหลัง 1 วัน',currentStart:anchor,currentEnd:anchor,previousStart:previousWorkday,previousEnd:previousWorkday,context:'เทียบวันทำงานก่อนหน้า'},
+      {key:'week',title:'ย้อนหลัง 1 อาทิตย์',currentStart:addDays(anchor,-6),currentEnd:anchor,previousStart:addDays(anchor,-13),previousEnd:addDays(anchor,-7),context:'เทียบ 7 วันก่อนหน้า'},
+      {key:'month',title:'ย้อนหลัง 1 เดือน',currentStart:addDays(anchor,-29),currentEnd:anchor,previousStart:addDays(anchor,-59),previousEnd:addDays(anchor,-30),context:'เทียบ 30 วันก่อนหน้า'}
+    ];
+    const cardsHtml=periods.map(p=>{
+      const current=M.aggregate(rangeRows(filtered,p.currentStart,p.currentEnd));
+      const previous=M.aggregate(rangeRows(filtered,p.previousStart,p.previousEnd));
+      const change=comparisonChange(current,previous);
+      return `<article class="v3-period-card">
+        <div class="v3-period-card-head"><strong>${esc(p.title)}</strong><span>${esc(p.context)}</span></div>
+        <div class="v3-period-values"><div><small>ช่วงล่าสุด</small><b>${fmt(current.average,0)}</b><em>Pick/ชม.</em></div><div class="v3-period-vs">vs</div><div><small>ช่วงก่อนหน้า</small><b>${fmt(previous.average,0)}</b><em>Pick/ชม.</em></div></div>
+        <div class="v3-period-change ${change.className}">${esc(change.label)}</div>
+        <div class="v3-period-range">${rangeLabel(p.currentStart,p.currentEnd)} <span>เทียบกับ</span> ${rangeLabel(p.previousStart,p.previousEnd)}</div>
+        <div class="v3-period-meta">นับ AF &gt; 0: ${fmt(current.count)} / ${fmt(previous.count)} แถว · Total Pick: ${fmt(current.total)} / ${fmt(previous.total)}</div>
+      </article>`;
+    }).join('');
+    const selectedText=start||end?`${dmy(start||anchor)}${start&&end?'–'+dmy(end):''}`:'ทั้งหมด';
+    host.innerHTML=`<div class="v3-period-compare-head"><div><strong>เปรียบเทียบ Productivity</strong><span>ใช้ตัวกรองระบบและกะเดียวกับทุกหน้า · ล่าสุดอ้างอิงวันที่ ${esc(dmy(anchor))}</span></div><small>ช่วงที่เลือก: ${esc(selectedText)}</small></div><div class="v3-period-compare-grid">${cardsHtml}</div>`;
+  }
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   /* กดหัวคอลัมน์เพื่อเรียง ครั้งแรกมาก -> น้อย ครั้งที่สองน้อย -> มาก ครั้งที่สามกลับลำดับตั้งต้น
      ต้องเก็บลำดับตั้งต้นไว้ได้ เพราะบางตารางจัดลำดับมาก่อนแล้ว
@@ -504,7 +546,7 @@
     }catch(e){badge.hidden=true;}
   }
 
-  function render(){if(!source)return;try{updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
+  function render(){if(!source)return;try{renderPeriodComparison();updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
   V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
     const warn=(source.warnings||[]);
