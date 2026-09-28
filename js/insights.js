@@ -164,10 +164,16 @@
     const filtered=rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);});
     const anchor=filtered.map(r=>M.date(r[2])).sort().pop()||'';
     if(!anchor)return null;
-    const month=anchor.slice(0,7),start=`${month}-01`,monthRows=filtered.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor&&(zone(r)?.key||'unknown')===selectedKey;});
+    const month=anchor.slice(0,7),start=`${month}-01`,zoneRows=filtered.filter(r=>(zone(r)?.key||'unknown')===selectedKey),monthRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor;});
     const days=[];for(let d=start;d<=anchor;d=addDays(d,1)){const dayRows=monthRows.filter(r=>M.date(r[2])===d),s=M.aggregate(dayRows);days.push({date:d,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people});}
     const summary=M.aggregate(monthRows);
-    return {month,anchor,days,summary,target:Number(target)||170,daysWithData:days.filter(d=>d.rows>0).length};
+    const zoneDates=[...new Set(zoneRows.map(r=>M.date(r[2])))].sort(),previousWorkday=zoneDates.filter(d=>d<anchor).pop()||addDays(anchor,-1);
+    const periods=[
+      {key:'day',title:'ย้อนหลัง 1 วัน',currentStart:anchor,currentEnd:anchor,previousStart:previousWorkday,previousEnd:previousWorkday,context:'เทียบวันทำงานก่อนหน้า'},
+      {key:'week',title:'ย้อนหลัง 1 อาทิตย์',currentStart:addDays(anchor,-6),currentEnd:anchor,previousStart:addDays(anchor,-13),previousEnd:addDays(anchor,-7),context:'เทียบ 7 วันก่อนหน้า'},
+      {key:'month',title:'ย้อนหลัง 1 เดือน',currentStart:addDays(anchor,-29),currentEnd:anchor,previousStart:addDays(anchor,-59),previousEnd:addDays(anchor,-30),context:'เทียบ 30 วันก่อนหน้า'}
+    ];
+    return {month,anchor,days,summary,target:Number(target)||170,daysWithData:days.filter(d=>d.rows>0).length,comparisons:periodStatsFor(zoneRows,periods)};
   }
   function drawZoneMtdFallback(model){
     const canvas=$('v3ZoneMtdChart');if(!canvas||!model||!model.summary.rows)return;
@@ -199,6 +205,22 @@
       return `<div class="v3-zone-mtd-day ${hasPick?'':'empty'}"><small>${Number(d.date.slice(8))}/${Number(d.date.slice(5,7))}</small><strong>${hasPick?fmt(Math.round(d.total)):'—'}</strong><span>${hasPick?'ชิ้น':'ไม่มีข้อมูล'}</span><em>${hasProd?fmt(Math.round(d.average)):'—'}</em><span class="v3-zone-mtd-prod-unit">${hasProd?'Prod/ชม.':'ไม่เข้าเฉลี่ย'}</span></div>`;
     }).join('');
     return `<div class="v3-zone-mtd-daily"><div class="v3-zone-mtd-daily-head"><b>ยอดรายวัน · Total Pick + Productivity</b><span>แสดงครบทุกวันที่อยู่ในเดือน</span></div><div class="v3-zone-mtd-daily-grid">${cells}</div></div>`;
+  }
+  function zoneMtdMetricValue(value){return value===null||value===undefined||!Number.isFinite(Number(value))?'—':fmt(Math.round(Number(value)));}
+  function zoneMtdDelta(current,previous){
+    if(current===null||current===undefined||previous===null||previous===undefined||!Number.isFinite(Number(current))||!Number.isFinite(Number(previous)))return {className:'empty',label:'ไม่มีข้อมูลเทียบ'};
+    const delta=Number(current)-Number(previous);
+    if(Number(previous)===0)return {className:'empty',label:delta===0?'ทรงตัว':'ไม่มีฐานเทียบ'};
+    const pct=delta/Number(previous)*100;
+    if(Math.round(delta)===0)return {className:'flat',label:'ทรงตัว · 0%'};
+    return {className:delta>0?'up':'down',label:`${delta>0?'↑':'↓'} ${delta>0?'+':''}${fmt(Math.round(delta))} · ${delta>0?'+':''}${fmt(Math.round(pct))}%`};
+  }
+  function zoneMtdComparisonHtml(model){
+    const cards=model.comparisons.map(p=>{
+      const pick=zoneMtdDelta(p.current.total,p.previous.total),prod=zoneMtdDelta(p.current.average,p.previous.average);
+      return `<article class="v3-zone-mtd-compare-card"><div class="v3-zone-mtd-compare-card-head"><strong>${esc(p.title)}</strong><span>${esc(p.context)}</span></div><div class="v3-zone-mtd-compare-metrics"><div><small>Total Pick</small><b>${zoneMtdMetricValue(p.current.total)}</b><span>vs ${zoneMtdMetricValue(p.previous.total)} ชิ้น</span><em class="${pick.className}">${esc(pick.label)}</em></div><div><small>Productivity</small><b>${zoneMtdMetricValue(p.current.average)}</b><span>vs ${zoneMtdMetricValue(p.previous.average)} Pick/ชม.</span><em class="${prod.className}">${esc(prod.label)}</em></div></div><div class="v3-zone-mtd-compare-range">${rangeLabel(p.currentStart,p.currentEnd)} <i>เทียบกับ</i> ${rangeLabel(p.previousStart,p.previousEnd)}</div></article>`;
+    }).join('');
+    return `<div class="v3-zone-mtd-compare"><div class="v3-zone-mtd-compare-head"><b>เปรียบเทียบย้อนหลัง</b><span>ช่วงล่าสุดเทียบกับช่วงก่อนหน้า · อ้างอิงถึง ${dmy(model.anchor)}</span></div><div class="v3-zone-mtd-compare-grid">${cards}</div></div>`;
   }
   function zonePage(){
     if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;
@@ -237,7 +259,7 @@
       let panel=$('v3ZoneDetail');if(!panel){panel=document.createElement('div');panel.id='v3ZoneDetail';$('v3ZoneTable').after(panel);}
       destroyZoneMtdChart();
       const mtd=zoneMtdModel(selected.key,zoneTarget(selected));
-      const mtdBlock=mtd&&!mtd.summary.rows?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีข้อมูลสะสมของ Zone นี้ในเดือน ${esc(zoneMonthLabel(mtd.month))}</div></section>`:mtd?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-head"><div><span class="v3-zone-mtd-kicker">MONTH TO DATE</span><h3>ยอดสะสม ${esc(zoneMonthLabel(mtd.month))}</h3><p>ตั้งแต่ ${esc(dmy(`${mtd.month}-01`))} ถึง ${esc(dmy(mtd.anchor))} · กรองตามระบบและกะด้านบน</p></div><span class="v3-zone-mtd-date">${fmt(mtd.daysWithData)} วันมีข้อมูล</span></div><div class="v3-zone-mtd-summary"><div><small>Total Pick MTD</small><strong>${fmt(mtd.summary.total)}</strong><span>ชิ้น</span></div><div><small>Productivity เฉลี่ย MTD</small><strong>${fmt(mtd.summary.average,0)}</strong><span>หยิบ/ชม. · เป้า ${fmt(mtd.target)}</span></div><div><small>พนักงานใน Zone</small><strong>${fmt(mtd.summary.people)}</strong><span>${fmt(mtd.summary.count)} แถวเข้าเฉลี่ย</span></div></div><div class="v3-zone-mtd-chart"><canvas id="v3ZoneMtdChart" aria-label="กราฟ Month to date ของ Zone"></canvas></div>${zoneMtdDailyHtml(mtd)}<p class="v3-zone-mtd-note">แท่ง = Total Pick รายวัน · เส้นแดง = Productivity (จำนวนเต็ม) · เส้นเขียว = Target · วันที่ไม่มีข้อมูลไม่มีแท่ง และเส้นจะเชื่อมวันมีข้อมูลถัดไป</p></section>`:'<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีวันที่ในข้อมูลผลงานสำหรับคำนวณ MTD</div></section>';
+      const mtdBlock=mtd&&!mtd.summary.rows?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีข้อมูลสะสมของ Zone นี้ในเดือน ${esc(zoneMonthLabel(mtd.month))}</div></section>`:mtd?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-head"><div><span class="v3-zone-mtd-kicker">MONTH TO DATE</span><h3>ยอดสะสม ${esc(zoneMonthLabel(mtd.month))}</h3><p>ตั้งแต่ ${esc(dmy(`${mtd.month}-01`))} ถึง ${esc(dmy(mtd.anchor))} · กรองตามระบบและกะด้านบน</p></div><span class="v3-zone-mtd-date">${fmt(mtd.daysWithData)} วันมีข้อมูล</span></div><div class="v3-zone-mtd-summary"><div><small>Total Pick MTD</small><strong>${fmt(mtd.summary.total)}</strong><span>ชิ้น</span></div><div><small>Productivity เฉลี่ย MTD</small><strong>${fmt(mtd.summary.average,0)}</strong><span>หยิบ/ชม. · เป้า ${fmt(mtd.target)}</span></div><div><small>พนักงานใน Zone</small><strong>${fmt(mtd.summary.people)}</strong><span>${fmt(mtd.summary.count)} แถวเข้าเฉลี่ย</span></div></div><div class="v3-zone-mtd-chart"><canvas id="v3ZoneMtdChart" aria-label="กราฟ Month to date ของ Zone"></canvas></div>${zoneMtdDailyHtml(mtd)}${zoneMtdComparisonHtml(mtd)}<p class="v3-zone-mtd-note">แท่ง = Total Pick รายวัน · เส้นแดง = Productivity (จำนวนเต็ม) · เส้นเขียว = Target · วันที่ไม่มีข้อมูลไม่มีแท่ง และเส้นจะเชื่อมวันมีข้อมูลถัดไป</p></section>`:'<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีวันที่ในข้อมูลผลงานสำหรับคำนวณ MTD</div></section>';
       panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail)+mtdBlock+'<div id="v3ZoneDetailRows"></div>';
       table($('v3ZoneDetailRows'),'zone-detail',detail,recordColumns,{valid:r=>M.number(r[31])>0});
       drawZoneMtdChart(mtd);

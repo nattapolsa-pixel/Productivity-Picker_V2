@@ -2831,10 +2831,30 @@ th.num {
 .v3-zone-mtd-day .v3-zone-mtd-prod-unit { color: #be123c; font-size: 8px; font-weight: 700; }
 .v3-zone-mtd-day.empty strong { color: #94a3b8; }
 .v3-zone-mtd-day.empty em, .v3-zone-mtd-day.empty .v3-zone-mtd-prod-unit { color: #94a3b8; border-top-color: #cbd5e1; }
+.v3-zone-mtd-compare { margin-top: 10px; padding: 10px 11px 11px; border: 1px solid #c7d2fe; border-radius: 13px; background: linear-gradient(135deg, rgba(238, 242, 255, .78), rgba(255, 255, 255, .82)); }
+.v3-zone-mtd-compare-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.v3-zone-mtd-compare-head b { color: #1e3a8a; font-size: 11px; }
+.v3-zone-mtd-compare-head span { color: #64748b; font-size: 10px; }
+.v3-zone-mtd-compare-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.v3-zone-mtd-compare-card { min-width: 0; padding: 8px 9px 7px; border: 1px solid rgba(148, 163, 184, .35); border-radius: 10px; background: rgba(255, 255, 255, .9); }
+.v3-zone-mtd-compare-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.v3-zone-mtd-compare-card-head strong { color: #0f172a; font-size: 11px; }
+.v3-zone-mtd-compare-card-head span { color: #64748b; font-size: 8px; white-space: nowrap; }
+.v3-zone-mtd-compare-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 7px; }
+.v3-zone-mtd-compare-metrics > div { min-width: 0; }
+.v3-zone-mtd-compare-metrics small, .v3-zone-mtd-compare-metrics span { display: block; color: #64748b; font-size: 8px; white-space: nowrap; }
+.v3-zone-mtd-compare-metrics b { display: block; margin: 2px 0; color: #172554; font-size: 15px; line-height: 1.1; white-space: nowrap; }
+.v3-zone-mtd-compare-metrics em { display: block; margin-top: 4px; font-size: 9px; font-style: normal; font-weight: 800; white-space: nowrap; }
+.v3-zone-mtd-compare-metrics em.up { color: #047857; }
+.v3-zone-mtd-compare-metrics em.down { color: #be123c; }
+.v3-zone-mtd-compare-metrics em.flat, .v3-zone-mtd-compare-metrics em.empty { color: #64748b; }
+.v3-zone-mtd-compare-range { margin-top: 7px; color: #334155; font-size: 8px; font-weight: 700; white-space: nowrap; }
+.v3-zone-mtd-compare-range i { margin: 0 3px; color: #94a3b8; font-style: normal; font-weight: 500; }
 .v3-zone-mtd-empty { padding: 17px; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; background: rgba(255, 255, 255, .75); font-size: 12px; }
 @media (max-width: 700px) { .v3-zone-mtd-head { flex-direction: column; gap: 7px; } .v3-zone-mtd-summary { grid-template-columns: 1fr; } .v3-zone-mtd-chart { height: 250px; } }
 @media (max-width: 980px) { .v3-zone-mtd-daily-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .v3-zone-mtd-daily-head { flex-direction: column; gap: 3px; } .v3-zone-mtd-daily-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 800px) { .v3-zone-mtd-compare-grid { grid-template-columns: 1fr; } .v3-zone-mtd-compare-card-head span { white-space: normal; } .v3-zone-mtd-compare-range { white-space: normal; } }
 
 /* Shared Productivity comparison visible on every page. */
 .v3-period-compare { margin: 10px 0 18px; padding: 14px 16px 16px; border: 1px solid #c7d2fe; border-radius: 16px; background: linear-gradient(135deg, #eef2ff 0%, #f8fbff 52%, #ecfeff 100%); box-shadow: 0 8px 24px rgba(30, 64, 175, .08); }
