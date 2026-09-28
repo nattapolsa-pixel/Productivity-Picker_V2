@@ -2820,6 +2820,15 @@ th.num {
 .v3-mtd-axis-note i { display: inline-block; width: 10px; height: 4px; border-radius: 4px; }
 .v3-mtd-axis-note i.pick { background: #6366f1; } .v3-mtd-axis-note i.prod { background: #f43f5e; } .v3-mtd-axis-note i.target { height: 2px; background: #10b981; }
 .v3-zone-mtd-note { margin-top: 8px !important; font-size: 10px !important; }
+.v3-zone-monthly { margin-top: 12px; padding: 14px 16px 12px; border: 1px solid #a5f3fc; border-radius: 17px; background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 58%, #eef2ff 100%); box-shadow: 0 8px 22px rgba(13, 148, 136, .06); }
+.v3-zone-monthly-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.v3-zone-monthly-kicker { display: block; color: #0f766e; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.v3-zone-monthly h3 { margin: 3px 0 2px; color: #164e63; font-size: 17px; }
+.v3-zone-monthly p { margin: 0; color: #64748b; font-size: 11px; }
+.v3-zone-monthly-date { padding: 6px 9px; border-radius: 999px; background: #ecfeff; color: #0f766e; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.v3-zone-monthly-chart { position: relative; height: 285px; margin-top: 12px; padding: 9px 7px 3px; border: 1px solid rgba(165, 243, 252, .75); border-radius: 13px; background: rgba(255, 255, 255, .76); }
+.v3-zone-monthly-fallback, .v3-zone-monthly-fallback svg { width: 100%; height: 100%; display: block; }
+.v3-zone-monthly-note { margin-top: 8px !important; font-size: 10px !important; }
 .v3-zone-mtd-daily { margin-top: 10px; padding: 10px 11px 11px; border: 1px solid rgba(203, 213, 225, .72); border-radius: 13px; background: rgba(248, 250, 252, .82); }
 .v3-zone-mtd-daily-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: #334155; }
 .v3-zone-mtd-daily-head b { font-size: 11px; color: #1e3a8a; }
@@ -2845,7 +2854,7 @@ th.num {
 .v3-zone-mtd-history span.down { color: #be123c; }
 .v3-zone-mtd-history span.flat, .v3-zone-mtd-history span.empty { color: #94a3b8; }
 .v3-zone-mtd-empty { padding: 17px; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; background: rgba(255, 255, 255, .75); font-size: 12px; }
-@media (max-width: 700px) { .v3-zone-mtd-head { flex-direction: column; gap: 7px; } .v3-zone-mtd-summary { grid-template-columns: 1fr; } .v3-zone-mtd-chart { height: 250px; } }
+@media (max-width: 700px) { .v3-zone-mtd-head, .v3-zone-monthly-head { flex-direction: column; gap: 7px; } .v3-zone-mtd-summary { grid-template-columns: 1fr; } .v3-zone-mtd-chart, .v3-zone-monthly-chart { height: 250px; } }
 @media (max-width: 980px) { .v3-zone-mtd-daily-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .v3-zone-mtd-daily-head { flex-direction: column; gap: 3px; } .v3-zone-mtd-daily-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
