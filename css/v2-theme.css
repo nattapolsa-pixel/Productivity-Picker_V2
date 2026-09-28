@@ -2818,8 +2818,20 @@ th.num {
 .v3-mtd-axis-note i { display: inline-block; width: 10px; height: 4px; border-radius: 4px; }
 .v3-mtd-axis-note i.pick { background: #6366f1; } .v3-mtd-axis-note i.prod { background: #f43f5e; } .v3-mtd-axis-note i.target { height: 2px; background: #10b981; }
 .v3-zone-mtd-note { margin-top: 8px !important; font-size: 10px !important; }
+.v3-zone-mtd-daily { margin-top: 10px; padding: 10px 11px 11px; border: 1px solid rgba(203, 213, 225, .72); border-radius: 13px; background: rgba(248, 250, 252, .82); }
+.v3-zone-mtd-daily-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; color: #334155; }
+.v3-zone-mtd-daily-head b { font-size: 11px; color: #1e3a8a; }
+.v3-zone-mtd-daily-head span { color: #64748b; font-size: 10px; }
+.v3-zone-mtd-daily-grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 6px; }
+.v3-zone-mtd-day { min-width: 0; padding: 6px 3px 5px; border: 1px solid #e2e8f0; border-radius: 9px; background: rgba(255, 255, 255, .92); text-align: center; box-shadow: inset 0 2px 0 rgba(99, 102, 241, .3); }
+.v3-zone-mtd-day.empty { background: rgba(241, 245, 249, .72); box-shadow: none; }
+.v3-zone-mtd-day small, .v3-zone-mtd-day span { display: block; color: #64748b; font-size: 9px; line-height: 1.2; white-space: nowrap; }
+.v3-zone-mtd-day strong { display: block; margin: 3px 0 2px; color: #3730a3; font-size: 12px; line-height: 1.1; white-space: nowrap; }
+.v3-zone-mtd-day.empty strong { color: #94a3b8; }
 .v3-zone-mtd-empty { padding: 17px; border: 1px dashed #cbd5e1; border-radius: 12px; color: #64748b; background: rgba(255, 255, 255, .75); font-size: 12px; }
 @media (max-width: 700px) { .v3-zone-mtd-head { flex-direction: column; gap: 7px; } .v3-zone-mtd-summary { grid-template-columns: 1fr; } .v3-zone-mtd-chart { height: 250px; } }
+@media (max-width: 980px) { .v3-zone-mtd-daily-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .v3-zone-mtd-daily-head { flex-direction: column; gap: 3px; } .v3-zone-mtd-daily-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Shared Productivity comparison visible on every page. */
 .v3-period-compare { margin: 10px 0 18px; padding: 14px 16px 16px; border: 1px solid #c7d2fe; border-radius: 16px; background: linear-gradient(135deg, #eef2ff 0%, #f8fbff 52%, #ecfeff 100%); box-shadow: 0 8px 24px rgba(30, 64, 175, .08); }
