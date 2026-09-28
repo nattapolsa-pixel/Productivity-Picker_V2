@@ -2754,3 +2754,44 @@ th.num {
 @media (max-width: 900px) {
   .guide-basis p { grid-template-columns: 1fr; gap: .1rem; }
 }
+
+/* Zone map: efficiency is the main signal; Total Pick remains secondary. */
+.v3-zone {
+  position: relative;
+  display: block;
+  min-height: 218px;
+  padding: 16px 17px 14px;
+  border: 1px solid #dbe4ef;
+  color: #0f172a;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(30, 64, 175, .06);
+  overflow: hidden;
+}
+.v3-zone:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(30, 64, 175, .14); }
+.v3-zone-good { background: linear-gradient(145deg, #f0fdf8 0%, #ffffff 74%); border-color: #a7f3d0; }
+.v3-zone-warn { background: linear-gradient(145deg, #fff5f5 0%, #ffffff 74%); border-color: #fecdd3; }
+.v3-zone-nodata { background: linear-gradient(145deg, #f8fafc 0%, #ffffff 74%); border-color: #cbd5e1; }
+.v3-zone-empty { grid-column: 1 / -1; padding: 24px; border: 1px dashed #cbd5e1; border-radius: 14px; color: #64748b; text-align: center; background: #f8fafc; }
+.v3-zone-unknown { grid-column: 1 / -1; min-height: 132px; background: linear-gradient(145deg, #fff7ed 0%, #fffbeb 74%); border-color: #fbbf24; }
+.v3-zone-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.v3-zone .v3-zone-head strong { margin: 0; font-size: 18px; color: #172554; }
+.v3-zone .v3-zone-status { display: inline-flex; align-items: center; min-height: 23px; margin: 0; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.v3-zone-good .v3-zone-status { color: #047857; background: #d1fae5; }
+.v3-zone-warn .v3-zone-status { color: #be123c; background: #ffe4e6; }
+.v3-zone-unknown .v3-zone-status { color: #b45309; background: #fef3c7; }
+.v3-zone > small { margin-top: 7px; color: #64748b; }
+.v3-zone-productivity { display: flex; align-items: baseline; gap: 6px; margin-top: 16px; }
+.v3-zone-productivity b { display: inline; margin: 0; font-size: 28px; line-height: 1; color: #0f172a; }
+.v3-zone-productivity span { display: inline; margin: 0; font-size: 11px; color: #64748b; }
+.v3-zone-target { display: flex; justify-content: space-between; align-items: center; margin-top: 13px; font-size: 11px; color: #64748b; }
+.v3-zone-target span { display: inline; margin: 0; }
+.v3-zone-target b { font-size: 13px; color: #334155; }
+.v3-zone-meter { position: relative; height: 7px; margin-top: 7px; border-radius: 99px; background: #e2e8f0; overflow: hidden; }
+.v3-zone-meter i { display: block; height: 100%; border-radius: inherit; }
+.v3-zone-good .v3-zone-meter i { background: linear-gradient(90deg, #34d399, #059669); }
+.v3-zone-warn .v3-zone-meter i { background: linear-gradient(90deg, #fb7185, #e11d48); }
+.v3-zone-unknown .v3-zone-meter i { background: #f59e0b; }
+.v3-zone-meter em { position: absolute; top: -3px; right: 0; width: 2px; height: 13px; border-radius: 2px; background: #475569; opacity: .7; }
+.v3-zone-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 13px; font-size: 11px; font-weight: 700; color: #475569; }
+.v3-zone-foot span { display: inline; margin: 0; font-size: inherit; }
+.v3-zone > small:last-child { margin-top: 8px; color: #64748b; }

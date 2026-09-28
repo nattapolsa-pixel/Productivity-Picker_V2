@@ -91,21 +91,58 @@
     {title:'สถานะ',value:r=>M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย',html:r=>`<span class="pill v3-pill ${M.number(r[31])>0?'good':'warn'}">${M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย'}</span>`}
   ];
   function recordsPage(){if(!$('v3Records'))return;const data=visible();$('v3Records').innerHTML=stats(data)+'<div id="v3RecordsTable"></div>';table($('v3RecordsTable'),'records',data,recordColumns,{valid:r=>M.number(r[31])>0});}
-  function zonePage(){if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;const data=visible();const buckets=new Map(zones.map(z=>[z.key,[]]));const unknown=[];
+  function zonePage(){
+    if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;
+    const data=visible(),buckets=new Map(zones.map(z=>[z.key,[]])),unknown=[];
     data.forEach(r=>{const z=zone(r);(z?buckets.get(z.key):unknown).push(r);});
-    const groups=zones.map(z=>({...z,stats:M.aggregate(buckets.get(z.key))}));if(unknown.length)groups.push({key:'unknown',label:'Not Found',group:'',stats:M.aggregate(unknown)});
-    const max=Math.max(1,...groups.map(z=>z.stats.total));
-    $('v3ZoneMap').innerHTML=groups.sort((a,b)=>b.stats.total-a.stats.total).map(z=>{const intensity=z.stats.total/max;const target=z.key==='unknown'?TARGETS.overall:getZoneTarget(z.key,z.group);return `<button class="tile v3-zone" data-zone="${esc(z.label)}" style="background:hsl(245 72% ${94-intensity*43}%);color:${intensity>.57?'white':'#303c63'}"><strong>${esc(z.label)}</strong><small>${esc(labels[z.group]||'ไม่พบโซน')}</small><span>${fmt(z.stats.total)} Total Pick</span><b>${fmt(z.stats.average,0)} <small style="display:inline">Pick/ชม.</small></b><small>Target ${fmt(target)} · ${fmt(z.stats.count)} แถวเข้าเฉลี่ย · ${fmt(z.stats.people)} คน</small></button>`;}).join('');
-    $('v3ZoneMap').querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
-      const selected=groups.find(z=>z.label===btn.dataset.zone);
+    const groups=zones.map(z=>({...z,stats:M.aggregate(buckets.get(z.key))}));
+    if(unknown.length)groups.push({key:'unknown',label:'ข้อมูล Zone ไม่ครบ',group:'',stats:M.aggregate(unknown)});
+    const shown=groups.filter(z=>z.key==='unknown'||z.stats.rows>0);
+    const realGroups=shown.filter(z=>z.key!=='unknown').sort((a,b)=>b.stats.total-a.stats.total);
+    const unknownGroup=shown.find(z=>z.key==='unknown');
+    const zoneTarget=z=>z.key==='unknown'?(Number(TARGETS.overall)||170):(Number(getZoneTarget(z.key,z.group))||170);
+    const zoneStatus=z=>{
+      if(z.key==='unknown')return {label:'ต้องตรวจข้อมูล',className:'unknown'};
+      if(z.stats.average===null)return {label:'ไม่มีแถวเข้าเฉลี่ย',className:'nodata'};
+      return z.stats.average>=zoneTarget(z)?{label:'ถึงเป้า',className:'good'}:{label:'ต่ำกว่าเป้า',className:'warn'};
+    };
+    const efficiency=z=>z.stats.average===null?null:z.stats.average/zoneTarget(z)*100;
+    const gap=z=>z.stats.average===null?null:z.stats.average-zoneTarget(z);
+    const zoneTile=z=>{
+      const t=zoneTarget(z),status=zoneStatus(z),eff=efficiency(z),g=gap(z),isUnknown=z.key==='unknown';
+      const meter=eff===null?0:Math.max(0,Math.min(100,eff));
+      return `<button class="tile v3-zone v3-zone-${status.className}" data-zone-key="${esc(z.key)}" type="button">
+        <div class="v3-zone-head"><strong>${esc(z.label)}</strong><span class="v3-zone-status">${esc(status.label)}</span></div>
+        <small>${esc(isUnknown?'ข้อมูล Position ว่างหรือไม่ตรงกับกฎ Zone':labels[z.group]||'ไม่พบประเภทงาน')}</small>
+        <div class="v3-zone-productivity"><b>${fmt(z.stats.average,0)}</b><span>Pick/ชม.</span></div>
+        <div class="v3-zone-target"><span>เป้า ${fmt(t)}</span><b>${eff===null?'—':fmt(eff,1)+'%'}</b></div>
+        <div class="v3-zone-meter"><i style="width:${meter}%"></i><em></em></div>
+        <div class="v3-zone-foot"><span>Total Pick ${fmt(z.stats.total)}</span><span>${fmt(z.stats.people)} คน</span></div>
+        <small>${isUnknown?'ยอดนี้ใช้ตรวจคุณภาพข้อมูล ไม่ใช่ Zone จริง':`Gap ${g===null?'—':(g>=0?'+':'')+fmt(g,0)} · ${fmt(z.stats.count)} แถวเข้าเฉลี่ย`}</small>
+      </button>`;
+    };
+    $('v3ZoneMap').innerHTML=(realGroups.length?realGroups.map(zoneTile).join(''):'<div class="v3-zone-empty">ยังไม่มีข้อมูล Zone จริงในช่วงที่เลือก</div>')+(unknownGroup?zoneTile(unknownGroup):'');
+    $('v3ZoneMap').querySelectorAll('button[data-zone-key]').forEach(btn=>btn.onclick=()=>{
+      const selected=shown.find(z=>z.key===btn.dataset.zoneKey);if(!selected)return;
       const detail=data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
       let panel=$('v3ZoneDetail');if(!panel){panel=document.createElement('div');panel.id='v3ZoneDetail';$('v3ZoneTable').after(panel);}
-      panel.innerHTML=`<h2>รายการของ Zone ${esc(selected.label)}</h2>`+stats(detail)+'<div id="v3ZoneDetailRows"></div>';
+      panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail)+'<div id="v3ZoneDetailRows"></div>';
       table($('v3ZoneDetailRows'),'zone-detail',detail,recordColumns,{valid:r=>M.number(r[31])>0});
       panel.scrollIntoView({behavior:'smooth',block:'start'});
     });
     $('v3ZoneDetail')?.remove();
-    table($('v3ZoneTable'),'zones',groups,[{title:'Zone',value:z=>z.label},{title:'ประเภทงาน',value:z=>labels[z.group]||'Not Found'},{title:'Total Pick',value:z=>z.stats.total,num:true},{title:'Productivity',value:z=>z.stats.average===null?'—':fmt(z.stats.average,0),num:true},{title:'แถวเข้าเฉลี่ย',value:z=>z.stats.count,num:true},{title:'ไม่เข้าเฉลี่ย',value:z=>z.stats.excluded,num:true},{title:'พนักงาน',value:z=>z.stats.people,num:true}]);
+    table($('v3ZoneTable'),'zones',shown,[
+      {title:'Zone',value:z=>z.label,html:z=>`<b>${esc(z.label)}</b><span class="sub">${esc(z.key==='unknown'?'ไม่ใช่ Zone จริง':labels[z.group]||'ไม่พบประเภทงาน')}</span>`},
+      {title:'สถานะ',value:z=>zoneStatus(z).label,html:z=>`<span class="v3-pill ${zoneStatus(z).className==='good'?'good':'warn'}">${esc(zoneStatus(z).label)}</span>`},
+      {title:'Total Pick',value:z=>z.stats.total,num:true,html:z=>fmt(z.stats.total)},
+      {title:'Productivity',value:z=>z.stats.average===null?'':z.stats.average,num:true,html:z=>fmt(z.stats.average,0)},
+      {title:'Target',value:z=>zoneTarget(z),num:true},
+      {title:'Gap',value:z=>gap(z)===null?'':gap(z),num:true,html:z=>gap(z)===null?'—':`<span class="${gap(z)>=0?'staff-up':'staff-down'}">${gap(z)>=0?'+':''}${fmt(gap(z),0)}</span>`},
+      {title:'% Efficiency',value:z=>efficiency(z)===null?'':efficiency(z),num:true,html:z=>efficiency(z)===null?'—':fmt(efficiency(z),1)+'%'},
+      {title:'แถวเข้าเฉลี่ย',value:z=>z.stats.count,num:true},
+      {title:'ไม่เข้าเฉลี่ย',value:z=>z.stats.excluded,num:true},
+      {title:'พนักงาน',value:z=>z.stats.people,num:true}
+    ]);
   }
   /* ══════════ หน้าไม่ถึงเป้า (แยกตามโซน) ══════════
      ลอกองค์ประกอบจาก V2 app.js renderBelowTargetPage()/drawBelowTargetChart()
