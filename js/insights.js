@@ -157,6 +157,42 @@
     {title:'สถานะ',value:r=>M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย',html:r=>`<span class="pill v3-pill ${M.number(r[31])>0?'good':'warn'}">${M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย'}</span>`}
   ];
   function recordsPage(){if(!$('v3Records'))return;const data=visible();$('v3Records').innerHTML=stats(data)+'<div id="v3RecordsTable"></div>';table($('v3RecordsTable'),'records',data,recordColumns,{valid:r=>M.number(r[31])>0});}
+  let zoneMtdChart=null;
+  function destroyZoneMtdChart(){if(zoneMtdChart){try{zoneMtdChart.destroy();}catch(e){}zoneMtdChart=null;}}
+  function zoneMonthLabel(month){if(!month)return '—';const d=new Date(`${month}-01T00:00:00Z`);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('th-TH',{month:'long',year:'numeric',timeZone:'UTC'});}
+  function zoneMtdModel(selectedKey,target){
+    const filtered=rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);});
+    const anchor=filtered.map(r=>M.date(r[2])).sort().pop()||'';
+    if(!anchor)return null;
+    const month=anchor.slice(0,7),start=`${month}-01`,monthRows=filtered.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor&&(zone(r)?.key||'unknown')===selectedKey;});
+    const days=[];for(let d=start;d<=anchor;d=addDays(d,1)){const dayRows=monthRows.filter(r=>M.date(r[2])===d),s=M.aggregate(dayRows);days.push({date:d,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people});}
+    const summary=M.aggregate(monthRows);
+    return {month,anchor,days,summary,target:Number(target)||170,daysWithData:days.filter(d=>d.rows>0).length};
+  }
+  function drawZoneMtdFallback(model){
+    const canvas=$('v3ZoneMtdChart');if(!canvas||!model||!model.summary.rows)return;
+    const wrap=canvas.parentElement,width=1000,height=285,left=56,right=44,top=25,bottom=34,plotWidth=width-left-right,plotHeight=height-top-bottom,n=model.days.length||1;
+    const maxPick=Math.max(1,...model.days.map(d=>d.total))*1.12,maxProd=Math.max(model.target,...model.days.map(d=>d.average||0))*1.15;
+    const x=i=>left+(i+.5)*plotWidth/n,yp=v=>top+plotHeight-(v/maxPick)*plotHeight,yv=v=>top+plotHeight-(v/maxProd)*plotHeight;
+    const grid=[0,.25,.5,.75,1].map(r=>{const y=top+plotHeight-r*plotHeight;return `<line x1="${left}" x2="${width-right}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/><text x="${left-8}" y="${(y+4).toFixed(1)}" text-anchor="end">${fmt(maxPick*r)}</text>`;}).join('');
+    const barWidth=Math.max(4,Math.min(24,plotWidth/n*.58));
+    const bars=model.days.map((d,i)=>{const y=yp(d.total),h=Math.max(0,top+plotHeight-y);return `<rect x="${(x(i)-barWidth/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${h.toFixed(1)}" rx="4"/>`;}).join('');
+    const valid=model.days.map((d,i)=>d.average===null?null:`${x(i).toFixed(1)},${yv(d.average).toFixed(1)}`).filter(Boolean);
+    const path=valid.length>1?`<polyline points="${valid.join(' ')}"/>`:'';
+    const points=valid.map(point=>{const [cx,cy]=point.split(',');return `<circle cx="${cx}" cy="${cy}" r="3"/>`;}).join('');
+    const targetY=yv(model.target),labels=model.days.map((d,i)=>i%Math.max(1,Math.ceil(n/13))===0?`<text x="${x(i).toFixed(1)}" y="${height-10}" text-anchor="middle">${Number(d.date.slice(8))}/${Number(d.date.slice(5,7))}</text>`:'').join('');
+    wrap.innerHTML=`<div class="v3-zone-mtd-fallback" role="img" aria-label="กราฟ Month to date ของ Zone"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><g class="v3-mtd-grid">${grid}</g><line class="v3-mtd-target" x1="${left}" x2="${width-right}" y1="${targetY.toFixed(1)}" y2="${targetY.toFixed(1)}"/><g class="v3-mtd-bars">${bars}</g><g class="v3-mtd-productivity">${path}${points}</g><g class="v3-mtd-labels">${labels}</g></svg><div class="v3-mtd-axis-note"><span><i class="pick"></i>Total Pick</span><span><i class="prod"></i>Productivity</span><span><i class="target"></i>Target ${fmt(model.target)}</span></div></div>`;
+  }
+  function drawZoneMtdChart(model){
+    const canvas=$('v3ZoneMtdChart');if(!canvas||!model||!model.summary.rows)return;
+    if(typeof Chart==='undefined'){drawZoneMtdFallback(model);return;}
+    destroyZoneMtdChart();
+    zoneMtdChart=new Chart(canvas,{type:'bar',data:{labels:model.days.map(d=>`${Number(d.date.slice(8))}/${Number(d.date.slice(5,7))}`),datasets:[
+      {type:'bar',label:'Total Pick',data:model.days.map(d=>d.total),yAxisID:'y',backgroundColor:'rgba(99,102,241,.58)',borderColor:'#6366f1',borderWidth:1,borderRadius:5,maxBarThickness:24},
+      {type:'line',label:'Productivity',data:model.days.map(d=>d.average===null?null:d.average),yAxisID:'y1',borderColor:'#f43f5e',backgroundColor:'#f43f5e',borderWidth:2.5,tension:.28,spanGaps:false,pointRadius:3,pointHoverRadius:5},
+      {type:'line',label:'Target',data:model.days.map(()=>model.target),yAxisID:'y1',borderColor:'#10b981',borderDash:[6,5],borderWidth:1.5,pointRadius:0,pointHoverRadius:0}
+    ]},options:{responsive:true,maintainAspectRatio:false,animation:{duration:260},interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',align:'start',labels:{usePointStyle:true,boxWidth:8,font:{family:"Prompt",size:11}}},tooltip:{callbacks:{title:items=>items.length?`วันที่ ${dmy(model.days[items[0].dataIndex].date)}`:'',label:item=>item.dataset.label==='Total Pick'?`Total Pick: ${fmt(item.parsed.y)} ชิ้น`:`${item.dataset.label}: ${fmt(item.parsed.y,0)} หยิบ/ชม.`}}},scales:{x:{grid:{display:false},ticks:{font:{family:"Prompt",size:10},maxRotation:0}},y:{beginAtZero:true,title:{display:true,text:'Total Pick',font:{family:"Prompt",size:10}},ticks:{callback:v=>fmt(v),font:{family:"Prompt",size:10}}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Productivity',font:{family:"Prompt",size:10}},ticks:{callback:v=>fmt(v),font:{family:"Prompt",size:10}}}}}});
+  }
   function zonePage(){
     if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;
     const data=visible(),buckets=new Map(zones.map(z=>[z.key,[]])),unknown=[];
@@ -192,10 +228,15 @@
       const selected=shown.find(z=>z.key===btn.dataset.zoneKey);if(!selected)return;
       const detail=data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
       let panel=$('v3ZoneDetail');if(!panel){panel=document.createElement('div');panel.id='v3ZoneDetail';$('v3ZoneTable').after(panel);}
-      panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail)+'<div id="v3ZoneDetailRows"></div>';
+      destroyZoneMtdChart();
+      const mtd=zoneMtdModel(selected.key,zoneTarget(selected));
+      const mtdBlock=mtd&&!mtd.summary.rows?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีข้อมูลสะสมของ Zone นี้ในเดือน ${esc(zoneMonthLabel(mtd.month))}</div></section>`:mtd?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-head"><div><span class="v3-zone-mtd-kicker">MONTH TO DATE</span><h3>ยอดสะสม ${esc(zoneMonthLabel(mtd.month))}</h3><p>ตั้งแต่ ${esc(dmy(`${mtd.month}-01`))} ถึง ${esc(dmy(mtd.anchor))} · กรองตามระบบและกะด้านบน</p></div><span class="v3-zone-mtd-date">${fmt(mtd.daysWithData)} วันมีข้อมูล</span></div><div class="v3-zone-mtd-summary"><div><small>Total Pick MTD</small><strong>${fmt(mtd.summary.total)}</strong><span>ชิ้น</span></div><div><small>Productivity เฉลี่ย MTD</small><strong>${fmt(mtd.summary.average,0)}</strong><span>หยิบ/ชม. · เป้า ${fmt(mtd.target)}</span></div><div><small>พนักงานใน Zone</small><strong>${fmt(mtd.summary.people)}</strong><span>${fmt(mtd.summary.count)} แถวเข้าเฉลี่ย</span></div></div><div class="v3-zone-mtd-chart"><canvas id="v3ZoneMtdChart" aria-label="กราฟ Month to date ของ Zone"></canvas></div><p class="v3-zone-mtd-note">แท่ง = Total Pick รายวัน · เส้นแดง = Productivity · เส้นเขียว = Target · วันที่ไม่มีข้อมูลจะแสดงเป็น 0/ว่างตามชนิดข้อมูล</p></section>`:'<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีวันที่ในข้อมูลผลงานสำหรับคำนวณ MTD</div></section>';
+      panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail)+mtdBlock+'<div id="v3ZoneDetailRows"></div>';
       table($('v3ZoneDetailRows'),'zone-detail',detail,recordColumns,{valid:r=>M.number(r[31])>0});
+      drawZoneMtdChart(mtd);
       panel.scrollIntoView({behavior:'smooth',block:'start'});
     });
+    destroyZoneMtdChart();
     $('v3ZoneDetail')?.remove();
     table($('v3ZoneTable'),'zones',shown,[
       {title:'Zone',value:z=>z.label,html:z=>`<b>${esc(z.label)}</b><span class="sub">${esc(z.key==='unknown'?'ไม่ใช่ Zone จริง':labels[z.group]||'ไม่พบประเภทงาน')}</span>`},
@@ -581,7 +622,7 @@
   document.addEventListener('v3-render',e=>{payload=e.detail;render();});
   // หน่วงเล็กน้อยให้ v2-shell.js ใส่คลาส active ก่อน ไม่งั้นกราฟถูกวาดตอน .tab-panel ยัง display:none
   // แล้วได้ canvas สูง 0 ซึ่ง Chart.js ไม่วัดใหม่ให้เอง (insights.js ผูก listener ก่อน v2-shell.js ตามลำดับ script)
-  document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{active=btn.dataset.tab;setTimeout(render,60);window.scrollTo({top:0,behavior:'instant'});}));
+  document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{destroyZoneMtdChart();active=btn.dataset.tab;setTimeout(render,60);window.scrollTo({top:0,behavior:'instant'});}));
   async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value;$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift});$('v3FilterStatus').textContent=system==='BPS'?'BPS เริ่มนับ 08/06/2026 ':'กรองแล้ว • ทุกหน้าใช้ข้อมูลชุดเดียวกัน';}catch(e){$('v3FilterStatus').textContent=e.message;}}
   // เปิด table(), cards() และตัวช่วยจัดรูปแบบให้ v2-staff.js ใช้ร่วมกัน ไม่ต้องเขียนตารางซ้ำ
   root_V3Shared();
