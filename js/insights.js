@@ -49,7 +49,10 @@
     put('overviewTargetCompare','<span class="v3-kpi-period-static">เกณฑ์ Target เดียวกันทุกช่วง</span>');
   }
   function renderPeriodComparison(){
-    const host=$('v3PeriodCompare');if(!host||!rows.length)return;
+    const host=$('v3PeriodCompare');if(!host)return;
+    if(active!=='overview'){host.hidden=true;host.innerHTML='';return;}
+    if(!rows.length){host.hidden=true;return;}
+    host.hidden=false;
     const filtered=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters));
     const start=$('startDate')?.value||'',end=$('endDate')?.value||'';
     const selected=rangeRows(filtered,start,end);
