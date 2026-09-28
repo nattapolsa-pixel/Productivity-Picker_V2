@@ -48,16 +48,17 @@
       const current=M.aggregate(rangeRows(filtered,p.currentStart,p.currentEnd));
       const previous=M.aggregate(rangeRows(filtered,p.previousStart,p.previousEnd));
       const change=comparisonChange(current,previous);
-      return `<article class="v3-period-card">
-        <div class="v3-period-card-head"><strong>${esc(p.title)}</strong><span>${esc(p.context)}</span></div>
-        <div class="v3-period-values"><div><small>ช่วงล่าสุด</small><b>${fmt(current.average,0)}</b><em>Pick/ชม.</em></div><div class="v3-period-vs">vs</div><div><small>ช่วงก่อนหน้า</small><b>${fmt(previous.average,0)}</b><em>Pick/ชม.</em></div></div>
+      const code=p.key==='day'?'1D':p.key==='week'?'7D':'30D';
+      return `<article class="v3-period-card v3-period-card-${change.className}">
+        <div class="v3-period-card-head"><div class="v3-period-title"><span class="v3-period-badge">${code}</span><div><strong>${esc(p.title)}</strong><small>${esc(p.context)}</small></div></div><span class="v3-period-context">Productivity</span></div>
+        <div class="v3-period-values"><div class="v3-period-current"><small>ช่วงล่าสุด</small><b>${fmt(current.average,0)}</b><em>Pick/ชม.</em></div><div class="v3-period-vs">vs</div><div class="v3-period-previous"><small>ช่วงก่อนหน้า</small><b>${fmt(previous.average,0)}</b><em>Pick/ชม.</em></div></div>
         <div class="v3-period-change ${change.className}">${esc(change.label)}</div>
         <div class="v3-period-range">${rangeLabel(p.currentStart,p.currentEnd)} <span>เทียบกับ</span> ${rangeLabel(p.previousStart,p.previousEnd)}</div>
         <div class="v3-period-meta">นับ AF &gt; 0: ${fmt(current.count)} / ${fmt(previous.count)} แถว · Total Pick: ${fmt(current.total)} / ${fmt(previous.total)}</div>
       </article>`;
     }).join('');
     const selectedText=start||end?`${dmy(start||anchor)}${start&&end?'–'+dmy(end):''}`:'ทั้งหมด';
-    host.innerHTML=`<div class="v3-period-compare-head"><div><strong>เปรียบเทียบ Productivity</strong><span>ใช้ตัวกรองระบบและกะเดียวกับทุกหน้า · ล่าสุดอ้างอิงวันที่ ${esc(dmy(anchor))}</span></div><small>ช่วงที่เลือก: ${esc(selectedText)}</small></div><div class="v3-period-compare-grid">${cardsHtml}</div>`;
+    host.innerHTML=`<div class="v3-period-compare-head"><div class="v3-period-heading"><span class="v3-period-heading-icon">↗</span><div><strong>เปรียบเทียบ Productivity</strong><span>ใช้ตัวกรองระบบและกะเดียวกันทุกหน้า · ล่าสุดอ้างอิงวันที่ ${esc(dmy(anchor))}</span></div></div><div class="v3-period-toolbar"><span class="v3-period-legend up">↑ ดีขึ้น</span><span class="v3-period-legend down">↓ ลดลง</span><small>ช่วงที่เลือก: ${esc(selectedText)}</small></div></div><div class="v3-period-compare-grid">${cardsHtml}</div>`;
   }
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   /* กดหัวคอลัมน์เพื่อเรียง ครั้งแรกมาก -> น้อย ครั้งที่สองน้อย -> มาก ครั้งที่สามกลับลำดับตั้งต้น

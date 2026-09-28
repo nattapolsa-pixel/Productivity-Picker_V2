@@ -2825,3 +2825,48 @@ th.num {
   .v3-period-compare-head > small { white-space: normal; }
   .v3-period-compare-grid { grid-template-columns: 1fr; }
 }
+
+/* Comparison polish: strong hierarchy, status tint, and compact operational reading. */
+.v3-period-compare { position: relative; overflow: hidden; padding: 16px 17px 17px; border-color: #b8c7ff; background: radial-gradient(circle at 100% 0%, rgba(129, 140, 248, .18), transparent 34%), linear-gradient(135deg, #f4f6ff 0%, #ffffff 52%, #edfcff 100%); box-shadow: 0 12px 30px rgba(37, 55, 125, .11); }
+.v3-period-compare::before { content: ''; position: absolute; inset: 0 0 auto; height: 3px; background: linear-gradient(90deg, #4f46e5, #06b6d4, #10b981); }
+.v3-period-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.v3-period-heading-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 11px; color: #fff; background: linear-gradient(135deg, #4f46e5, #0891b2); box-shadow: 0 5px 12px rgba(79, 70, 229, .22); font-size: 20px; font-weight: 900; }
+.v3-period-heading strong { display: block; color: #172554; font-size: 15px; letter-spacing: -.01em; }
+.v3-period-heading span:not(.v3-period-heading-icon) { display: block; margin-top: 3px; color: #64748b; font-size: 11px; }
+.v3-period-toolbar { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.v3-period-legend { display: inline-flex; align-items: center; padding: 4px 7px; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.v3-period-legend.up { color: #047857; background: #d1fae5; }
+.v3-period-legend.down { color: #be123c; background: #ffe4e6; }
+.v3-period-toolbar small { display: inline-flex; align-items: center; min-height: 25px; padding: 4px 8px; border: 1px solid #dbe4ef; border-radius: 8px; color: #475569; background: rgba(255, 255, 255, .72); font-size: 10px; font-weight: 700; }
+.v3-period-card { position: relative; overflow: hidden; padding: 13px 14px 12px; border-color: #dbe4ef; border-radius: 14px; box-shadow: 0 5px 14px rgba(15, 23, 42, .05); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.v3-period-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15, 23, 42, .1); }
+.v3-period-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: #94a3b8; }
+.v3-period-card-up { border-color: #a7f3d0; background: linear-gradient(145deg, #f0fdf8 0%, #ffffff 72%); }
+.v3-period-card-up::before { background: linear-gradient(#10b981, #34d399); }
+.v3-period-card-down { border-color: #fecdd3; background: linear-gradient(145deg, #fff5f6 0%, #ffffff 72%); }
+.v3-period-card-down::before { background: linear-gradient(#e11d48, #fb7185); }
+.v3-period-card-flat, .v3-period-card-empty { background: linear-gradient(145deg, #f8fafc 0%, #ffffff 72%); }
+.v3-period-card-head { align-items: flex-start; }
+.v3-period-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.v3-period-badge { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 25px; flex: 0 0 34px; border-radius: 8px; color: #3730a3; background: #e0e7ff; font-size: 10px; font-weight: 900; letter-spacing: .03em; }
+.v3-period-title strong { display: block; color: #0f172a; font-size: 13px; line-height: 1.25; }
+.v3-period-title small { display: block; margin-top: 3px; color: #64748b; font-size: 10px; white-space: nowrap; }
+.v3-period-card-head .v3-period-context { margin: 0; padding: 4px 7px; border: 1px solid #e2e8f0; border-radius: 999px; color: #64748b; background: rgba(255, 255, 255, .62); font-size: 9px; font-weight: 800; white-space: nowrap; }
+.v3-period-values { margin-top: 14px; }
+.v3-period-values > div:not(.v3-period-vs) { padding: 8px 9px; border-radius: 10px; background: rgba(255, 255, 255, .6); }
+.v3-period-values .v3-period-current { border: 1px solid rgba(16, 185, 129, .14); }
+.v3-period-values .v3-period-previous { border: 1px solid rgba(148, 163, 184, .16); }
+.v3-period-values small { font-weight: 700; }
+.v3-period-values b { font-size: 25px; letter-spacing: -.03em; }
+.v3-period-values em { margin-top: 3px; font-size: 9px; }
+.v3-period-vs { align-self: center; padding: 0; color: #94a3b8; font-size: 9px; text-transform: uppercase; }
+.v3-period-change { display: inline-flex; align-items: center; min-height: 26px; margin-top: 10px; padding: 4px 8px; border-radius: 8px; font-size: 11px; }
+.v3-period-change.up { color: #047857; background: #d1fae5; }
+.v3-period-change.down { color: #be123c; background: #ffe4e6; }
+.v3-period-change.flat, .v3-period-change.empty { color: #64748b; background: #f1f5f9; }
+.v3-period-range { margin-top: 9px; font-size: 10px; }
+.v3-period-meta { margin-top: 4px; font-size: 9px; }
+@media (max-width: 900px) {
+  .v3-period-toolbar { justify-content: flex-start; }
+  .v3-period-title small { white-space: normal; }
+}
