@@ -28,6 +28,26 @@
     const sign=delta>0?'+':'';
     return {className:delta>0?'up':'down',label:`${delta>0?'↑':'↓'} ${sign}${fmt(delta,1)} Pick/ชม. · ${sign}${fmt(pct,1)}%`};
   }
+  function periodStatsFor(list,periods){return periods.map(p=>({...p,current:M.aggregate(rangeRows(list,p.currentStart,p.currentEnd)),previous:M.aggregate(rangeRows(list,p.previousStart,p.previousEnd))}));}
+  function miniComparisonHtml(stats,key,label){
+    const items=stats.map(item=>{
+      const current=item.current[key],previous=item.previous[key],code=item.key==='day'?'1D':item.key==='week'?'7D':'30D';
+      if(current===null||current===undefined||previous===null||previous===undefined||!Number.isFinite(Number(previous))||Number(previous)===0)return `<span class="v3-kpi-period-item empty"><b>${code}</b> —</span>`;
+      const delta=Number(current)-Number(previous),pct=delta/Number(previous)*100;
+      if(Math.abs(delta)<0.005)return `<span class="v3-kpi-period-item flat"><b>${code}</b> — 0.0%</span>`;
+      const sign=delta>0?'+':'';
+      return `<span class="v3-kpi-period-item ${delta>0?'up':'down'}"><b>${code}</b> ${delta>0?'↑':'↓'} ${sign}${fmt(pct,1)}%</span>`;
+    }).join('');
+    return `<div class="v3-kpi-period-label">${esc(label)}</div><div class="v3-kpi-period-items">${items}</div>`;
+  }
+  function renderOverviewPeriodCards(periodStats,bpsStats){
+    const put=(id,html)=>{const el=$(id);if(el)el.innerHTML=html;};
+    put('overviewTotalPickCompare',miniComparisonHtml(periodStats,'total','เทียบยอดจากช่วงก่อนหน้า'));
+    put('overviewProductivityCompare',miniComparisonHtml(periodStats,'average','เทียบ Productivity จากช่วงก่อนหน้า'));
+    put('overviewPeopleCompare',miniComparisonHtml(periodStats,'people','เทียบจำนวนคนจากช่วงก่อนหน้า'));
+    put('overviewPickToSortCompare',miniComparisonHtml(bpsStats,'average','เทียบ Productivity BPS จากช่วงก่อนหน้า'));
+    put('overviewTargetCompare','<span class="v3-kpi-period-static">เกณฑ์ Target เดียวกันทุกช่วง</span>');
+  }
   function renderPeriodComparison(){
     const host=$('v3PeriodCompare');if(!host||!rows.length)return;
     const filtered=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters));
@@ -44,10 +64,10 @@
       {key:'week',title:'ย้อนหลัง 1 อาทิตย์',currentStart:addDays(anchor,-6),currentEnd:anchor,previousStart:addDays(anchor,-13),previousEnd:addDays(anchor,-7),context:'เทียบ 7 วันก่อนหน้า'},
       {key:'month',title:'ย้อนหลัง 1 เดือน',currentStart:addDays(anchor,-29),currentEnd:anchor,previousStart:addDays(anchor,-59),previousEnd:addDays(anchor,-30),context:'เทียบ 30 วันก่อนหน้า'}
     ];
-    const cardsHtml=periods.map(p=>{
-      const current=M.aggregate(rangeRows(filtered,p.currentStart,p.currentEnd));
-      const previous=M.aggregate(rangeRows(filtered,p.previousStart,p.previousEnd));
-      const change=comparisonChange(current,previous);
+    const periodStats=periodStatsFor(filtered,periods),bpsStats=periodStatsFor(filtered.filter(r=>M.system(r)==='BPS'),periods);
+    renderOverviewPeriodCards(periodStats,bpsStats);
+    const cardsHtml=periodStats.map(p=>{
+      const current=p.current,previous=p.previous,change=comparisonChange(current,previous);
       const code=p.key==='day'?'1D':p.key==='week'?'7D':'30D';
       return `<article class="v3-period-card v3-period-card-${change.className}">
         <div class="v3-period-card-head"><div class="v3-period-title"><span class="v3-period-badge">${code}</span><div><strong>${esc(p.title)}</strong><small>${esc(p.context)}</small></div></div><span class="v3-period-context">Productivity</span></div>

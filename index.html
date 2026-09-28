@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="css/styles.css?v=ajak-half-rack-v72-20260916">
   <link rel="stylesheet" href="css/v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="css/v2-theme.css?v=20260928-period-compare-2">
+  <link rel="stylesheet" href="css/v2-theme.css?v=20260928-period-compare-3">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -288,6 +288,7 @@
             <div class="lbl">ยอดหยิบรวม (Total Pick) 📋</div>
             <div class="val"><span id="overviewTotalPick">—</span><span class="unit">ชิ้น</span></div>
             <div class="kpi-note" id="overviewTotalPickNote">—</div>
+            <div class="v3-kpi-period-mini" id="overviewTotalPickCompare"></div>
           </div>
 
           <div class="kpi" id="overallCard">
@@ -299,13 +300,15 @@
             <div class="mini-progress-bar progress-track">
               <div id="overallProgress" class="mini-progress-fill progress-fill"></div>
             </div>
+            <div class="v3-kpi-period-mini" id="overviewProductivityCompare"></div>
           </div>
 
-          <div class="kpi">
+          <div class="kpi" id="overviewTargetCard">
             <div class="bar" style="background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div>
             <div class="lbl">เป้าหมาย KPI (Target)</div>
             <div class="val"><span id="kpiTarget">170</span><span class="unit">หยิบ/ชม.</span></div>
             <div class="kpi-note">ตั้งค่าได้จากปุ่ม ⚙️ ตั้งค่า Target บนแถบตัวกรอง</div>
+            <div class="v3-kpi-period-mini" id="overviewTargetCompare"></div>
           </div>
 
           <div class="kpi">
@@ -313,6 +316,7 @@
             <div class="lbl">พนักงานที่มีผลงาน (User ID ไม่ซ้ำ) 👥</div>
             <div class="val"><span id="kpiPeople">—</span><span class="unit">คน</span></div>
             <div class="kpi-note" id="kpiPeopleNote">—</div>
+            <div class="v3-kpi-period-mini" id="overviewPeopleCompare"></div>
           </div>
 
           <div class="kpi" id="overviewPickToSortCard">
@@ -320,6 +324,7 @@
             <div class="lbl">Pick to Sort (BPS) เฉลี่ย</div>
             <div class="val"><span id="overviewPickToSortAverage">—</span><span class="unit">หยิบ/ชม.</span></div>
             <div class="kpi-note" id="overviewPickToSortNote">—</div>
+            <div class="v3-kpi-period-mini" id="overviewPickToSortCompare"></div>
           </div>
         </div>
 
@@ -890,7 +895,7 @@
   <script src="js/data-client.js?v=20260916-1"></script>
   <script src="js/metrics.js?v=20260917-1"></script>
   <script src="js/script.js?v=20260922-manual-refresh-1"></script>
-  <script src="js/insights.js?v=20260928-period-compare-2"></script>
+  <script src="js/insights.js?v=20260928-period-compare-3"></script>
   <script src="js/v2-shell.js?v=20260921-guide-1"></script>
   <script src="js/v2-views.js?v=20260921-round0-1"></script>
   <script src="js/v2-roster-write.js?v=20260918-2"></script>

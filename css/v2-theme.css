@@ -2870,3 +2870,14 @@ th.num {
   .v3-period-toolbar { justify-content: flex-start; }
   .v3-period-title small { white-space: normal; }
 }
+
+/* Compact comparison chips inside the main KPI cards. */
+.v3-kpi-period-mini { margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(148, 163, 184, .2); }
+.v3-kpi-period-label { margin-bottom: 4px; color: #64748b; font-size: 9px; line-height: 1.2; }
+.v3-kpi-period-items { display: flex; flex-wrap: wrap; gap: 4px; }
+.v3-kpi-period-item, .v3-kpi-period-static { display: inline-flex; align-items: center; min-height: 19px; padding: 2px 5px; border-radius: 6px; font-size: 9px; font-weight: 800; line-height: 1; }
+.v3-kpi-period-item b { margin-right: 2px; font-size: 8px; letter-spacing: .02em; }
+.v3-kpi-period-item.up { color: #047857; background: #d1fae5; }
+.v3-kpi-period-item.down { color: #be123c; background: #ffe4e6; }
+.v3-kpi-period-item.flat, .v3-kpi-period-item.empty { color: #64748b; background: #f1f5f9; }
+.v3-kpi-period-static { color: #475569; background: #f1f5f9; }
