@@ -3,6 +3,7 @@
   const $=id=>document.getElementById(id), M=V3Metrics;
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=(v,d=0)=>v===null||v===undefined?'—':Number(v).toLocaleString('th-TH',{maximumFractionDigits:d,minimumFractionDigits:d});
+  const dmy=iso=>/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))?String(iso).split('-').reverse().join('/'):'—';
   let source=null,rows=[],roster=new Map(),active='overview',payload=null,tableState={},selectedStaff='';
   const labels={fullRack:'Full Rack',halfRack:'Half Rack',ea:'Micro Rack',pickToSort:'Pick to Sort',mezzanine:'Mezzanine'};
   const zones=ZONE_GROUPS.flatMap(g=>g.zones.map(z=>({...z,group:g.key})));
@@ -126,6 +127,7 @@
 
   /* จับกลุ่มรายคน แล้วหาโซนหลักของแต่ละคนจากจำนวนแถวที่เข้าเฉลี่ย */
   function buildBelowTarget(data){
+    const startMap=M.startDateMap(source.sheets),seenMap=M.firstSeenMap(rows);
     const people=new Map();
     data.forEach(r=>{
       const id=M.userId(r); if(!id)return;
@@ -151,7 +153,7 @@
       const z=zoneByKey.get(main[0])||zoneByKey.get('unknown');
       const average=p.sum/p.count;
       const target=zoneTargetOf(z);
-      list.push({...p,zone:z,zoneRowCount:main[1],average,target,
+      list.push({...p,startDate:M.tenureStart(p.id,startMap,seenMap),zone:z,zoneRowCount:main[1],average,target,
         gap:average-target,eff:target>0?average/target*100:0,
         below:average<target,zoneCount:p.zoneRows.size});
     });
@@ -182,7 +184,7 @@
     closeBelowPeoplePopup();
     const sortPeople=(a,b)=>a.gap-b.gap||a.name.localeCompare(b.name,'th');
     const below=group.below.slice().sort(sortPeople), pass=group.all.filter(x=>!x.below).sort((a,b)=>b.average-a.average||a.name.localeCompare(b.name,'th'));
-    const personRow=(x,failed)=>`<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)}</b><small>${esc(x.id)} · ${fmt(x.count)} แถว · ${fmt(x.total)} Total Pick</small></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;
+    const personRow=(x,failed)=>`<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)}</b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว</small></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;
     const host=document.createElement('div');host.id='v3BelowPeoplePopup';host.className='v3-popup-backdrop';host.innerHTML=`<div class="v3-people-popup" role="dialog" aria-modal="true"><button class="v3-popup-close" type="button" aria-label="ปิด">×</button><div class="v3-popup-kicker">ZONE PERFORMANCE</div><h2>${esc(group.zone.label)}</h2><p class="v3-popup-sub">${esc(labels[group.zone.group]||'ไม่พบประเภทงาน')} · Target ${fmt(group.target)} หยิบ/ชม. · ${fmt(group.all.length)} คน</p><div class="v3-popup-summary"><span class="bad"><b>${fmt(below.length)}</b> ไม่ผ่าน</span><span class="good"><b>${fmt(pass.length)}</b> ผ่าน</span></div><section class="v3-people-section fail"><h3>ไม่ผ่าน Target <em>${fmt(below.length)} คน</em></h3>${below.length?below.map(x=>personRow(x,true)).join(''):'<div class="v3-empty">ไม่มีคนไม่ผ่านใน Zone นี้</div>'}</section><section class="v3-people-section pass"><h3>ผ่าน Target <em>${fmt(pass.length)} คน</em></h3>${pass.length?pass.map(x=>personRow(x,false)).join(''):'<div class="v3-empty">ยังไม่มีคนผ่านใน Zone นี้</div>'}</section></div>`;
     document.body.appendChild(host);
     host.addEventListener('click',(e)=>{if(e.target===host||e.target.closest('.v3-popup-close'))closeBelowPeoplePopup();});
@@ -291,6 +293,7 @@
       {title:'#',value:x=>ranked.indexOf(x)+1,num:true,html:x=>`<span class="rank">${ranked.indexOf(x)+1}</span>`},
       {title:'รหัสพนักงาน',value:x=>x.id},
       {title:'ชื่อ',value:x=>x.name,html:x=>esc(x.name)+(x.zoneCount>1?`<span class="sub">ทำ ${fmt(x.zoneCount)} โซน</span>`:'')},
+      {title:'วันเริ่มงาน',value:x=>x.startDate||'',html:x=>dmy(x.startDate)},
       {title:'โซนหลัก',value:x=>x.zone.label,html:x=>`${esc(x.zone.label)}<span class="sub">${fmt(x.zoneRowCount)} แถวในโซนนี้</span>`},
       {title:'Productivity',value:x=>x.average,num:true,html:x=>`<b style="color:#b91c1c">${fmt(x.average,0)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`},
       {title:'Target โซน',value:x=>x.target,num:true},
@@ -301,13 +304,13 @@
     ]);
   }
 
-  function staffPage(){if(!$('v3Staff'))return;const data=visible(),activity=new Map();data.forEach(r=>{const id=String(r[3]||'Not Found').trim();if(!activity.has(id))activity.set(id,[]);activity.get(id).push(r);});
-    const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=M.aggregate(work);return {id,master,work,s,name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
+  function staffPage(){if(!$('v3Staff'))return;const data=visible(),activity=new Map(),startMap=M.startDateMap(source.sheets),seenMap=M.firstSeenMap(rows);data.forEach(r=>{const id=String(r[3]||'Not Found').trim();if(!activity.has(id))activity.set(id,[]);activity.get(id).push(r);});
+    const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=M.aggregate(work);return {id,master,work,s,startDate:M.tenureStart(id,startMap,seenMap),name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
     if(V3Data.filters.shift!=='ALL')items=items.filter(i=>i.work.length||i.shift===V3Data.filters.shift);
     if(V3Data.filters.system!=='ALL')items=items.filter(i=>i.work.length||(i.master&&M.system({36:i.master[10]})===V3Data.filters.system));
     items.sort((a,b)=>b.s.total-a.s.total);
     $('v3Staff').innerHTML=cards([['พนักงานในมุมมอง',fmt(items.length),'ทะเบียน + คนที่พบในผลงาน'],['มีผลงานในช่วงนี้',fmt(items.filter(i=>i.work.length).length),'นับ User ID ไม่ซ้ำ'],['ไม่มีผลงานช่วงนี้',fmt(items.filter(i=>!i.work.length).length),'ไม่ใช่ข้อสรุปว่าขาดงาน'],['ไม่มีทะเบียน',fmt(items.filter(i=>!i.master).length),'คงยอดย้อนหลังไว้']])+'<div id="v3StaffTable"></div><div id="v3StaffDetail"></div>';
-    table($('v3StaffTable'),'staff',items,[{title:'User ID',value:i=>i.id,html:i=>`<button data-staff="${esc(i.id)}">${esc(i.id)}</button>`},{title:'ชื่อ',value:i=>i.name},{title:'สังกัดปัจจุบัน',value:i=>i.aff},{title:'กะปัจจุบัน',value:i=>i.shift},{title:'สถานะทะเบียน',value:i=>i.status},{title:'Zone ปัจจุบัน',value:i=>i.master?.[9]||'Not Found'},{title:'Total Pick',value:i=>i.s.total,num:true},{title:'Productivity',value:i=>fmt(i.s.average,0),num:true},{title:'วันมีงาน',value:i=>new Set(i.work.map(r=>M.date(r[2]))).size,num:true},{title:'แถวเข้าเฉลี่ย',value:i=>i.s.count,num:true}]);
+    table($('v3StaffTable'),'staff',items,[{title:'User ID',value:i=>i.id,html:i=>`<button data-staff="${esc(i.id)}">${esc(i.id)}</button>`},{title:'ชื่อ',value:i=>i.name},{title:'วันเริ่มงาน',value:i=>i.startDate||'',html:i=>dmy(i.startDate)},{title:'สังกัดปัจจุบัน',value:i=>i.aff},{title:'กะปัจจุบัน',value:i=>i.shift},{title:'สถานะทะเบียน',value:i=>i.status},{title:'Zone ปัจจุบัน',value:i=>i.master?.[9]||'Not Found'},{title:'Total Pick',value:i=>i.s.total,num:true},{title:'Productivity',value:i=>fmt(i.s.average,0),num:true},{title:'วันมีงาน',value:i=>new Set(i.work.map(r=>M.date(r[2]))).size,num:true},{title:'แถวเข้าเฉลี่ย',value:i=>i.s.count,num:true}]);
     $('v3StaffTable').onclick=e=>{const btn=e.target.closest('[data-staff]');if(btn){selectedStaff=btn.dataset.staff;detail();}};
     function detail(){if(!selectedStaff)return;const item=items.find(i=>i.id===selectedStaff);if(!item)return;$('v3StaffDetail').innerHTML=`<h2 style="margin-top:25px">${esc(item.id)} · ${esc(item.name)}</h2>`+stats(item.work)+'<div id="v3PersonRows"></div>';table($('v3PersonRows'),'person',item.work,recordColumns,{valid:r=>M.number(r[31])>0});}detail();
   }
