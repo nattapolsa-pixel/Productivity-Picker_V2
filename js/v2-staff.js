@@ -342,7 +342,7 @@
           ? resignedBadge(x.p.resigned)
           : (draftStatus(x.p.id) === 'active'
             ? '<span class="v3-pill good">กรอกแล้ว รอใส่ใน Sheet</span>'
-            : '<span class="v3-pill warn">Not Found — ข้อมูลไม่ครบ</span>'))
+            : '<span class="v3-pill warn">ข้อมูลพนักงานไม่ครบ</span>'))
       },
       { title: 'ชื่อที่พบ', value: (x) => x.p.name, html: (x) => (x.p.name === 'Not Found' ? '<span class="staff-miss-none">ไม่พบชื่อ</span>' : esc(x.p.name)) },
       { title: 'วันเริ่มงาน', value: (x) => x.p.start || '', html: (x) => dmy(x.p.start) + `<span class="sub">${x.p.hasRosterStart ? 'จากทะเบียน' : 'วันแรกที่พบผลงาน'}</span>` },
