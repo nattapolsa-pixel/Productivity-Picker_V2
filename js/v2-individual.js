@@ -55,8 +55,91 @@
   /* สถานะของหน้า — โหมดเทียบทุกคน (selected ว่าง) หรือ Scorecard รายคน */
   let selected = '';
   let chartSide = 'top';   // กราฟเทียบ: 20 คนบนสุด หรือ 20 คนล่างสุด
-  let trendDays = 'mtd';   // mtd = ตั้งแต่วันที่ 1 ถึงวันล่าสุด, 0 = ทั้งช่วง, ตัวเลข = วันที่มีงานล่าสุด
-
+  let trendMode = 'mtd';    // mtd = รายวันตั้งแต่ต้นเดือน, wtw = รายสัปดาห์เทียบกัน, ytd = รายเดือนตั้งแต่ต้นปี
+  const PERSON_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const isoDate = (iso) => new Date(`${String(iso || '')}T00:00:00Z`);
+  const isoKey = (date) => date.toISOString().slice(0, 10);
+  function addDays(iso, days) {
+    const date = isoDate(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setUTCDate(date.getUTCDate() + days);
+    return isoKey(date);
+  }
+  function addMonths(iso, months) {
+    const date = new Date(`${String(iso || '')}-01T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setUTCMonth(date.getUTCMonth() + months);
+    return date.toISOString().slice(0, 7);
+  }
+  function mondayOf(iso) {
+    const date = isoDate(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    const day = date.getUTCDay();
+    date.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
+    return isoKey(date);
+  }
+  function personTrendPeriod(anchor, mode) {
+    if (!anchor) return { mode, label: 'ไม่มีข้อมูล', start: '', end: '', keys: [] };
+    const month = anchor.slice(0, 7);
+    if (mode === 'wtw') {
+      const currentWeek = mondayOf(anchor);
+      const start = addDays(currentWeek, -49);
+      const keys = [];
+      for (let key = start; key && key <= currentWeek; key = addDays(key, 7)) keys.push(key);
+      return { mode, label: 'Week to Week', start, end: anchor, keys };
+    }
+    if (mode === 'ytd') {
+      const start = `${anchor.slice(0, 4)}-01-01`;
+      const keys = [];
+      for (let key = start.slice(0, 7); key && key <= month; key = addMonths(key, 1)) keys.push(key);
+      return { mode, label: 'Year to Date', start, end: anchor, keys };
+    }
+    const start = `${month}-01`;
+    const keys = [];
+    for (let key = start; key && key <= anchor; key = addDays(key, 1)) keys.push(key);
+    return { mode: 'mtd', label: 'Month to Date', start, end: anchor, keys };
+  }
+  function personTrendLabel(key, mode) {
+    if (mode === 'ytd') {
+      const parts = key.split('-').map(Number);
+      return `${PERSON_MONTHS[parts[1] - 1]} ${parts[0] + 543}`;
+    }
+    const label = `${key.slice(8, 10)}/${key.slice(5, 7)}`;
+    return mode === 'wtw' ? `ส. ${label}` : label;
+  }
+  function buildPersonTrend(person, anchor, mode, Sh) {
+    const period = personTrendPeriod(anchor, mode);
+    /* ใช้แถวของคนที่ผ่านตัวกรองหน้าเดียวกับหน้าพนักงาน เพื่อให้ช่วง MTD/WTW/YTD
+       ตรงกับข้อมูลที่ผู้ใช้กำลังดู และไม่ดึงข้อมูลนอกช่วงตัวกรองเข้ามาปน */
+    const daily = dailyFromRows(person.rows, Sh).filter((item) => item.date >= period.start && item.date <= period.end);
+    const buckets = new Map();
+    daily.forEach((day) => {
+      const key = mode === 'ytd' ? day.date.slice(0, 7) : mode === 'wtw' ? mondayOf(day.date) : day.date;
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = { key, sum: 0, count: 0, total: 0, hours: 0, rows: [], zoneStat: new Map() };
+        buckets.set(key, bucket);
+      }
+      bucket.sum += day.sum;
+      bucket.count += day.count;
+      bucket.total += day.total;
+      bucket.hours += day.hours;
+      bucket.rows.push(...day.rows);
+      day.zoneStat.forEach((zone, zoneKey) => {
+        let current = bucket.zoneStat.get(zoneKey);
+        if (!current) { current = { zone: zone.zone, rows: 0, count: 0 }; bucket.zoneStat.set(zoneKey, current); }
+        current.rows += zone.rows;
+        current.count += zone.count;
+      });
+    });
+    const items = period.keys.map((key) => {
+        const bucket = buckets.get(key) || { key, sum: 0, count: 0, total: 0, hours: 0, rows: [], zoneStat: new Map() };
+        const main = bucket.zoneStat.size ? mainZoneStat(bucket.zoneStat) : { zone: person.zone };
+        const zone = main.zone || person.zone || UNKNOWN_ZONE;
+        return { ...bucket, zone, target: Sh.zoneTargetOf(zone), average: bucket.count ? bucket.sum / bucket.count : null };
+      });
+    return { ...period, items };
+  }
   /* ── ตัวช่วยวาดกราฟ: ต้องทำลายกราฟเดิมก่อน ไม่งั้น canvas เดิมค้าง ── */
   function draw(id, config) {
     const el = $(id);
@@ -127,20 +210,7 @@
     const anchor = data.reduce((latest, r) => {
       const d = M.date(r[2]);
       return d > latest ? d : latest;
-    }, '');                                            // วันล่าสุดที่มีข้อมูลในช่วงที่เลือก (ใช้คิดอายุงาน/MTD)
-    const mtdStart = anchor ? `${anchor.slice(0, 7)}-01` : '';
-    const mtdRowsById = new Map();
-    if (mtdStart && anchor) {
-      Sh.rows.forEach((r) => {
-        const d = M.date(r[2]);
-        if (!d || d < mtdStart || d > anchor || !M.matches(r, V3Data.filters)) return;
-        const id = M.userId(r);
-        if (!id) return;
-        const list = mtdRowsById.get(id) || [];
-        list.push(r);
-        mtdRowsById.set(id, list);
-      });
-    }
+    }, '');                                            // วันล่าสุดที่มีข้อมูลในช่วงที่เลือก (ใช้คิดอายุงาน/ช่วงกราฟ)
     const people = new Map();
     data.forEach((r) => {
       const id = M.userId(r);
@@ -200,9 +270,6 @@
         startDate,
         hasRosterStart: startMap.has(p.id),
         tenure: M.daysBetween(startDate, anchor),
-        mtdRows: mtdRowsById.get(p.id) || [],
-        mtdStart,
-        mtdEnd: anchor,
         resigned: resignedInfo(p.id, resignedMap)
       });
     });
@@ -430,18 +497,16 @@
     /* รายวันใช้สูตรเดียวกับตารางด้านล่าง: รวม AF ต่อวัน ÷ จำนวน AF > 0
        และเลือก Target จากโซนที่ทำในวันนั้น */
     const daily = dailyFromRows(person.rows, Sh);
-    const mtdDaily = dailyFromRows(person.mtdRows, Sh);
-    const chartDaily = trendDays === 'mtd' ? mtdDaily : daily;
+    const chartTrend = buildPersonTrend(person, ctx.anchor, trendMode, Sh);
+    const chartDaily = chartTrend.items;
     const countedDays = daily.filter((d) => d.average !== null);
     const best = countedDays.length ? countedDays.reduce((a, b) => (b.average > a.average ? b : a)) : null;
     const worst = countedDays.length ? countedDays.reduce((a, b) => (b.average < a.average ? b : a)) : null;
     const passDays = countedDays.filter((d) => d.average >= d.target).length;   // เทียบ Target ของโซนที่ทำในวันนั้น
     const offZoneDays = countedDays.filter((d) => d.target !== person.target).length;
     const unknownDays = daily.filter((d) => d.zone.key === 'unknown').length;
-    /* เส้นประบนกราฟเทรนวาดทุกวันในหน้าต่างที่เลือก ไม่ใช่แค่วันที่นับได้ */
-    const trendUse = trendDays === 'mtd'
-      ? mtdDaily
-      : trendDays > 0 ? daily.slice(-trendDays) : daily;
+    /* เส้นประบนกราฟใช้ Target ของแต่ละช่วงที่เลือก ไม่ใช่แค่ค่าของคนนี้ */
+    const trendUse = chartDaily.filter((d) => d.average !== null);
     const offTargetDays = trendUse.filter((d) => d.target !== person.target).length;
 
     const pctProd = percentileOf(ctx.counted.map((x) => x.average), person.average);
@@ -583,20 +648,18 @@
       </div>
 
       <div class="card wide" style="margin-top:16px;">
-        <h3>📉 เทรน Productivity รายวันของคนนี้</h3>
-        <div class="sub">${trendDays === 'mtd' && person.mtdStart && person.mtdEnd
-          ? `<b>Month to Date</b> · ${esc(dmy(person.mtdStart))} ถึง ${esc(dmy(person.mtdEnd))} · ใช้ตัวกรองระบบ/กะเดิม · ` : ''}
-          แท่ง = Total Pick ของวันนั้น · เส้น = ค่าเฉลี่ยต่อชั่วโมงของวันนั้น
-          · เส้นประ = <b>Target ของโซนที่ทำในวันนั้น</b>
+        <h3>📉 แนวโน้ม Productivity ของคนนี้</h3>
+        <div class="sub"><b>${chartTrend.label}</b> · ${esc(dmy(chartTrend.start))} ถึง ${esc(dmy(chartTrend.end))} · ใช้ตัวกรองระบบ/กะเดิม ·
+          แท่ง = Total Pick ของช่วงนั้น · เส้น = ค่าเฉลี่ยต่อชั่วโมงของช่วงนั้น
+          · เส้นประ = <b>Target ของโซนที่ทำในช่วงนั้น</b>
           ${offTargetDays
-            ? `(โซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. · ในช่วงที่กราฟแสดงมี ${fmt(offTargetDays)} วันที่ใช้ค่าอื่น เส้นจึงขยับ)`
-            : `(ในช่วงที่กราฟแสดงทุกวันเท่ากับโซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. เส้นจึงแบน)`}
-          · มีข้อมูล ${fmt(chartDaily.length)} วัน (นับเฉพาะวันที่มีแถวในต้นทาง ไม่เติมวันที่ไม่มีแถวให้เป็น 0)</div>
+            ? `(โซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. · ในช่วงที่กราฟแสดงมี ${fmt(offTargetDays)} ช่วงที่ใช้ค่าอื่น เส้นจึงขยับ)`
+            : `(ในช่วงที่กราฟแสดงทุกช่วงเท่ากับโซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. เส้นจึงแบน)`}
+          · มีข้อมูล ${fmt(chartDaily.filter((d) => d.average !== null).length)} จาก ${fmt(chartDaily.length)} ช่วง (ช่วงที่ไม่มีแถวจะแสดงเป็นช่องว่าง)</div>
         <div class="seg" style="margin-bottom:10px;">
-          <button type="button" data-ind-trend="mtd"${trendDays === 'mtd' ? ' class="active"' : ''}>Month to Date</button>
-          <button type="button" data-ind-trend="30"${trendDays === 30 ? ' class="active"' : ''}>30 วันที่มีงานล่าสุด</button>
-          <button type="button" data-ind-trend="90"${trendDays === 90 ? ' class="active"' : ''}>90 วันที่มีงานล่าสุด</button>
-          <button type="button" data-ind-trend="0"${trendDays === 0 ? ' class="active"' : ''}>ทุกวันที่มีงาน</button>
+          <button type="button" data-ind-trend="mtd"${trendMode === 'mtd' ? ' class="active"' : ''}>Month to Date</button>
+          <button type="button" data-ind-trend="wtw"${trendMode === 'wtw' ? ' class="active"' : ''}>Week to Week</button>
+          <button type="button" data-ind-trend="ytd"${trendMode === 'ytd' ? ' class="active"' : ''}>Year to Date</button>
         </div>
         <div class="chartbox tall"><canvas id="v3IndTrendChart"></canvas></div>
         <div class="note v3-notice">วันที่ยึดวันที่ในต้นทางตรง ๆ ไม่ย้ายยอดหลังเที่ยงคืน
@@ -629,7 +692,7 @@
         จำนวนผ่าน/ไม่ผ่านของสองที่จึงต่างกันได้ (คนนี้มี ${fmt(daily.filter((d) => d.rows.length > 1).length)} วันที่มีหลายแถว)</p>
       <div id="v3IndDailyTable"></div>`;
 
-    drawTrendChart(person, chartDaily);
+    drawTrendChart(person, chartTrend);
     drawHourChart(person, ctx.hourLabels);
 
     /* ── ตารางโซนที่ทำ ── */
@@ -695,37 +758,62 @@
     return `<article class="staff-insight is-${tone}"><h4>${esc(title)}</h4><p>${body}</p></article>`;
   }
 
-  /* กราฟเทรนรายวัน — รูปแบบเดียวกับ drawIndividualTrendChart ของ V2
+  /* กราฟแนวโน้มรายบุคคล — รูปแบบเดียวกับกราฟพนักงาน
      แท่ง Total Pick + เส้น Productivity + เส้นประ Target ของโซน */
-  function drawTrendChart(person, daily) {
-    const use = trendDays === 'mtd' ? daily : trendDays > 0 ? daily.slice(-trendDays) : daily;
+  function drawTrendChart(person, trend) {
+    const use = trend.items;
     if (!use.length) return;
-    const labels = use.map((d) => d.date.slice(5));
+    const labels = use.map((d) => personTrendLabel(d.key, trend.mode));
     const totals = use.map((d) => Math.round(d.total));
     const prods = use.map((d) => (d.average === null ? null : Number(d.average.toFixed(1))));
     /* เส้นประใช้ Target ของโซนที่ทำในวันนั้น (เกณฑ์เดียวกับการ์ดและตารางรายวัน)
        ถ้าคนนี้ทำโซนเดียวตลอด ค่าจะเท่ากันทุกวันและเส้นจะแบนเหมือนเดิม */
     const targets = use.map((d) => d.target);
-    const sameTarget = targets.every((t) => t === person.target);
+    const targetValues = use.filter((d) => d.average !== null).map((d) => d.target);
+    const sameTarget = targetValues.length ? targetValues.every((t) => t === person.target) : true;
     const maxTotal = Math.max(...totals, 1);
-    const maxProd = Math.max(...prods.filter((v) => v !== null), ...targets, 1);
+    const lineValues = [...prods.filter((v) => v !== null), ...targets].filter((v) => Number.isFinite(v));
+    const lineMinValue = lineValues.length ? Math.min(...lineValues) : 0;
+    const lineMaxValue = lineValues.length ? Math.max(...lineValues) : 1;
+    const linePad = Math.max(5, Math.ceil((lineMaxValue - lineMinValue) * 0.25));
+    const lineMin = Math.max(0, Math.floor((lineMinValue - linePad) / 5) * 5);
+    const lineMax = Math.max(1, Math.ceil((lineMaxValue + linePad) / 5) * 5);
 
     draw('v3IndTrendChart', {
       data: {
         labels,
         datasets: [
-          { type: 'bar', label: 'Total Pick', data: totals, backgroundColor: '#818cf8',
-            borderRadius: 5, yAxisID: 'y', order: 2 },
+          { type: 'bar', label: 'Total Pick', data: totals,
+            backgroundColor: use.map((d) => d.average === null ? 'rgba(148,163,184,.42)' : d.average >= d.target ? 'rgba(16,185,129,.78)' : 'rgba(244,63,94,.78)'),
+            borderColor: use.map((d) => d.average === null ? '#94a3b8' : d.average >= d.target ? '#059669' : '#e11d48'),
+            borderWidth: 1, borderRadius: 6, yAxisID: 'y', order: 2,
+            datalabels: {
+              display: (c) => Number(c.dataset.data[c.dataIndex]) > 0 ? 'auto' : false,
+              anchor: 'end', align: 'top', offset: 4,
+              color: '#334155', backgroundColor: 'rgba(255,255,255,.9)', borderColor: 'rgba(99,102,241,.3)',
+              borderWidth: 1, borderRadius: 4, padding: { top: 2, right: 4, bottom: 2, left: 4 },
+              font: { weight: '700', size: labels.length > 20 ? 8.5 : 9.5 }, formatter: (v) => fmt(Math.round(Number(v)))
+            } },
           { type: 'line', label: 'Productivity (ค่าเฉลี่ย/ชม.)', data: prods, spanGaps: true,
-            borderColor: '#059669', backgroundColor: '#059669', borderWidth: 2.5, tension: .3,
-            pointRadius: use.length > 40 ? 0 : 3.5, pointBackgroundColor: '#fff', pointBorderWidth: 2,
-            yAxisID: 'y1', order: 1 },
+            borderColor: '#4f46e5', backgroundColor: '#4f46e5', borderWidth: 3, tension: .28,
+            pointRadius: use.length > 20 ? 3.5 : 5, pointBackgroundColor: use.map((d) => d.average === null ? '#fff' : d.average >= d.target ? '#10b981' : '#f43f5e'),
+            pointBorderColor: '#fff', pointBorderWidth: 2,
+            yAxisID: 'y1', order: 1,
+            datalabels: {
+              display: (c) => c.dataset.data[c.dataIndex] !== null ? 'auto' : false,
+              anchor: 'end', align: (c) => c.dataIndex % 2 ? 'top' : 'bottom', offset: (c) => c.dataIndex % 2 ? 7 : 9,
+              color: (c) => use[c.dataIndex].average >= use[c.dataIndex].target ? '#047857' : '#be123c',
+              backgroundColor: 'rgba(255,255,255,.96)',
+              borderColor: (c) => use[c.dataIndex].average >= use[c.dataIndex].target ? 'rgba(16,185,129,.45)' : 'rgba(244,63,94,.45)',
+              borderWidth: 1.5, borderRadius: 5, padding: { top: 2, right: 5, bottom: 2, left: 5 },
+              font: { weight: '700', size: labels.length > 20 ? 8.5 : 10 }, formatter: (v) => fmt(Math.round(Number(v)))
+            } },
           { type: 'line',
             label: sameTarget
               ? `Target โซน ${person.zone.label} (${fmt(person.target)})`
-              : `Target ของโซนที่ทำในวันนั้น (โซนหลัก ${person.zone.label} = ${fmt(person.target)})`,
+              : `Target ของโซนที่ทำในช่วงนั้น (โซนหลัก ${person.zone.label} = ${fmt(person.target)})`,
             data: targets, stepped: !sameTarget,
-            borderColor: '#f43f5e', borderWidth: 2, borderDash: [6, 5], pointRadius: 0,
+            borderColor: 'rgba(245,158,11,.9)', borderWidth: 2, borderDash: [6, 5], pointRadius: 0,
             yAxisID: 'y1', order: 0, datalabels: { display: false } }
         ]
       },
@@ -753,19 +841,27 @@
               afterBody: (items) => {
                 const d = use[items[0].dataIndex];
                 if (!d) return [];
-                const note = d.average === null ? 'วันนี้ไม่เข้าเฉลี่ย (ค่าเฉลี่ย/ชม. ไม่มากกว่า 0)'
+                const note = d.average === null ? 'ช่วงนี้ไม่มีค่าเฉลี่ย (ไม่มีข้อมูลที่ใช้คำนวณ)'
                   : d.average >= d.target ? 'ผ่านเป้าโซน' : 'ต่ำกว่าเป้าโซน';
                 return [`ชั่วโมงทำงาน: ${fmt(d.hours, 1)}`, `แถวต้นทาง: ${fmt(d.rows.length)}`,
-                  `Target วันนั้น: ${fmt(d.target)} (โซน ${d.zone.label})`, note];
+                  `Target ช่วงนั้น: ${fmt(d.target)} (โซน ${d.zone.label})`, note];
               }
             }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { autoSkip: trendDays !== 'mtd', maxTicksLimit: trendDays === 'mtd' ? 31 : 24, minRotation: trendDays === 'mtd' ? 60 : 0, maxRotation: trendDays === 'mtd' ? 60 : (labels.length > 14 ? 90 : 0), font: { size: trendDays === 'mtd' ? 9 : 10 } } },
+          x: { grid: { display: false }, ticks: {
+            autoSkip: trend.mode !== 'mtd',
+            maxTicksLimit: trend.mode === 'mtd' ? 31 : (trend.mode === 'ytd' ? 12 : 16),
+            minRotation: trend.mode === 'mtd' ? 60 : 0,
+            maxRotation: trend.mode === 'mtd' ? 60 : (trend.mode === 'ytd' ? 0 : 45),
+            font: { size: trend.mode === 'mtd' ? 9 : 10 }
+          } },
           y: { beginAtZero: true, position: 'left', suggestedMax: Math.ceil(maxTotal * 1.3),
+            ticks: { callback: (value) => fmt(Math.round(Number(value))) },
             grid: { color: 'rgba(148,163,184,.25)' }, title: { display: true, text: 'Total Pick', font: { size: 10.5 } } },
-          y1: { beginAtZero: true, position: 'right', suggestedMax: Math.ceil(maxProd * 1.3),
+          y1: { position: 'right', min: lineMin, max: lineMax,
+            ticks: { callback: (value) => fmt(Math.round(Number(value))) },
             grid: { display: false }, title: { display: true, text: 'หยิบ/ชม.', font: { size: 10.5 } } }
         }
       }
@@ -892,7 +988,7 @@
       const trend = e.target.closest('[data-ind-trend]');
       if (trend) {
         const mode = trend.dataset.indTrend;
-        trendDays = mode === 'mtd' ? 'mtd' : Number(mode);
+        trendMode = ['mtd', 'wtw', 'ytd'].includes(mode) ? mode : 'mtd';
         render();
         return;
       }
