@@ -55,7 +55,7 @@
   /* สถานะของหน้า — โหมดเทียบทุกคน (selected ว่าง) หรือ Scorecard รายคน */
   let selected = '';
   let chartSide = 'top';   // กราฟเทียบ: 20 คนบนสุด หรือ 20 คนล่างสุด
-  let trendDays = 90;      // หน้าต่างกราฟเทรนรายวัน (0 = ทั้งช่วง)
+  let trendDays = 'mtd';   // mtd = ตั้งแต่วันที่ 1 ถึงวันล่าสุด, 0 = ทั้งช่วง, ตัวเลข = วันที่มีงานล่าสุด
 
   /* ── ตัวช่วยวาดกราฟ: ต้องทำลายกราฟเดิมก่อน ไม่งั้น canvas เดิมค้าง ── */
   function draw(id, config) {
@@ -124,13 +124,28 @@
     const seenMap = M.firstSeenMap(Sh.rows);
     const hourLabels = M.hourLabels(sheets['Results Master'].headers);
 
-    let anchor = '';                                  // วันล่าสุดที่มีข้อมูลในช่วงที่เลือก (ใช้คิดอายุงาน)
+    const anchor = data.reduce((latest, r) => {
+      const d = M.date(r[2]);
+      return d > latest ? d : latest;
+    }, '');                                            // วันล่าสุดที่มีข้อมูลในช่วงที่เลือก (ใช้คิดอายุงาน/MTD)
+    const mtdStart = anchor ? `${anchor.slice(0, 7)}-01` : '';
+    const mtdRowsById = new Map();
+    if (mtdStart && anchor) {
+      Sh.rows.forEach((r) => {
+        const d = M.date(r[2]);
+        if (!d || d < mtdStart || d > anchor || !M.matches(r, V3Data.filters)) return;
+        const id = M.userId(r);
+        if (!id) return;
+        const list = mtdRowsById.get(id) || [];
+        list.push(r);
+        mtdRowsById.set(id, list);
+      });
+    }
     const people = new Map();
     data.forEach((r) => {
       const id = M.userId(r);
       if (!id) return;                                // ไม่มี User ID เจาะรายคนไม่ได้ (ไปดูที่หน้าตรวจข้อมูล)
       const d = M.date(r[2]);
-      if (d > anchor) anchor = d;
       let p = people.get(id);
       if (!p) {
         p = {
@@ -185,6 +200,9 @@
         startDate,
         hasRosterStart: startMap.has(p.id),
         tenure: M.daysBetween(startDate, anchor),
+        mtdRows: mtdRowsById.get(p.id) || [],
+        mtdStart,
+        mtdEnd: anchor,
         resigned: resignedInfo(p.id, resignedMap)
       });
     });
@@ -381,18 +399,11 @@
   /* ══════════════════════════════════════════════════════════════════════
      โหมด (ข) Scorecard รายคน
      ══════════════════════════════════════════════════════════════════════ */
-  function renderScorecard(ctx, person) {
-    const host = $(HOST);
-    const Sh = S();
-
-    /* รายวัน: กลุ่มตามวันที่ (ปกติ 1 แถวต่อคนต่อวัน แต่ต้นทางมีวันซ้ำได้)
-       ค่าเฉลี่ยของวันนั้นใช้สูตรเดียวกัน คือ sum AF ÷ count AF>0 ของวันนั้น
-       Target ของวันนั้นยึด "โซนที่ทำในวันนั้น" (กฎ mainZoneStat ตัวเดียวกับโซนหลักรายคน)
-       ไม่ใช่ Target ของโซนหลัก เพื่อให้การ์ด "วันที่ถึงเป้าโซน" ตัดสินด้วยเกณฑ์เดียวกับ
-       ตารางรายวันด้านล่างที่เทียบ AF ของแถวกับ Target ของโซนในแถวนั้น */
+  function dailyFromRows(rows, Sh) {
     const byDate = new Map();
-    person.rows.forEach((r) => {
+    (rows || []).forEach((r) => {
       const d = M.date(r[2]);
+      if (!d) return;
       let g = byDate.get(d);
       if (!g) { g = { date: d, rows: [], total: 0, hours: 0, sum: 0, count: 0, zoneStat: new Map() }; byDate.set(d, g); }
       g.rows.push(r);
@@ -405,20 +416,32 @@
       const af = M.number(r[31]);
       if (af > 0) { g.sum += af; g.count += 1; zs.count += 1; }
     });
-    const daily = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date))
+    return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date))
       .map((g) => {
         const zone = mainZoneStat(g.zoneStat).zone || UNKNOWN_ZONE;
         return { ...g, zone, target: Sh.zoneTargetOf(zone), average: g.count ? g.sum / g.count : null };
       });
+  }
+
+  function renderScorecard(ctx, person) {
+    const host = $(HOST);
+    const Sh = S();
+
+    /* รายวันใช้สูตรเดียวกับตารางด้านล่าง: รวม AF ต่อวัน ÷ จำนวน AF > 0
+       และเลือก Target จากโซนที่ทำในวันนั้น */
+    const daily = dailyFromRows(person.rows, Sh);
+    const mtdDaily = dailyFromRows(person.mtdRows, Sh);
+    const chartDaily = trendDays === 'mtd' ? mtdDaily : daily;
     const countedDays = daily.filter((d) => d.average !== null);
     const best = countedDays.length ? countedDays.reduce((a, b) => (b.average > a.average ? b : a)) : null;
     const worst = countedDays.length ? countedDays.reduce((a, b) => (b.average < a.average ? b : a)) : null;
     const passDays = countedDays.filter((d) => d.average >= d.target).length;   // เทียบ Target ของโซนที่ทำในวันนั้น
     const offZoneDays = countedDays.filter((d) => d.target !== person.target).length;
     const unknownDays = daily.filter((d) => d.zone.key === 'unknown').length;
-    /* เส้นประบนกราฟเทรนวาดทุกวันในหน้าต่างที่เลือก ไม่ใช่แค่วันที่นับได้
-       จึงนับ "วันที่ Target ต่างจากโซนหลัก" ด้วยช่วงเดียวกับที่ drawTrendChart ตัด (daily.slice(-trendDays)) */
-    const trendUse = trendDays > 0 ? daily.slice(-trendDays) : daily;
+    /* เส้นประบนกราฟเทรนวาดทุกวันในหน้าต่างที่เลือก ไม่ใช่แค่วันที่นับได้ */
+    const trendUse = trendDays === 'mtd'
+      ? mtdDaily
+      : trendDays > 0 ? daily.slice(-trendDays) : daily;
     const offTargetDays = trendUse.filter((d) => d.target !== person.target).length;
 
     const pctProd = percentileOf(ctx.counted.map((x) => x.average), person.average);
@@ -561,13 +584,16 @@
 
       <div class="card wide" style="margin-top:16px;">
         <h3>📉 เทรน Productivity รายวันของคนนี้</h3>
-        <div class="sub">แท่ง = Total Pick ของวันนั้น · เส้น = ค่าเฉลี่ยต่อชั่วโมงของวันนั้น
+        <div class="sub">${trendDays === 'mtd' && person.mtdStart && person.mtdEnd
+          ? `<b>Month to Date</b> · ${esc(dmy(person.mtdStart))} ถึง ${esc(dmy(person.mtdEnd))} · ใช้ตัวกรองระบบ/กะเดิม · ` : ''}
+          แท่ง = Total Pick ของวันนั้น · เส้น = ค่าเฉลี่ยต่อชั่วโมงของวันนั้น
           · เส้นประ = <b>Target ของโซนที่ทำในวันนั้น</b>
           ${offTargetDays
             ? `(โซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. · ในช่วงที่กราฟแสดงมี ${fmt(offTargetDays)} วันที่ใช้ค่าอื่น เส้นจึงขยับ)`
             : `(ในช่วงที่กราฟแสดงทุกวันเท่ากับโซนหลัก ${esc(person.zone.label)} ที่ ${fmt(person.target)} หยิบ/ชม. เส้นจึงแบน)`}
-          · มีข้อมูล ${fmt(daily.length)} วัน (นับเฉพาะวันที่มีแถวในต้นทาง ไม่เติมวันที่ไม่มีแถวให้เป็น 0)</div>
+          · มีข้อมูล ${fmt(chartDaily.length)} วัน (นับเฉพาะวันที่มีแถวในต้นทาง ไม่เติมวันที่ไม่มีแถวให้เป็น 0)</div>
         <div class="seg" style="margin-bottom:10px;">
+          <button type="button" data-ind-trend="mtd"${trendDays === 'mtd' ? ' class="active"' : ''}>Month to Date</button>
           <button type="button" data-ind-trend="30"${trendDays === 30 ? ' class="active"' : ''}>30 วันที่มีงานล่าสุด</button>
           <button type="button" data-ind-trend="90"${trendDays === 90 ? ' class="active"' : ''}>90 วันที่มีงานล่าสุด</button>
           <button type="button" data-ind-trend="0"${trendDays === 0 ? ' class="active"' : ''}>ทุกวันที่มีงาน</button>
@@ -603,7 +629,7 @@
         จำนวนผ่าน/ไม่ผ่านของสองที่จึงต่างกันได้ (คนนี้มี ${fmt(daily.filter((d) => d.rows.length > 1).length)} วันที่มีหลายแถว)</p>
       <div id="v3IndDailyTable"></div>`;
 
-    drawTrendChart(person, daily);
+    drawTrendChart(person, chartDaily);
     drawHourChart(person, ctx.hourLabels);
 
     /* ── ตารางโซนที่ทำ ── */
@@ -672,7 +698,7 @@
   /* กราฟเทรนรายวัน — รูปแบบเดียวกับ drawIndividualTrendChart ของ V2
      แท่ง Total Pick + เส้น Productivity + เส้นประ Target ของโซน */
   function drawTrendChart(person, daily) {
-    const use = trendDays > 0 ? daily.slice(-trendDays) : daily;
+    const use = trendDays === 'mtd' ? daily : trendDays > 0 ? daily.slice(-trendDays) : daily;
     if (!use.length) return;
     const labels = use.map((d) => d.date.slice(5));
     const totals = use.map((d) => Math.round(d.total));
