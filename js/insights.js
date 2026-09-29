@@ -15,6 +15,8 @@
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);});}
   function employeeStartDate(id){return M.tenureStart(String(id||'').trim(),startDateById,firstSeenById);}
+  function employeeTenureContext(){const dates=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)).map(r=>M.date(r[2])).sort();const anchor=dates[dates.length-1]||'';return {anchor,cutoff:anchor?M.tenureCutoff(anchor):''};}
+  function employeeTenure(id,context){const start=employeeStartDate(id),isNew=Boolean(start&&context?.cutoff&&start>context.cutoff);return {key:isNew?'new':'old',label:isNew?'พนักงานใหม่':'พนักงานเก่า',startDate:start};}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
   function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function addDays(iso,days){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
@@ -382,6 +384,7 @@
 
   /* จับกลุ่มรายคน แล้วหาโซนหลักของแต่ละคนจากจำนวนแถวที่เข้าเฉลี่ย */
   function buildBelowTarget(data){
+    const tenureContext=employeeTenureContext();
     const people=new Map();
     data.forEach(r=>{
       const id=M.userId(r); if(!id)return;
@@ -407,7 +410,7 @@
       const z=zoneByKey.get(main[0])||zoneByKey.get('unknown');
       const average=p.sum/p.count;
       const target=zoneTargetOf(z);
-      list.push({...p,startDate:employeeStartDate(p.id),zone:z,zoneRowCount:main[1],average,target,
+      list.push({...p,startDate:employeeStartDate(p.id),tenure:employeeTenure(p.id,tenureContext),zone:z,zoneRowCount:main[1],average,target,
         gap:average-target,eff:target>0?average/target*100:0,
         below:average<target,zoneCount:p.zoneRows.size});
     });
@@ -438,7 +441,7 @@
     closeBelowPeoplePopup();
     const sortPeople=(a,b)=>a.gap-b.gap||a.name.localeCompare(b.name,'th');
     const below=group.below.slice().sort(sortPeople), pass=group.all.filter(x=>!x.below).sort((a,b)=>b.average-a.average||a.name.localeCompare(b.name,'th'));
-    const personRow=(x,failed)=>`<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)}</b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว</small></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;
+    const personRow=(x,failed)=>`<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)} <span class="v3-person-tenure ${x.tenure.key}">${x.tenure.label}</span></b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว</small></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;
     const host=document.createElement('div');host.id='v3BelowPeoplePopup';host.className='v3-popup-backdrop';host.innerHTML=`<div class="v3-people-popup" role="dialog" aria-modal="true"><button class="v3-popup-close" type="button" aria-label="ปิด">×</button><div class="v3-popup-kicker">ZONE PERFORMANCE</div><h2>${esc(group.zone.label)}</h2><p class="v3-popup-sub">${esc(labels[group.zone.group]||'ไม่พบประเภทงาน')} · Target ${fmt(group.target)} หยิบ/ชม. · ${fmt(group.all.length)} คน</p><div class="v3-popup-summary"><span class="bad"><b>${fmt(below.length)}</b> ไม่ผ่าน</span><span class="good"><b>${fmt(pass.length)}</b> ผ่าน</span></div><section class="v3-people-section fail"><h3>ไม่ผ่าน Target <em>${fmt(below.length)} คน</em></h3>${below.length?below.map(x=>personRow(x,true)).join(''):'<div class="v3-empty">ไม่มีคนไม่ผ่านใน Zone นี้</div>'}</section><section class="v3-people-section pass"><h3>ผ่าน Target <em>${fmt(pass.length)} คน</em></h3>${pass.length?pass.map(x=>personRow(x,false)).join(''):'<div class="v3-empty">ยังไม่มีคนผ่านใน Zone นี้</div>'}</section></div>`;
     document.body.appendChild(host);
     host.addEventListener('click',(e)=>{if(e.target===host||e.target.closest('.v3-popup-close'))closeBelowPeoplePopup();});

@@ -2952,3 +2952,4 @@ th.num {
 .v3-kpi-period-item.down { color: #be123c; background: #ffe4e6; }
 .v3-kpi-period-item.flat, .v3-kpi-period-item.empty { color: #64748b; background: #f1f5f9; }
 .v3-kpi-period-static { color: #475569; background: #f1f5f9; }
+.v3-person-tenure{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:999px;font-size:9px;font-weight:800;vertical-align:middle}.v3-person-tenure.new{background:#ecfdf5;color:#047857}.v3-person-tenure.old{background:#eef2ff;color:#4338ca}
