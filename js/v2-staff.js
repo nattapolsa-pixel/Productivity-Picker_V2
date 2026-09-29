@@ -61,14 +61,21 @@
     const end = anchor || '';
     if (!end) return { mode, label: 'ไม่มีข้อมูล', start: '', end: '', keys: [] };
     const month = end.slice(0, 7);
-    let start = mode === 'wtd' ? mondayOf(end) : mode === 'ytd' ? `${end.slice(0, 4)}-01-01` : `${month}-01`;
+    if (mode === 'wtw') {
+      const currentWeek = mondayOf(end);
+      const start = addDays(currentWeek, -49);
+      const keys = [];
+      for (let key = start; key && key <= currentWeek; key = addDays(key, 7)) keys.push(key);
+      return { mode, label: 'Week to Week', start, end, keys };
+    }
+    const start = mode === 'ytd' ? `${end.slice(0, 4)}-01-01` : `${month}-01`;
     const keys = [];
     if (mode === 'ytd') {
       for (let key = start.slice(0, 7); key && key <= month; key = addMonths(key, 1)) keys.push(key);
     } else {
       for (let key = start; key && key <= end; key = addDays(key, 1)) keys.push(key);
     }
-    return { mode, label: mode === 'wtd' ? 'Week to Date' : mode === 'ytd' ? 'Year to Date' : 'Month to Date', start, end, keys };
+    return { mode, label: mode === 'ytd' ? 'Year to Date' : 'Month to Date', start, end, keys };
   }
   function buildPeriodTrend(shown, anchor, mode) {
     const period = oldTrendPeriod(anchor, mode);
@@ -76,7 +83,7 @@
     shown.forEach((p) => p.rows.forEach((r) => {
       const date = M.date(r[2]);
       if (!date || date < period.start || date > period.end) return;
-      const key = mode === 'ytd' ? date.slice(0, 7) : date;
+      const key = mode === 'ytd' ? date.slice(0, 7) : mode === 'wtw' ? mondayOf(date) : date;
       let bucket = buckets.get(key);
       if (!bucket) bucket = { key, sum: 0, count: 0, total: 0, people: new Set() };
       const average = M.number(r[31]);
@@ -111,7 +118,11 @@
     const pad = Math.max(5, Math.ceil((max - min) * 0.25));
     return Math.max(1, Math.ceil((max + pad) / 5) * 5);
   }
-  const oldTrendLabel = (item, mode) => mode === 'ytd' ? monthLabel(item.key) : `${item.key.slice(8, 10)}/${item.key.slice(5, 7)}`;
+  const oldTrendLabel = (item, mode) => mode === 'ytd'
+    ? monthLabel(item.key)
+    : mode === 'wtw'
+      ? `ส. ${item.key.slice(8, 10)}/${item.key.slice(5, 7)}`
+      : `${item.key.slice(8, 10)}/${item.key.slice(5, 7)}`;
   function renderPeriodTrend(canvasId, shown, anchor, mode, targetValue, pillId, rangeId, controlGroup) {
     const trend = buildPeriodTrend(shown, anchor, mode);
     const withTrend = trend.items.filter((item) => item.average !== null);
