@@ -369,8 +369,6 @@
       </button>`;
     };
     $('v3ZoneMap').innerHTML=(realGroups.length?realGroups.map(zoneTile).join(''):'<div class="v3-zone-empty">ยังไม่มีข้อมูล Zone จริงในช่วงที่เลือก</div>')+(unknownGroup?zoneTile(unknownGroup):'');
-    zoneControlTower($('v3ZoneControl'),shown,rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)));
-    zoneDistribution($('v3ZoneDistribution'),data,shown);
     $('v3ZoneMap').querySelectorAll('button[data-zone-key]').forEach(btn=>btn.onclick=()=>{
       const selected=shown.find(z=>z.key===btn.dataset.zoneKey);if(!selected)return;
       const detail=data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
