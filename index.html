@@ -608,6 +608,25 @@
           <div id="newStaffCohorts" class="staff-cohort-grid"></div>
         </div>
 
+        <div class="card wide" style="margin-top:18px;">
+          <div class="staff-card-head">
+            <div>
+              <h3>📊 แนวโน้ม Productivity ของกลุ่มพนักงานใหม่</h3>
+              <div class="sub">แท่ง = Total Pick รวม · เส้น = Productivity เฉลี่ยต่อชั่วโมง · เส้นประ = Target · เขียว = ถึง Target · แดง = ต่ำกว่า Target</div>
+            </div>
+            <span class="pill" id="newStaffTrendPill">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 8px;">
+            <div class="seg" aria-label="ช่วงเวลาแนวโน้มพนักงานใหม่">
+              <button type="button" data-new-trend="mtd" class="active">Month to Date</button>
+              <button type="button" data-new-trend="wtd">Week to Date</button>
+              <button type="button" data-new-trend="ytd">Year to Date</button>
+            </div>
+            <span class="sub" id="newStaffTrendRange">—</span>
+          </div>
+          <div class="chartbox tall"><canvas id="newStaffTrendChart"></canvas></div>
+        </div>
+
         <div class="grid">
           <div class="card wide">
             <div class="staff-card-head">
@@ -928,7 +947,7 @@
   <script src="js/v2-shell.js?v=20260921-guide-1"></script>
   <script src="js/v2-views.js?v=20260921-round0-1"></script>
   <script src="js/v2-roster-write.js?v=20260918-2"></script>
-  <script src="js/v2-staff.js?v=20260929-oldstaff-periods-1"></script>
+  <script src="js/v2-staff.js?v=20260929-new-old-staff-periods-1"></script>
   <script src="js/v2-efficiency.js?v=20260921-round0-1"></script>
   <script src="js/v2-individual.js?v=20260929-person-mtd-toggle-1"></script>
   <script src="js/v2-monthly.js?v=20260921-round0-1"></script>
