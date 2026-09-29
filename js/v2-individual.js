@@ -535,7 +535,7 @@
             <h3>👤 ${esc(person.id)} · ${esc(person.name)} ${resignedBadge(person.resigned)}</h3>
             <div class="sub" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">${pills.join('')}</div>
           </div>
-          <div class="seg"><button type="button" class="active" data-ind-back>← กลับตารางเทียบทุกคน</button></div>
+          <div class="seg"><button type="button" class="active" data-ind-back>← กลับตารางเทียบทุกคน</button><button type="button" data-ind-back-below>← กลับหน้าไม่ถึงเป้า</button></div>
         </div>
         ${cards}
         <div class="staff-insight-grid">${insights.join('')}</div>
@@ -792,7 +792,14 @@
     return Boolean(panel && panel.classList.contains('active'));
   }
 
+  function takePendingSelection() {
+    if (!window.__v3PendingIndividual) return;
+    selected = String(window.__v3PendingIndividual);
+    delete window.__v3PendingIndividual;
+  }
+
   function render() {
+    takePendingSelection();
     const host = $(HOST);
     if (!host || !isActive()) return;
     const Sh = S();
@@ -840,6 +847,13 @@
       const open = e.target.closest('[data-individual]');
       if (open) { selected = open.dataset.individual; render(); window.scrollTo({ top: 0, behavior: 'instant' }); return; }
       if (e.target.closest('[data-ind-back]')) { selected = ''; render(); window.scrollTo({ top: 0, behavior: 'instant' }); return; }
+      if (e.target.closest('[data-ind-back-below]')) {
+        selected = '';
+        const nav = document.querySelector('.nav-item[data-tab="below-target"]');
+        if (nav) nav.click();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        return;
+      }
       const side = e.target.closest('[data-ind-side]');
       if (side) { chartSide = side.dataset.indSide; render(); return; }
       const trend = e.target.closest('[data-ind-trend]');
@@ -856,6 +870,13 @@
        3) กดปุ่มเมนูของหน้านี้ — หน่วงให้ shell ใส่คลาส active ก่อนวาดกราฟ */
   if (window.V3Data) window.V3Data.subscribe(() => schedule());
   document.addEventListener('v3-render', () => schedule());
+  document.addEventListener('v3-open-individual', (e) => {
+    const id = e && e.detail ? String(e.detail.id || '').trim() : '';
+    if (!id) return;
+    selected = id;
+    schedule(0);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  });
   document.querySelectorAll('.nav-item[data-tab="individual"]')
     .forEach((btn) => btn.addEventListener('click', () => schedule(60)));
 })();

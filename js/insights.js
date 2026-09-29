@@ -492,10 +492,24 @@
     closeBelowPeoplePopup();
     const sortPeople=(a,b)=>a.gap-b.gap||a.name.localeCompare(b.name,'th');
     const below=group.below.slice().sort(sortPeople), pass=group.all.filter(x=>!x.below).sort((a,b)=>b.average-a.average||a.name.localeCompare(b.name,'th'));
-    const personRow=(x,failed)=>{const signals=personCauseSignals(x,group);return `<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)} <span class="v3-person-tenure ${x.tenure.key}">${x.tenure.label}</span></b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว · ${fmt(x.hours,1)} ชม.</small><div class="v3-person-causes"><span>ตัวชี้วัด</span>${signals.map(signal=>`<em>${esc(signal)}</em>`).join('')||'<em>ติดตามแนวโน้มเพิ่มเติม</em>'}</div></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;};
+    const personRow=(x,failed)=>{const signals=personCauseSignals(x,group);return `<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b><button type="button" class="v3-person-open" data-person-drilldown="${esc(x.id)}" title="เปิดรายละเอียดรายบุคคล">${esc(x.name)}</button> <span class="v3-person-tenure ${x.tenure.key}">${x.tenure.label}</span></b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว · ${fmt(x.hours,1)} ชม.</small><div class="v3-person-causes"><span>ตัวชี้วัด</span>${signals.map(signal=>`<em>${esc(signal)}</em>`).join('')||'<em>ติดตามแนวโน้มเพิ่มเติม</em>'}</div></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;};
     const host=document.createElement('div');host.id='v3BelowPeoplePopup';host.className='v3-popup-backdrop';host.innerHTML=`<div class="v3-people-popup" role="dialog" aria-modal="true"><button class="v3-popup-close" type="button" aria-label="ปิด">×</button><div class="v3-popup-kicker">ZONE PERFORMANCE</div><h2>${esc(group.zone.label)}</h2><p class="v3-popup-sub">${esc(labels[group.zone.group]||'ไม่พบประเภทงาน')} · Target ${fmt(group.target)} หยิบ/ชม. · ${fmt(group.all.length)} คน</p><div class="v3-popup-summary"><span class="bad"><b>${fmt(below.length)}</b> ไม่ผ่าน</span><span class="good"><b>${fmt(pass.length)}</b> ผ่าน</span></div><section class="v3-people-section fail"><h3>ไม่ผ่าน Target <em>${fmt(below.length)} คน</em></h3>${below.length?below.map(x=>personRow(x,true)).join(''):'<div class="v3-empty">ไม่มีคนไม่ผ่านใน Zone นี้</div>'}</section><section class="v3-people-section pass"><h3>ผ่าน Target <em>${fmt(pass.length)} คน</em></h3>${pass.length?pass.map(x=>personRow(x,false)).join(''):'<div class="v3-empty">ยังไม่มีคนผ่านใน Zone นี้</div>'}</section></div>`;
     document.body.appendChild(host);
-    host.addEventListener('click',(e)=>{if(e.target===host||e.target.closest('.v3-popup-close'))closeBelowPeoplePopup();});
+    host.addEventListener('click',(e)=>{
+      const drill=e.target.closest('[data-person-drilldown]');
+      if(drill){
+        const id=String(drill.dataset.personDrilldown||'').trim();
+        if(!id)return;
+        window.__v3PendingIndividual=id;
+        closeBelowPeoplePopup();
+        const nav=document.querySelector('.nav-item[data-tab="individual"]');
+        if(nav)nav.click();
+        document.dispatchEvent(new CustomEvent('v3-open-individual',{detail:{id:id}}));
+        window.scrollTo({top:0,behavior:'instant'});
+        return;
+      }
+      if(e.target===host||e.target.closest('.v3-popup-close'))closeBelowPeoplePopup();
+    });
     document.addEventListener('keydown',function escPopup(e){if(e.key==='Escape'){closeBelowPeoplePopup();document.removeEventListener('keydown',escPopup);}});
   }
   function drawBelowTargetChart(groups){
