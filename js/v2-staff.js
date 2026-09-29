@@ -195,7 +195,7 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: mode === 'ytd' ? 12 : 16, maxRotation: mode === 'ytd' ? 0 : 45, font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { autoSkip: mode !== 'mtd', maxTicksLimit: mode === 'mtd' ? 31 : (mode === 'ytd' ? 12 : 16), minRotation: mode === 'mtd' ? 60 : 0, maxRotation: mode === 'mtd' ? 60 : (mode === 'ytd' ? 0 : 45), font: { size: mode === 'mtd' ? 9 : 10 } } },
           y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => fmt(v) }, suggestedMax: Math.ceil(Math.max(1, ...trend.items.map((item) => item.total)) * 1.25) },
           y1: { position: 'right', min: trendLineMin(trend.items, targetValue), max: trendLineMax(trend.items, targetValue), grid: { drawOnChartArea: false }, ticks: { callback: (v) => prod(v) } }
         }
@@ -879,7 +879,7 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: oldTrendMode === 'ytd' ? 12 : 16, maxRotation: oldTrendMode === 'ytd' ? 0 : 45, font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { autoSkip: oldTrendMode !== 'mtd', maxTicksLimit: oldTrendMode === 'mtd' ? 31 : (oldTrendMode === 'ytd' ? 12 : 16), minRotation: oldTrendMode === 'mtd' ? 60 : 0, maxRotation: oldTrendMode === 'mtd' ? 60 : (oldTrendMode === 'ytd' ? 0 : 45), font: { size: oldTrendMode === 'mtd' ? 9 : 10 } } },
           y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => fmt(v) }, suggestedMax: Math.ceil(Math.max(1, ...trend.items.map((item) => item.total)) * 1.25) },
           y1: { position: 'right', min: trendLineMin(trend.items, t), max: trendLineMax(trend.items, t), grid: { drawOnChartArea: false }, ticks: { callback: (v) => prod(v) } }
         }
