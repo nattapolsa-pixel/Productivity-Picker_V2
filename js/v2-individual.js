@@ -735,9 +735,16 @@
         plugins: {
           legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8, padding: 14, font: { size: 11 } } },
           datalabels: {
-            clip: false, clamp: true, font: { weight: 700, size: 9.5 }, align: 'top', anchor: 'end',
+            clip: false, clamp: true, font: { weight: 700, size: labels.length > 24 ? 8.5 : 9.5 },
+            anchor: (c) => c.dataset.type === 'line' ? 'end' : 'end',
+            align: (c) => c.dataset.type === 'line' ? (c.dataIndex % 2 ? 'top' : 'bottom') : 'top',
+            offset: (c) => c.dataset.type === 'line' ? (c.dataIndex % 2 ? 6 : 8) : 4,
+            backgroundColor: (c) => c.dataset.type === 'line' ? 'rgba(255,255,255,.92)' : 'rgba(255,255,255,.82)',
+            borderRadius: 3, padding: { top: 2, right: 3, bottom: 2, left: 3 },
             color: (c) => (c.dataset.type === 'line' ? '#047857' : '#4338ca'),
-            display: (c) => labels.length <= 16 && Number(c.dataset.data[c.dataIndex]) > 0,
+            /* แสดงค่าบนแท่งและจุดจริง แต่ให้ datalabels ซ่อนเฉพาะป้ายที่ชนกันเองอัตโนมัติ */
+            display: (c) => Number.isFinite(Number(c.dataset.data[c.dataIndex]))
+              && Number(c.dataset.data[c.dataIndex]) > 0 ? 'auto' : false,
             formatter: (v) => fmt(Math.round(Number(v)))
           },
           tooltip: {
