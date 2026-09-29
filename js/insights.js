@@ -302,6 +302,42 @@
     if(value===null||value===undefined||!Number.isFinite(Number(value)))return 'empty';
     return Number(value)>=Number(target)?'passed':'below';
   }
+  function median(values){const list=values.filter(v=>Number.isFinite(Number(v))).map(Number).sort((a,b)=>a-b);if(!list.length)return null;const middle=Math.floor(list.length/2);return list.length%2?list[middle]:(list[middle-1]+list[middle])/2;}
+  function percentile(values,ratio){const list=values.filter(v=>Number.isFinite(Number(v))).map(Number).sort((a,b)=>a-b);if(!list.length)return null;const index=(list.length-1)*ratio,low=Math.floor(index),high=Math.ceil(index);return list[low]+(list[high]-list[low])*(index-low);}
+  function zonePeopleWindow(list,target){
+    const byId=new Map();
+    list.forEach(r=>{const id=M.userId(r);if(!id)return;let p=byId.get(id);if(!p){p={id,sum:0,count:0};byId.set(id,p);}const value=M.number(r[31]);if(value>0){p.sum+=value;p.count+=1;}});
+    const values=[...byId.values()].filter(p=>p.count).map(p=>p.sum/p.count);
+    const stats=M.aggregate(list);
+    return {stats,people:values.length,pass:values.filter(v=>v>=target).length,below:values.filter(v=>v<target).length,values};
+  }
+  function zoneControlTower(host,shown,baseRows){
+    if(!host)return;
+    const dated=baseRows.filter(r=>M.date(r[2]));
+    const anchor=dated.map(r=>M.date(r[2])).sort().pop()||'';
+    if(!anchor||!shown.length){host.innerHTML='';return;}
+    const currentStart=addDays(anchor,-6),previousStart=addDays(anchor,-13),previousEnd=addDays(anchor,-7);
+    const items=shown.map(z=>{
+      const rowsForZone=baseRows.filter(r=>(zone(r)?.key||'unknown')===z.key);
+      const current=zonePeopleWindow(rangeRows(rowsForZone,currentStart,anchor),zoneTargetOf(z));
+      const previous=zonePeopleWindow(rangeRows(rowsForZone,previousStart,previousEnd),zoneTargetOf(z));
+      const delta=current.stats.average===null||previous.stats.average===null?null:current.stats.average-previous.stats.average;
+      return {zone:z,target:zoneTargetOf(z),current,previous,delta};
+    }).filter(x=>x.current.stats.rows||x.previous.stats.rows).sort((a,b)=>(b.current.below-a.current.below)||(b.current.stats.rows-a.current.stats.rows)||a.zone.label.localeCompare(b.zone.label));
+    const trend=(delta)=>delta===null?'<span class="v3-control-trend empty">ยังเทียบไม่ได้</span>':`<span class="v3-control-trend ${delta>0?'up':delta<0?'down':'flat'}">${delta>0?'↑':delta<0?'↓':'→'} ${delta>0?'+':''}${fmt(delta,0)} Pick/ชม.</span>`;
+    host.innerHTML=`<section class="v3-zone-control"><div class="v3-zone-control-head"><div><span class="v3-zone-control-kicker">ZONE CONTROL TOWER</span><h2>โซนที่ควรดูจากข้อมูลล่าสุด</h2><p>เทียบ Productivity 7 วันล่าสุดกับ 7 วันก่อนหน้า · ข้อมูลถึง ${esc(dmy(anchor))} · คลิกการ์ดเพื่อเปิดรายละเอียด Zone</p></div><span class="v3-zone-control-date">${fmt(items.length)} โซน</span></div><div class="v3-zone-control-grid">${items.map(item=>{const z=item.zone,status=z.key==='unknown'?'unknown':item.current.stats.average===null?'nodata':item.current.stats.average>=item.target?'good':'warn',passText=z.key==='unknown'?'ใช้ตรวจข้อมูล ไม่ใช้ตัดสิน':item.current.people?`${fmt(item.current.pass)} / ${fmt(item.current.people)} คนผ่าน`:'ยังไม่มีคน';return `<button type="button" class="v3-zone-control-card ${status}" data-zone-control="${esc(z.key)}"><div class="v3-zone-control-card-head"><strong>${esc(z.label)}</strong><span>${status==='good'?'ถึงเป้า':status==='warn'?'ต่ำกว่าเป้า':status==='unknown'?'ต้องตรวจข้อมูล':'ไม่มีข้อมูล'}</span></div><div class="v3-zone-control-main"><b>${fmt(item.current.stats.average,0)}</b><small>Pick/ชม. · เป้า ${fmt(item.target)}</small></div><div class="v3-zone-control-meta"><span>${passText}</span><span>Total Pick ${fmt(item.current.stats.total)}</span></div>${trend(item.delta)}</button>`;}).join('')}</div></section>`;
+    host.querySelectorAll('[data-zone-control]').forEach(btn=>btn.onclick=()=>{const target=[...($('v3ZoneMap')?.querySelectorAll('[data-zone-key]')||[])].find(tile=>tile.dataset.zoneKey===btn.dataset.zoneControl);if(target)target.click();});
+  }
+  function zoneDistribution(host,data,shown){
+    if(!host)return;
+    const buckets=new Map();
+    data.forEach(r=>{const id=M.userId(r),value=M.number(r[31]);if(!id||value<=0)return;const key=zone(r)?.key||'unknown';let p=buckets.get(key);if(!p){p=new Map();buckets.set(key,p);}let person=p.get(id);if(!person){person={sum:0,count:0};p.set(id,person);}person.sum+=value;person.count+=1;});
+    const items=shown.filter(z=>z.key!=='unknown').map(z=>{const values=[...(buckets.get(z.key)?.values()||[])].filter(p=>p.count).map(p=>p.sum/p.count);if(!values.length)return null;const target=zoneTargetOf(z);return {zone:z,target,values,min:Math.min(...values),p25:percentile(values,.25),median:median(values),p75:percentile(values,.75),max:Math.max(...values),pass:values.filter(v=>v>=target).length};}).filter(Boolean);
+    if(!items.length){host.innerHTML='';return;}
+    const scale=Math.max(1,...items.flatMap(x=>[x.max,x.target]))*1.12;
+    const pos=v=>Math.max(0,Math.min(100,Number(v||0)/scale*100));
+    host.innerHTML=`<section class="v3-zone-distribution"><div class="v3-zone-distribution-head"><div><span class="v3-zone-distribution-kicker">PRODUCTIVITY DISTRIBUTION</span><h2>การกระจาย Productivity ของแต่ละ Zone</h2><p>กล่อง = ช่วง P25–P75 · จุดกลาง = Median · เส้นตั้ง = Target · ใช้ดูความต่างระหว่างคน ไม่ดูแค่ค่าเฉลี่ย</p></div><span class="v3-zone-distribution-legend"><i class="box"></i>P25–P75 <i class="median"></i>Median <i class="target"></i>Target</span></div><div class="v3-zone-distribution-list">${items.map(x=>`<article class="v3-zone-distribution-row"><div class="v3-zone-distribution-row-head"><strong>${esc(x.zone.label)}</strong><span>${fmt(x.pass)} / ${fmt(x.values.length)} คนผ่าน · Median ${fmt(x.median,0)}</span></div><div class="v3-distribution-track" title="${esc(x.zone.label)} · ต่ำสุด ${fmt(x.min,0)} · P25 ${fmt(x.p25,0)} · Median ${fmt(x.median,0)} · P75 ${fmt(x.p75,0)} · สูงสุด ${fmt(x.max,0)}"><i class="v3-distribution-whisker" style="left:${pos(x.min)}%;width:${Math.max(1,pos(x.max)-pos(x.min))}%"></i><i class="v3-distribution-box" style="left:${pos(x.p25)}%;width:${Math.max(1,pos(x.p75)-pos(x.p25))}%"></i><i class="v3-distribution-median" style="left:${pos(x.median)}%"></i><i class="v3-distribution-target" style="left:${pos(x.target)}%"></i></div><div class="v3-distribution-scale"><span>ต่ำสุด ${fmt(x.min,0)}</span><span>P25 ${fmt(x.p25,0)}</span><b>Median ${fmt(x.median,0)}</b><span>P75 ${fmt(x.p75,0)}</span><span>สูงสุด ${fmt(x.max,0)}</span></div></article>`).join('')}</div></section>`;
+  }
   function zonePage(){
     if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;
     const data=visible(),buckets=new Map(zones.map(z=>[z.key,[]])),unknown=[];
@@ -333,6 +369,8 @@
       </button>`;
     };
     $('v3ZoneMap').innerHTML=(realGroups.length?realGroups.map(zoneTile).join(''):'<div class="v3-zone-empty">ยังไม่มีข้อมูล Zone จริงในช่วงที่เลือก</div>')+(unknownGroup?zoneTile(unknownGroup):'');
+    zoneControlTower($('v3ZoneControl'),shown,rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)));
+    zoneDistribution($('v3ZoneDistribution'),data,shown);
     $('v3ZoneMap').querySelectorAll('button[data-zone-key]').forEach(btn=>btn.onclick=()=>{
       const selected=shown.find(z=>z.key===btn.dataset.zoneKey);if(!selected)return;
       const detail=data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
@@ -437,11 +475,24 @@
     if(belowTargetChart){try{belowTargetChart.destroy();}catch(e){}belowTargetChart=null;}
   }
   function closeBelowPeoplePopup(){const el=$('v3BelowPeoplePopup');if(el)el.remove();}
+  function personCauseSignals(person,group){
+    const values=group.all.map(x=>x.average).filter(v=>Number.isFinite(Number(v)));
+    const medianProd=median(values),medianHours=median(group.all.map(x=>x.hours).filter(v=>Number(v)>0)),signals=[];
+    if(person.eff<80)signals.push('ห่าง Target มากกว่า 20%');
+    else if(person.below)signals.push('Productivity ต่ำกว่า Target');
+    if(person.count<=1)signals.push('มีแถวเข้าเฉลี่ยน้อย');
+    if(medianHours&&person.hours<medianHours*.6)signals.push('ชั่วโมงงานต่ำกว่าค่ากลาง');
+    if(medianProd&&person.average<medianProd*.8)signals.push('ต่ำกว่า Median ของ Zone');
+    if(person.zoneCount>1)signals.push(`ทำงาน ${fmt(person.zoneCount)} Zone`);
+    if(person.tenure?.key==='new')signals.push('อยู่ในช่วงพนักงานใหม่');
+    if(person.zone?.key==='unknown')signals.push('ต้องตรวจข้อมูล Zone');
+    return signals.slice(0,3);
+  }
   function showBelowPeoplePopup(group){
     closeBelowPeoplePopup();
     const sortPeople=(a,b)=>a.gap-b.gap||a.name.localeCompare(b.name,'th');
     const below=group.below.slice().sort(sortPeople), pass=group.all.filter(x=>!x.below).sort((a,b)=>b.average-a.average||a.name.localeCompare(b.name,'th'));
-    const personRow=(x,failed)=>`<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)} <span class="v3-person-tenure ${x.tenure.key}">${x.tenure.label}</span></b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว</small></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;
+    const personRow=(x,failed)=>{const signals=personCauseSignals(x,group);return `<div class="v3-person-row ${failed?'failed':'passed'}"><div class="v3-person-rank">${failed?'!':'✓'}</div><div class="v3-person-main"><b>${esc(x.name)} <span class="v3-person-tenure ${x.tenure.key}">${x.tenure.label}</span></b><small>${esc(x.id)} · เริ่มงาน ${dmy(x.startDate)} · ${fmt(x.count)} แถว · ${fmt(x.hours,1)} ชม.</small><div class="v3-person-causes"><span>ตัวชี้วัด</span>${signals.map(signal=>`<em>${esc(signal)}</em>`).join('')||'<em>ติดตามแนวโน้มเพิ่มเติม</em>'}</div></div><div class="v3-person-score"><strong>${fmt(x.average,0)}</strong><small>เป้า ${fmt(x.target)} · ${failed?`ขาด ${fmt(Math.abs(x.gap),0)}`:`เกิน ${fmt(Math.max(0,x.gap),0)}`}</small></div></div>`;};
     const host=document.createElement('div');host.id='v3BelowPeoplePopup';host.className='v3-popup-backdrop';host.innerHTML=`<div class="v3-people-popup" role="dialog" aria-modal="true"><button class="v3-popup-close" type="button" aria-label="ปิด">×</button><div class="v3-popup-kicker">ZONE PERFORMANCE</div><h2>${esc(group.zone.label)}</h2><p class="v3-popup-sub">${esc(labels[group.zone.group]||'ไม่พบประเภทงาน')} · Target ${fmt(group.target)} หยิบ/ชม. · ${fmt(group.all.length)} คน</p><div class="v3-popup-summary"><span class="bad"><b>${fmt(below.length)}</b> ไม่ผ่าน</span><span class="good"><b>${fmt(pass.length)}</b> ผ่าน</span></div><section class="v3-people-section fail"><h3>ไม่ผ่าน Target <em>${fmt(below.length)} คน</em></h3>${below.length?below.map(x=>personRow(x,true)).join(''):'<div class="v3-empty">ไม่มีคนไม่ผ่านใน Zone นี้</div>'}</section><section class="v3-people-section pass"><h3>ผ่าน Target <em>${fmt(pass.length)} คน</em></h3>${pass.length?pass.map(x=>personRow(x,false)).join(''):'<div class="v3-empty">ยังไม่มีคนผ่านใน Zone นี้</div>'}</section></div>`;
     document.body.appendChild(host);
     host.addEventListener('click',(e)=>{if(e.target===host||e.target.closest('.v3-popup-close'))closeBelowPeoplePopup();});
@@ -571,6 +622,16 @@
     $('v3StaffTable').onclick=e=>{const btn=e.target.closest('[data-staff]');if(btn){selectedStaff=btn.dataset.staff;detail();}};
     function detail(){if(!selectedStaff)return;const item=items.find(i=>i.id===selectedStaff);if(!item)return;$('v3StaffDetail').innerHTML=`<h2 style="margin-top:25px">${esc(item.id)} · ${esc(item.name)}</h2>`+stats(item.work)+'<div id="v3PersonRows"></div>';table($('v3PersonRows'),'person',item.work,recordColumns,{valid:r=>M.number(r[31])>0});}detail();
   }
+  function hourShortLabel(value,index){const match=String(value||'').match(/(\d{1,2})\s*[:.]?\s*\d{0,2}/);return match?String(Number(match[1])).padStart(2,'0'):String(index).padStart(2,'0');}
+  function renderHourHeatmap(data,headers){
+    const host=$('v3HourHeatmap');if(!host)return;
+    const dates=[...new Set(data.map(r=>M.date(r[2])).filter(Boolean))].sort().slice(-31);
+    if(!dates.length){host.innerHTML='<div class="v3-heat-empty">ยังไม่มีข้อมูลรายวันสำหรับสร้าง Heatmap</div>';return;}
+    const labels=M.hourLabels(headers),byDate=new Map(dates.map(d=>[d,[]]));data.forEach(r=>{const d=M.date(r[2]);if(byDate.has(d))byDate.get(d).push(r);});
+    const matrix=dates.map(date=>({date,values:M.hourTotals(byDate.get(date))})),max=Math.max(1,...matrix.flatMap(row=>row.values));
+    host.innerHTML=`<div class="v3-hour-heat-legend"><span><i class="low"></i>น้อย</span><span><i class="mid"></i>ปานกลาง</span><span><i class="high"></i>มาก</span><small>คลิกช่องเพื่อกรองดูวันนั้น</small></div><div class="v3-hour-heat-scroll"><div class="v3-hour-heat-grid" style="grid-template-columns:90px repeat(${labels.length},minmax(30px,1fr));"><div class="v3-hour-heat-corner">วันที่ / เวลา</div>${labels.map((label,index)=>`<div class="v3-hour-heat-head">${esc(hourShortLabel(label,index))}</div>`).join('')}${matrix.map(row=>`<div class="v3-hour-heat-date"><b>${esc(dmy(row.date))}</b><small>${fmt(row.values.reduce((a,b)=>a+b,0))} ชิ้น</small></div>${row.values.map((value,index)=>`<button type="button" class="v3-hour-heat-cell${value?'':' empty'}" data-hour-heat-date="${esc(row.date)}" title="${esc(dmy(row.date))} · ${esc(labels[index]||'ช่วงที่ '+(index+1))} · ${fmt(value)} ชิ้น" style="background:rgba(99,102,241,${(value?(.12+.78*(value/max)):0).toFixed(2)})"><span>${value?fmt(value):''}</span></button>`).join('')}`).join('')}</div></div><p class="v3-hour-heat-note">สีเข้ม = ยอดหยิบมากในวันและช่วงเวลานั้น · คำนวณจากผลรวมช่องรายชั่วโมงใน Sheet · จำกัดการแสดง 31 วันที่ล่าสุดเพื่อให้หน้าเว็บลื่น</p>`;
+    host.onclick=e=>{const cell=e.target.closest('[data-hour-heat-date]');if(!cell)return;const date=cell.dataset.hourHeatDate;if(!$('startDate')||!$('endDate'))return;$('startDate').value=date;$('endDate').value=date;$('startDate').dispatchEvent(new Event('change',{bubbles:true}));$('endDate').dispatchEvent(new Event('change',{bubbles:true}));};
+  }
   /* หน้าช่วงเวลา — ใช้คอลัมน์ H–AE ที่ Sheet บันทึกยอดต่อชั่วโมงไว้แล้วครบ 24 ช่อง
      ผลรวม 24 ช่องเท่ากับ Total Pick คอลัมน์ E จึงเจาะได้ทั้งรายชั่วโมงและรายคน
      ชื่อพนักงานยึดทะเบียนพนักงาน */
@@ -619,9 +680,11 @@
       ['พนักงานที่มีงาน',fmt(total.people),fmt(total.count)+' แถวเข้าเฉลี่ย · Productivity '+fmt(total.average,0)+' หยิบ/ชม.']
     ])
     +`<div class="card wide v3-card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;"><h2 style="margin:0;">🕒 ยอดหยิบตามช่วงเวลา (Hourly Activity)</h2><span class="pill" style="background:#f0fdf4;color:#15803d;font-weight:700;">24 ช่วง · ข้อมูลรายชั่วโมง</span></div><div class="sub" style="margin-bottom:12px;">ยอดตามหัวตารางของ Sheet เริ่ม ${esc(labels[0]||'')} ถึง ${esc(labels[23]||'')} · ยึดวันที่ตามที่บันทึกไว้ ไม่ปรับเวลาและไม่ย้ายยอดหลังเที่ยงคืน · ช่วงที่เป็น 0 คือ Sheet ยังไม่มียอดในช่องนั้น</div><div class="chartbox tall"><canvas id="hoursChart"></canvas></div></div>`
+    +`<div class="card wide v3-card v3-hour-heat-card"><div class="v3-hour-heat-head"><div><h2>🌡️ Heatmap วัน × ชั่วโมง</h2><p>ดูช่วงเวลาที่งานหนาแน่นหรือตกผิดปกติในแต่ละวัน</p></div><span class="pill">31 วันล่าสุด</span></div><div id="v3HourHeatmap"></div></div>`
     +`<div id="v3HoursTable"></div>`
     +`<h2 style="font-size:17px;font-weight:700;color:#0f172a;margin:22px 0 4px;">รายคนในแต่ละช่วงเวลา</h2><p class="panel-desc">ชื่อจากทะเบียนพนักงาน · ชั่วโมงที่มีงานนับเฉพาะช่องที่มียอดมากกว่า 0 · Productivity ยังใช้ค่าเฉลี่ยต่อชั่วโมงของแต่ละแถวที่นับได้ </p><div id="v3HoursPeople"></div>`;
 
+    renderHourHeatmap(rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)),headers);
     table($('v3HoursTable'),'hours',labels.map((label,i)=>({label,index:i,total:totals[i],people:peoplePerHour[i].size,top:topPerHour[i]})),[
       {title:'ช่วงเวลา',value:h=>h.label},
       {title:'Total Pick',value:h=>h.total,num:true,html:h=>fmt(h.total)},

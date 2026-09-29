@@ -166,6 +166,30 @@
     people.forEach((p) => { sum += p.stats.sum; count += p.stats.count; total += p.stats.total; });
     return { people: people.length, total, count, average: count ? sum / count : null };
   }
+  function renderTenureCohorts(id, people, t) {
+    const host = $(id);
+    if (!host) return;
+    const buckets = [
+      { key: '0-7', label: '0–7 วัน', note: 'ช่วงเริ่มงาน', test: (d) => d !== null && d >= 0 && d <= 7 },
+      { key: '8-30', label: '8–30 วัน', note: 'เริ่มจับงาน', test: (d) => d !== null && d >= 8 && d <= 30 },
+      { key: '31-90', label: '31–90 วัน', note: 'ช่วงพัฒนา', test: (d) => d !== null && d >= 31 && d <= 90 },
+      { key: '90+', label: 'มากกว่า 90 วัน', note: 'ฐานพนักงานเก่า', test: (d) => d !== null && d > 90 },
+      { key: 'unknown', label: 'ไม่ทราบอายุงาน', note: 'ต้องเติมวันเริ่มงาน', test: (d) => d === null }
+    ];
+    const items = buckets.map((bucket) => {
+      const list = people.filter((p) => bucket.test(p.days));
+      const g = groupStats(list);
+      const withAvg = list.filter((p) => p.stats.average !== null);
+      const pass = withAvg.filter((p) => p.stats.average >= t).length;
+      return { ...bucket, ...g, pass, judged: withAvg.length };
+    }).filter((x) => x.people > 0);
+    if (!items.length) { host.innerHTML = '<div class="staff-cohort-empty">ยังไม่มีข้อมูลอายุงานในมุมมองนี้</div>'; return; }
+    host.innerHTML = items.map((item) => {
+      const passPct = item.judged ? item.pass / item.judged * 100 : 0;
+      const tone = item.key === 'unknown' ? 'unknown' : item.average !== null && item.average >= t ? 'good' : 'warn';
+      return `<article class="staff-cohort-item ${tone}"><div class="staff-cohort-item-head"><div><strong>${item.label}</strong><small>${item.note}</small></div><b>${fmt(item.people)} คน</b></div><div class="staff-cohort-score"><strong>${prod(item.average)}</strong><span>หยิบ/ชม.</span></div><div class="staff-cohort-meta"><span>ถึง Target ${fmt(item.pass)} / ${fmt(item.judged)} คน</span><span>Total Pick ${fmt(item.total)}</span></div><div class="staff-cohort-track"><i style="width:${Math.min(100, passPct)}%"></i></div><small class="staff-cohort-foot">${item.judged ? `${fmt1(passPct)}% ผ่าน Target ${fmt(t)}` : 'ยังไม่มีแถวเข้าเฉลี่ย'}</small></article>`;
+    }).join('');
+  }
 
   /* ── แถบหมายเหตุ + ปุ่มซ่อนคนที่ออกแล้ว ── */
   function renderNote(id, ctx, all, shown) {
@@ -386,6 +410,7 @@
           'ผลรวมยอดหยิบ (Total Pick) ของกลุ่มนี้')
       ].join('');
     }
+    renderTenureCohorts('newStaffCohorts', hideResigned ? [...newAll, ...oldAll].filter((p) => !p.resigned) : [...newAll, ...oldAll], t);
 
     // เส้นการพัฒนา: รวม sum/count ของทุกคนในแต่ละสัปดาห์ ไม่เฉลี่ยค่าเฉลี่ยรายคนซ้ำ
     const maxWeek = Math.min(13, Math.max(4, ...shown.flatMap((p) => [...p.weeks.keys()])));
@@ -600,6 +625,7 @@
           gNew.total ? `กลุ่มใหม่ ${fmt(gNew.total)} ชิ้น` : 'ผลรวมยอดหยิบ (Total Pick) ของกลุ่มนี้')
       ].join('');
     }
+    renderTenureCohorts('oldStaffCohorts', hideResigned ? [...oldAll, ...newAll].filter((p) => !p.resigned) : [...oldAll, ...newAll], t);
 
     // แนวโน้มรายเดือนของกลุ่ม รวม sum/count ของทุกคนในเดือนนั้น
     const monthMap = new Map();
