@@ -689,11 +689,18 @@
           <div class="card wide">
             <div class="staff-card-head">
               <div>
-                <h3>📊 แนวโน้มรายเดือนของกลุ่มพนักงานเก่า</h3>
-                <div class="sub">แท่ง = Total Pick รวมของกลุ่ม · เส้น = Productivity ค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้
-                  · เส้นประ = Target</div>
+                <h3>📊 แนวโน้ม Productivity ของกลุ่มพนักงานเก่า</h3>
+                <div class="sub">แท่ง = Total Pick รวม · เส้น = Productivity เฉลี่ยต่อชั่วโมง · เส้นประ = Target · เขียว = ถึง Target · แดง = ต่ำกว่า Target</div>
               </div>
               <span class="pill" id="oldStaffTrendPill">—</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 8px;">
+              <div class="seg" aria-label="ช่วงเวลาแนวโน้มพนักงานเก่า">
+                <button type="button" data-old-trend="mtd" class="active">Month to Date</button>
+                <button type="button" data-old-trend="wtd">Week to Date</button>
+                <button type="button" data-old-trend="ytd">Year to Date</button>
+              </div>
+              <span class="sub" id="oldStaffTrendRange">—</span>
             </div>
             <div class="chartbox tall"><canvas id="oldStaffTrendChart"></canvas></div>
           </div>
@@ -921,7 +928,7 @@
   <script src="js/v2-shell.js?v=20260921-guide-1"></script>
   <script src="js/v2-views.js?v=20260921-round0-1"></script>
   <script src="js/v2-roster-write.js?v=20260918-2"></script>
-  <script src="js/v2-staff.js?v=20260929-deep-insights-1"></script>
+  <script src="js/v2-staff.js?v=20260929-oldstaff-periods-1"></script>
   <script src="js/v2-efficiency.js?v=20260921-round0-1"></script>
   <script src="js/v2-individual.js?v=20260929-person-mtd-toggle-1"></script>
   <script src="js/v2-monthly.js?v=20260921-round0-1"></script>

@@ -34,6 +34,84 @@
   };
   const dmy = (iso) => (iso ? String(iso).split('-').reverse().join('/') : '—');
 
+  let oldTrendMode = 'mtd';
+  const isoDate = (iso) => new Date(`${String(iso || '')}T00:00:00Z`);
+  const isoKey = (date) => date.toISOString().slice(0, 10);
+  function addDays(iso, days) {
+    const date = isoDate(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setUTCDate(date.getUTCDate() + days);
+    return isoKey(date);
+  }
+  function addMonths(iso, months) {
+    const date = new Date(`${String(iso || '')}-01T00:00:00Z`);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setUTCMonth(date.getUTCMonth() + months);
+    return date.toISOString().slice(0, 7);
+  }
+  function mondayOf(iso) {
+    const date = isoDate(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    const day = date.getUTCDay();
+    date.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
+    return isoKey(date);
+  }
+  function oldTrendPeriod(anchor, mode) {
+    const end = anchor || '';
+    if (!end) return { mode, label: 'ไม่มีข้อมูล', start: '', end: '', keys: [] };
+    const month = end.slice(0, 7);
+    let start = mode === 'wtd' ? mondayOf(end) : mode === 'ytd' ? `${end.slice(0, 4)}-01-01` : `${month}-01`;
+    const keys = [];
+    if (mode === 'ytd') {
+      for (let key = start.slice(0, 7); key && key <= month; key = addMonths(key, 1)) keys.push(key);
+    } else {
+      for (let key = start; key && key <= end; key = addDays(key, 1)) keys.push(key);
+    }
+    return { mode, label: mode === 'wtd' ? 'Week to Date' : mode === 'ytd' ? 'Year to Date' : 'Month to Date', start, end, keys };
+  }
+  function buildOldTrend(shown, anchor, mode) {
+    const period = oldTrendPeriod(anchor, mode);
+    const buckets = new Map();
+    shown.forEach((p) => p.rows.forEach((r) => {
+      const date = M.date(r[2]);
+      if (!date || date < period.start || date > period.end) return;
+      const key = mode === 'ytd' ? date.slice(0, 7) : date;
+      let bucket = buckets.get(key);
+      if (!bucket) bucket = { key, sum: 0, count: 0, total: 0, people: new Set() };
+      const average = M.number(r[31]);
+      if (average > 0) { bucket.sum += average; bucket.count += 1; bucket.people.add(p.id); }
+      bucket.total += M.number(r[4]);
+      buckets.set(key, bucket);
+    }));
+    return {
+      ...period,
+      items: period.keys.map((key) => {
+        const bucket = buckets.get(key) || { key, sum: 0, count: 0, total: 0, people: new Set() };
+        return { ...bucket, average: bucket.count ? bucket.sum / bucket.count : null, peopleCount: bucket.people.size };
+      })
+    };
+  }
+  function trendValues(items, targetValue) {
+    return items.map((item) => item.average).filter((value) => Number.isFinite(value)).concat(targetValue);
+  }
+  function trendLineMin(items, targetValue) {
+    const values = trendValues(items, targetValue);
+    if (!values.length) return 0;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const pad = Math.max(5, Math.ceil((max - min) * 0.25));
+    return Math.max(0, Math.floor((min - pad) / 5) * 5);
+  }
+  function trendLineMax(items, targetValue) {
+    const values = trendValues(items, targetValue);
+    if (!values.length) return 1;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const pad = Math.max(5, Math.ceil((max - min) * 0.25));
+    return Math.max(1, Math.ceil((max + pad) / 5) * 5);
+  }
+  const oldTrendLabel = (item, mode) => mode === 'ytd' ? monthLabel(item.key) : `${item.key.slice(8, 10)}/${item.key.slice(5, 7)}`;
+
   let rows = [];
   let roster = new Map();
   let resigned = new Map();
@@ -627,7 +705,7 @@
     }
     renderTenureCohorts('oldStaffCohorts', hideResigned ? [...oldAll, ...newAll].filter((p) => !p.resigned) : [...oldAll, ...newAll], t);
 
-    // แนวโน้มรายเดือนของกลุ่ม รวม sum/count ของทุกคนในเดือนนั้น
+    // แนวโน้มรายเดือนของกลุ่มสำหรับการ์ดวิเคราะห์/เปรียบเทียบเดือน
     const monthMap = new Map();
     shown.forEach((p) => p.months.forEach((m) => {
       let b = monthMap.get(m.key);
@@ -638,42 +716,56 @@
     const months = [...monthMap.values()].sort((a, b) => a.key.localeCompare(b.key))
       .map((m) => ({ ...m, average: m.count ? m.sum / m.count : null, peopleCount: m.people.size }));
 
+    const trend = buildOldTrend(shown, ctx.anchor, oldTrendMode);
+    const withTrend = trend.items.filter((item) => item.average !== null);
+    const firstTrend = withTrend[0], lastTrend = withTrend[withTrend.length - 1];
+    const trendDelta = firstTrend && lastTrend && firstTrend !== lastTrend ? lastTrend.average - firstTrend.average : null;
     if ($('oldStaffTrendPill')) {
-      const withM = months.filter((m) => m.average !== null);
-      const f = withM[0], l = withM[withM.length - 1];
-      $('oldStaffTrendPill').textContent = f && l && f !== l
-        ? `${monthLabel(f.key)} ${prod(f.average)} → ${monthLabel(l.key)} ${prod(l.average)} (${signed(l.average - f.average)})`
-        : `${fmt(months.length)} เดือน`;
+      $('oldStaffTrendPill').textContent = trendDelta === null
+        ? `${trend.label} · ${dmy(trend.start)}–${dmy(trend.end)}`
+        : `${trend.label} · ${prod(lastTrend.average)} ล่าสุด · ${signed(trendDelta)}`;
     }
+    if ($('oldStaffTrendRange')) {
+      $('oldStaffTrendRange').textContent = `${trend.label} · ${dmy(trend.start)} ถึง ${dmy(trend.end)} · ${fmt(withTrend.length)} ช่วงที่มี Productivity`;
+    }
+    document.querySelectorAll('[data-old-trend]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.oldTrend === oldTrendMode);
+    });
 
     draw('oldStaffTrendChart', {
       data: {
-        labels: months.map((m) => monthLabel(m.key)),
+        labels: trend.items.map((item) => oldTrendLabel(item, oldTrendMode)),
         datasets: [
           {
-            type: 'bar', label: 'Total Pick', data: months.map((m) => m.total),
-            backgroundColor: 'rgba(99,102,241,.85)', borderRadius: 6, yAxisID: 'y',
+            type: 'bar', label: 'Total Pick', data: trend.items.map((item) => item.total),
+            backgroundColor: trend.items.map((item) => item.average === null ? 'rgba(148,163,184,.42)' : item.average >= t ? 'rgba(16,185,129,.78)' : 'rgba(244,63,94,.78)'),
+            borderColor: trend.items.map((item) => item.average === null ? '#94a3b8' : item.average >= t ? '#059669' : '#e11d48'),
+            borderWidth: 1, borderRadius: 6, yAxisID: 'y',
             datalabels: {
-              anchor: 'center', align: 'center', rotation: months.length > 8 ? -90 : 0,
-              color: '#fff', backgroundColor: 'rgba(15,23,42,.45)', borderRadius: 4,
-              padding: { top: 2, right: 4, bottom: 2, left: 4 },
-              font: { weight: '700', size: 10 }, formatter: (v) => (Number(v) > 0 ? fmt(v) : '')
+              display: (c) => Number(c.dataset.data[c.dataIndex]) > 0 ? 'auto' : false,
+              anchor: 'end', align: 'top', offset: 4,
+              color: '#334155', backgroundColor: 'rgba(255,255,255,.9)', borderColor: 'rgba(99,102,241,.3)',
+              borderWidth: 1, borderRadius: 4, padding: { top: 2, right: 4, bottom: 2, left: 4 },
+              font: { weight: '700', size: trend.items.length > 20 ? 8.5 : 9.5 }, formatter: (v) => (Number(v) > 0 ? fmt(v) : '')
             }
           },
           {
-            type: 'line', label: 'Productivity (ค่าเฉลี่ยต่อชั่วโมง)', data: months.map((m) => (m.average === null ? null : Number(m.average.toFixed(1)))),
-            borderColor: '#f43f5e', backgroundColor: '#f43f5e', tension: 0.35, borderWidth: 3,
-            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#f43f5e', pointBorderWidth: 2,
+            type: 'line', label: 'Productivity (ค่าเฉลี่ยต่อชั่วโมง)', data: trend.items.map((item) => (item.average === null ? null : Number(item.average.toFixed(1)))),
+            borderColor: '#4f46e5', backgroundColor: '#4f46e5', tension: 0.28, borderWidth: 3,
+            pointRadius: trend.items.length > 20 ? 3.5 : 5, pointBackgroundColor: trend.items.map((item) => item.average === null ? '#fff' : item.average >= t ? '#10b981' : '#f43f5e'),
+            pointBorderColor: '#fff', pointBorderWidth: 2,
             spanGaps: true, yAxisID: 'y1',
             datalabels: {
-              display: (c) => c.dataset.data[c.dataIndex] !== null, anchor: 'end', align: 'top', offset: 8,
-              color: '#e11d48', backgroundColor: 'rgba(255,255,255,.98)', borderColor: 'rgba(244,63,94,.4)',
+              display: (c) => c.dataset.data[c.dataIndex] !== null ? 'auto' : false,
+              anchor: 'end', align: (c) => c.dataIndex % 2 ? 'top' : 'bottom', offset: (c) => c.dataIndex % 2 ? 7 : 9,
+              color: (c) => trend.items[c.dataIndex].average >= t ? '#047857' : '#be123c', backgroundColor: 'rgba(255,255,255,.96)',
+              borderColor: (c) => trend.items[c.dataIndex].average >= t ? 'rgba(16,185,129,.45)' : 'rgba(244,63,94,.45)',
               borderWidth: 1.5, borderRadius: 5, padding: { top: 2, right: 5, bottom: 2, left: 5 },
-              font: { weight: '700', size: 10.5 }, formatter: (v) => prod(v)
+              font: { weight: '700', size: trend.items.length > 20 ? 8.5 : 10 }, formatter: (v) => prod(v)
             }
           },
           {
-            type: 'line', label: `Target ${fmt(t)}`, data: months.map(() => t),
+            type: 'line', label: `Target ${fmt(t)}`, data: trend.items.map(() => t),
             borderColor: 'rgba(245,158,11,.9)', borderWidth: 2, borderDash: [6, 5], pointRadius: 0,
             fill: false, yAxisID: 'y1', datalabels: { display: false }
           }
@@ -688,16 +780,16 @@
             backgroundColor: 'rgba(15,23,42,.92)', padding: 10, cornerRadius: 8,
             callbacks: {
               afterBody: (items) => {
-                const m = months[items[0].dataIndex];
-                return `${fmt(m.peopleCount)} คน · ${fmt(m.count)} แถวเข้าเฉลี่ย`;
+                const item = trend.items[items[0].dataIndex];
+                return `${fmt(item.peopleCount)} คน · ${fmt(item.count)} แถวเข้าเฉลี่ย · ${item.average === null ? 'ไม่มี Productivity' : `${prod(item.average)} หยิบ/ชม.`}`;
               }
             }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10.5 } } },
-          y: { grid: { color: '#f1f5f9' }, ticks: { callback: (v) => fmt(v) } },
-          y1: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: (v) => Number(v).toFixed(0) }, suggestedMax: Math.ceil(t * 1.4) }
+          x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: oldTrendMode === 'ytd' ? 12 : 16, maxRotation: oldTrendMode === 'ytd' ? 0 : 45, font: { size: 10 } } },
+          y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: (v) => fmt(v) }, suggestedMax: Math.ceil(Math.max(1, ...trend.items.map((item) => item.total)) * 1.25) },
+          y1: { position: 'right', min: trendLineMin(trend.items, t), max: trendLineMax(trend.items, t), grid: { drawOnChartArea: false }, ticks: { callback: (v) => prod(v) } }
         }
       }
     });
@@ -797,4 +889,10 @@
   document.addEventListener('v3-render', schedule);
   document.querySelectorAll('.nav-item[data-tab="newstaff"], .nav-item[data-tab="oldstaff"]')
     .forEach((b) => b.addEventListener('click', schedule));
+  document.querySelectorAll('[data-old-trend]').forEach((button) => {
+    button.addEventListener('click', () => {
+      oldTrendMode = button.dataset.oldTrend || 'mtd';
+      schedule();
+    });
+  });
 })();
