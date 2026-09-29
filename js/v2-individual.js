@@ -762,7 +762,7 @@
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 24, maxRotation: labels.length > 14 ? 90 : 0, font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { autoSkip: trendDays !== 'mtd', maxTicksLimit: trendDays === 'mtd' ? 31 : 24, minRotation: trendDays === 'mtd' ? 60 : 0, maxRotation: trendDays === 'mtd' ? 60 : (labels.length > 14 ? 90 : 0), font: { size: trendDays === 'mtd' ? 9 : 10 } } },
           y: { beginAtZero: true, position: 'left', suggestedMax: Math.ceil(maxTotal * 1.3),
             grid: { color: 'rgba(148,163,184,.25)' }, title: { display: true, text: 'Total Pick', font: { size: 10.5 } } },
           y1: { beginAtZero: true, position: 'right', suggestedMax: Math.ceil(maxProd * 1.3),
