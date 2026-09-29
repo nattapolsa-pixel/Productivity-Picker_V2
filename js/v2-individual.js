@@ -890,7 +890,12 @@
       const side = e.target.closest('[data-ind-side]');
       if (side) { chartSide = side.dataset.indSide; render(); return; }
       const trend = e.target.closest('[data-ind-trend]');
-      if (trend) { trendDays = Number(trend.dataset.indTrend); render(); return; }
+      if (trend) {
+        const mode = trend.dataset.indTrend;
+        trendDays = mode === 'mtd' ? 'mtd' : Number(mode);
+        render();
+        return;
+      }
     });
     if (!host.innerHTML) {
       host.innerHTML = '<div class="card v3-card"><div class="staff-miss-ok">กำลังอ่านข้อมูลจาก Google Sheets…</div></div>';
