@@ -4,14 +4,25 @@ const source=require('../data/snapshot.json'), M=V3Metrics;
 const rows=source.sheets['Results Master'].rows.filter(r=>M.date(r[2]));
 const index=V1Engine.buildIndex(source.sheets);
 const raw=M.aggregate(rows);
-assert.equal(index.totalRows,rows.length);
-assert.equal(index.totalPick,raw.total);
+const sortPeople=M.sortPeopleSummary(source.sheets);
+const isBe=r=>M.type(r[36])==='pickToSort'&&/(^|[^A-Z0-9])BE([^A-Z0-9]|$)/i.test(String(r[33]||''));
+const replacedDates=new Set(Object.keys(sortPeople).filter(d=>rows.some(r=>M.date(r[2])===d&&isBe(r))));
+const adjusted=(selected)=>{
+  const replaced=selected.filter(r=>replacedDates.has(M.date(r[2]))&&isBe(r));
+  const kept=selected.filter(r=>!(replacedDates.has(M.date(r[2]))&&isBe(r)));
+  let total=M.aggregate(kept).total,sum=M.aggregate(kept).sum,count=M.aggregate(kept).count,rowsCount=kept.length;
+  for(const date of replacedDates){if(!selected.some(r=>M.date(r[2])===date))continue;const g=sortPeople[date];total+=g.total;sum+=g.sum;count+=g.count;rowsCount+=g.people.length;}
+  return {total,sum,count,rows:rowsCount,average:count?sum/count:null};
+};
+const expectedAll=adjusted(rows);
+assert.equal(index.totalRows,expectedAll.rows);
+assert.equal(index.totalPick,expectedAll.total);
 let sum=0,count=0;
 for(const day of Object.values(index.dates)){sum+=day.overall.sum;count+=day.overall.count;}
-assert.equal(count,raw.count);assert.ok(Math.abs(sum-raw.sum)<1e-7);
+assert.equal(count,expectedAll.count);assert.ok(Math.abs(sum-expectedAll.sum)<1e-7);
 const days=[index.dateKeys[0],index.dateKeys[Math.floor(index.dateKeys.length/2)],index.dateKeys.at(-2),index.dateKeys.at(-1)];
 const reconciliation=[];
-for(const day of days){const filtered=rows.filter(r=>M.date(r[2])===day);const expected=M.aggregate(filtered);const actual=V1Engine.buildRange(source.sheets,day,day);assert.equal(actual.totalPick,expected.total);assert.equal(actual.overall.count,expected.count);assert.equal(actual.overall.average,Math.round((expected.average||0)*10)/10);reconciliation.push({date:day,totalPick:actual.totalPick,productivity:actual.overall.average,validRows:actual.overall.count});}
+for(const day of days){const filtered=rows.filter(r=>M.date(r[2])===day);const expected=adjusted(filtered);const actual=V1Engine.buildRange(source.sheets,day,day);assert.equal(actual.totalPick,expected.total);assert.equal(actual.overall.count,expected.count);assert.equal(actual.overall.average,Math.round((expected.average||0)*10)/10);reconciliation.push({date:day,totalPick:actual.totalPick,productivity:actual.overall.average,validRows:actual.overall.count});}
 const sample=(date,total,af,type='Full Rack',shift='A')=>{const r=Array(43).fill('');r[2]=date;r[3]='00123';r[4]=total;r[31]=af;r[32]=shift;r[36]=type;return r;};
 const fixture=[sample('Date(2026,8,1)',100,100),sample('Date(2026,8,1)',500,'Not Count'),sample('Date(2026,8,2)',300,300),sample('Date(2026,8,2)',200,200)];
 assert.equal(M.aggregate(fixture).total,1100);assert.equal(M.aggregate(fixture).average,200);
@@ -26,6 +37,8 @@ assert.deepEqual(V3Source.csv('a,b\r\n"MP001","a,""b""\nc"'),[['a','b'],['MP001'
 const parsed=V3Source.parseCsv('Name,Date,User ID,Total pick,AVERAGE\r\nx,02/01/2026,MP001,20,Not Count',{name:'fixture',headers:['User ID']});
 assert.equal(parsed.rows[0][2],'MP001');assert.equal(parsed.rows[0][4],'Not Count');
 assert.ok(source.sheets['Update name'].rows.length>1,'Read all roster rows, not only filtered visible row');
+assert.equal(sortPeople['2026-09-28'].total,3630);
+assert.equal(Math.round(sortPeople['2026-09-28'].average),58);
 for(const system of ['PTT','BPS','Not Found']){const selected=rows.filter(r=>M.matches(r,{system}));const sheets={...source.sheets,'Results Master':{...source.sheets['Results Master'],rows:selected}};const p=V1Engine.buildIndex(sheets);assert.equal(p.totalPick,M.aggregate(selected).total);}
-console.log('PASS: V1 formula, all/day parity, Not Count totals, BPS cutoff, calendar dates, shift C, mixed IDs, CSV, full roster');
+console.log('PASS: V1 formula, BE Sort_Data per-person merge, all/day parity, Not Count totals, BPS cutoff, calendar dates, shift C, mixed IDs, CSV, full roster');
 console.table(reconciliation);

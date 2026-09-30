@@ -11,6 +11,32 @@
     }
     return null;
   }
+  function sortHeader(value){return String(value??'').toLowerCase().replace(/[\s_\-()]+/g,'').trim();}
+  function sortColumn(headers,names){
+    for(const name of names||[]){const exact=String(name??'').toLowerCase().trim();const i=(headers||[]).findIndex(h=>String(h??'').toLowerCase().trim()===exact);if(i>=0)return i;}
+    const normalized=(headers||[]).map(sortHeader);for(const name of names||[]){const needle=sortHeader(name);const i=normalized.findIndex(h=>h===needle||h.includes(needle));if(i>=0)return i;}
+    return -1;
+  }
+  function sortDateTime(value){
+    if(value instanceof Date&&!Number.isNaN(value.getTime()))return new Date(value.getTime());
+    const m=String(value??'').trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);if(!m)return null;
+    let y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;const d=new Date(y,+m[2]-1,+m[1],+m[4],+m[5],+(m[6]||0));return Number.isNaN(d.getTime())?null:d;
+  }
+  function sortDate(value){const m=String(value??'').trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);if(!m)return '';let y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;}
+  function sortDateTimeAt(date,hour,minute,offset){const [y,m,d]=date.split('-').map(Number);const out=new Date(y,m-1,d,hour,minute||0);out.setDate(out.getDate()+Number(offset||0));return out;}
+  function sortHours(person){
+    const night=String(person.shift??'').toLowerCase().includes('night'),ranges=night?[[sortDateTimeAt(person.date,19,0),sortDateTimeAt(person.date,22,50)],[sortDateTimeAt(person.date,0,0,1),sortDateTimeAt(person.date,4,0,1)],[sortDateTimeAt(person.date,4,30,1),sortDateTimeAt(person.date,7,0,1)]]:[[sortDateTimeAt(person.date,7,0),sortDateTimeAt(person.date,10,50)],[sortDateTimeAt(person.date,12,0),sortDateTimeAt(person.date,16,0)],[sortDateTimeAt(person.date,16,30),sortDateTimeAt(person.date,19,0)]];
+    return ranges.reduce((sum,[start,end])=>sum+Math.max(0,(Math.min(person.last,end)-Math.max(person.first,start))/3600000),0);
+  }
+  function sortPeopleSummary(sheets){
+    const sheet=sheets&&sheets.Sort_Data;if(!sheet||!sheet.rows||!sheet.rows.length)return {};
+    const headers=sheet.headers||[],c={uom:sortColumn(headers,['UOM Qty','UOM']),dateTime:sortColumn(headers,['Sort DateTime','DateTime']),shift:sortColumn(headers,['Shift']),shiftDate:sortColumn(headers,['Shift Date']),id:sortColumn(headers,['Sorter ID','User ID'])};
+    if(Object.values(c).some(i=>i<0))return {};
+    const groups={};
+    for(const row of sheet.rows){const date=sortDate(row[c.shiftDate]),dt=sortDateTime(row[c.dateTime]),id=String(row[c.id]??'').trim();if(!date||!dt||!id)continue;if(!groups[date])groups[date]={date,peopleById:{}};const p=groups[date].peopleById[id]||(groups[date].peopleById[id]={userId:id,shift:row[c.shift],total:0,first:dt,last:dt});p.total+=number(row[c.uom]);if(dt<p.first)p.first=dt;if(dt>p.last)p.last=dt;}
+    for(const group of Object.values(groups)){const entries=Object.values(group.peopleById).map(p=>{p.hours=sortHours({...p,date:group.date});p.productivity=p.hours>0?p.total/p.hours:0;p.valid=p.hours>3&&p.productivity>0&&p.productivity<1000;return p;});const valid=entries.filter(p=>p.valid);group.people=entries;group.total=entries.reduce((sum,p)=>sum+p.total,0);group.sum=valid.reduce((sum,p)=>sum+p.productivity,0);group.count=valid.length;group.average=group.count?group.sum/group.count:null;group.excluded=entries.length-group.count;delete group.peopleById;}
+    return groups;
+  }
   function type(v){const t=String(v||'').toLowerCase().trim();if(t.includes('sort'))return 'pickToSort';if(t.includes('full'))return 'fullRack';if(t.includes('half')||t.includes('haft'))return 'halfRack';if(t.includes('micro')||t.includes('ea'))return 'ea';if(t.includes('mezz'))return 'mezzanine';return '';}
   function system(row){const t=type(row[36]);return t==='pickToSort'?'BPS':t?'PTT':'Not Found';}
   /* กะที่ใช้กรอง/จับกลุ่ม อ่านจากคอลัมน์ AG ตามที่ Sheet บันทึกไว้ ไม่คาดเดาจากเวลา
@@ -106,7 +132,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDashboardSummary,type,system,shiftKey,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDashboardSummary,sortPeopleSummary,type,system,shiftKey,matches,aggregate,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

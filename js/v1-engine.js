@@ -575,6 +575,10 @@ function buildDailyIndexPayload_() {
     pickType: SHEET_COLUMN.PICK_TYPE - SHEET_COLUMN.DATE,
   };
 
+  const sortPeopleByDate = buildSortPeopleByDate_(ss);
+  enrichSortPeopleFromResults_(sortPeopleByDate, dataValues, nameValues, columnOffset);
+  const replacedSortBeDates = {};
+
   const dates = {};
   let emptyDateRows = 0;
   let invalidDateRows = 0;
@@ -602,6 +606,16 @@ function buildDailyIndexPayload_() {
     }
 
     const day = dates[dateKey];
+    const sortBeReplacement = Boolean(
+      sortPeopleByDate[dateKey] &&
+      isSortBeRow_(dataValues[index][columnOffset.position], dataValues[index][columnOffset.pickType])
+    );
+
+    if (sortBeReplacement) {
+      replacedSortBeDates[dateKey] = true;
+      continue;
+    }
+
     const rawTotalPick = dataValues[index][columnOffset.totalPick];
     const rowTotalPick = getTotalPickValue_(rawTotalPick, rawTotalPick);
     day.filteredRows += 1;
@@ -680,6 +694,10 @@ function buildDailyIndexPayload_() {
       addValue_(day.bu[buKey].details[pickType], average);
     }
   }
+
+  Object.keys(replacedSortBeDates).forEach((dateKey) => {
+    addSortPeopleToDaily_(dates[dateKey], sortPeopleByDate[dateKey]);
+  });
 
   const dateKeys = Object.keys(dates).sort();
   const trainingDebugSummary = createTrainingSummary_();
@@ -809,6 +827,359 @@ function addPickToSortValue_(summary, userIdValue, nameValue, average, meta) {
   });
 }
 
+const SORT_DATA_SHEET_NAME = "Sort_Data";
+
+function normalizeSortDataHeader_(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[\s_\-()]+/g, "")
+    .trim();
+}
+
+function findSortDataColumn_(headers, names) {
+  const normalizedHeaders = (headers || []).map(normalizeSortDataHeader_);
+
+  for (const name of names || []) {
+    const exactName = String(name || "").toLowerCase().trim();
+    const exactIndex = (headers || []).findIndex((header) => String(header || "").toLowerCase().trim() === exactName);
+
+    if (exactIndex >= 0) {
+      return exactIndex;
+    }
+  }
+
+  for (const name of names || []) {
+    const needle = normalizeSortDataHeader_(name);
+    const index = normalizedHeaders.findIndex((header) => header === needle || header.includes(needle));
+    if (index >= 0) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function parseSortDateTime_(value) {
+  if (value instanceof Date && !isNaN(value.getTime())) {
+    return new Date(value.getTime());
+  }
+
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  const match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+
+  if (match) {
+    let year = Number(match[3]);
+
+    if (year < 100) {
+      year += 2000;
+    }
+
+    if (year > 2400) {
+      year -= 543;
+    }
+
+    const date = new Date(
+      year,
+      Number(match[2]) - 1,
+      Number(match[1]),
+      Number(match[4]),
+      Number(match[5]),
+      Number(match[6] || 0)
+    );
+
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  const parsed = new Date(text);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseSortDate_(value) {
+  const text = String(value || "").trim();
+  const dateMatch = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+
+  if (dateMatch) {
+    let year = Number(dateMatch[3]);
+
+    if (year < 100) {
+      year += 2000;
+    }
+
+    if (year > 2400) {
+      year -= 543;
+    }
+
+    const date = new Date(year, Number(dateMatch[2]) - 1, Number(dateMatch[1]));
+    return isNaN(date.getTime()) ? null : date;
+  }
+
+  return normalizeDate_(value, "DMY");
+}
+
+function sortDateTime_(baseDate, hour, minute, dayOffset) {
+  const date = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate(),
+    hour,
+    minute || 0,
+    0,
+    0
+  );
+  date.setDate(date.getDate() + Number(dayOffset || 0));
+  return date;
+}
+
+function sortActiveHours_(entry) {
+  if (!entry || !entry.first || !entry.last || !entry.date) {
+    return 0;
+  }
+
+  const isNight = String(entry.shift || "").toLowerCase().includes("night");
+  const date = entry.date;
+  const ranges = isNight
+    ? [
+        [sortDateTime_(date, 19, 0, 0), sortDateTime_(date, 22, 50, 0)],
+        [sortDateTime_(date, 0, 0, 1), sortDateTime_(date, 4, 0, 1)],
+        [sortDateTime_(date, 4, 30, 1), sortDateTime_(date, 7, 0, 1)],
+      ]
+    : [
+        [sortDateTime_(date, 7, 0, 0), sortDateTime_(date, 10, 50, 0)],
+        [sortDateTime_(date, 12, 0, 0), sortDateTime_(date, 16, 0, 0)],
+        [sortDateTime_(date, 16, 30, 0), sortDateTime_(date, 19, 0, 0)],
+      ];
+
+  return ranges.reduce((sum, range) => {
+    const start = Math.max(entry.first.getTime(), range[0].getTime());
+    const end = Math.min(entry.last.getTime(), range[1].getTime());
+    return sum + Math.max(0, (end - start) / 3600000);
+  }, 0);
+}
+
+function buildSortPeopleByDate_(ss) {
+  const sheet = ss.getSheetByName(SORT_DATA_SHEET_NAME);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return {};
+  }
+
+  const lastColumn = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getDisplayValues()[0] || [];
+  const columns = {
+    uom: findSortDataColumn_(headers, ["UOM Qty", "UOM"]),
+    dateTime: findSortDataColumn_(headers, ["Sort DateTime", "DateTime"]),
+    shift: findSortDataColumn_(headers, ["Shift"]),
+    shiftDate: findSortDataColumn_(headers, ["Shift Date"]),
+    sorterId: findSortDataColumn_(headers, ["Sorter ID", "User ID"]),
+  };
+
+  if (Object.values(columns).some((column) => column < 0)) {
+    return {};
+  }
+
+  const values = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastColumn).getValues();
+  const grouped = {};
+
+  values.forEach((row) => {
+    const date = parseSortDate_(row[columns.shiftDate]);
+    const dateKey = formatDateISO_(date);
+    const userId = normalizeUserId_(row[columns.sorterId]);
+    const dateTime = parseSortDateTime_(row[columns.dateTime]);
+
+    if (!dateKey || !userId || !dateTime) {
+      return;
+    }
+
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = { date, peopleById: {} };
+    }
+
+    const people = grouped[dateKey].peopleById;
+
+    if (!people[userId]) {
+      people[userId] = {
+        userId,
+        date,
+        shift: row[columns.shift],
+        totalPick: 0,
+        first: dateTime,
+        last: dateTime,
+        name: "",
+        affiliation: "",
+        bu: "",
+        zone: "BE",
+      };
+    }
+
+    const person = people[userId];
+    person.totalPick += toNumber_(row[columns.uom]);
+
+    if (dateTime < person.first) {
+      person.first = dateTime;
+    }
+
+    if (dateTime > person.last) {
+      person.last = dateTime;
+    }
+  });
+
+  Object.keys(grouped).forEach((dateKey) => {
+    const group = grouped[dateKey];
+    group.entries = Object.keys(group.peopleById).map((userId) => {
+      const person = group.peopleById[userId];
+      person.activeHours = sortActiveHours_(person);
+      person.average = person.activeHours > 0 ? person.totalPick / person.activeHours : 0;
+      // ใช้กฎเดียวกับ AF: มีเวลาทำงานเกิน 3 ชั่วโมง และ Productivity ต่ำกว่า 1,000 จึงนำไปเฉลี่ย
+      person.valid = person.activeHours > 3 && person.average > 0 && person.average < 1000;
+      return person;
+    });
+  });
+
+  return grouped;
+}
+
+function enrichSortPeopleFromResults_(grouped, dataValues, nameValues, columnOffset) {
+  if (!grouped || !dataValues || !columnOffset) {
+    return;
+  }
+
+  dataValues.forEach((row, index) => {
+    const rowDate = normalizeSheetDate_(row[columnOffset.date], row[columnOffset.date]);
+    const dateKey = formatDateISO_(rowDate);
+    const group = grouped[dateKey];
+
+    if (!group || !isSortBeRow_(row[columnOffset.position], row[columnOffset.pickType])) {
+      return;
+    }
+
+    const userId = normalizeUserId_(row[columnOffset.userId]);
+    const person = group.peopleById[userId];
+
+    if (!person) {
+      return;
+    }
+
+    const name = findPickerDisplayName_(nameValues[index] && nameValues[index][0], userId);
+
+    if (name && !/^User ID\s/i.test(name)) {
+      person.name = name;
+    }
+
+    person.affiliation = person.affiliation || row[columnOffset.affiliation];
+    person.bu = person.bu || row[columnOffset.bu];
+    person.zone = row[columnOffset.position] || person.zone || "BE";
+  });
+}
+
+function isSortBeRow_(position, pickType) {
+  const match = findZoneMatch_(position);
+
+  if (match && match.zoneKey === "pickToSortBe") {
+    return true;
+  }
+
+  return normalizePickType_(pickType) === "pickToSort" && /(?:^|[^A-Z0-9])BE(?:$|[^A-Z0-9])/i.test(String(position || ""));
+}
+
+function addSortPersonAggregateValue_(target, person) {
+  if (!target || !person || !person.valid) {
+    return;
+  }
+
+  const categories = target.categories || target;
+  const average = person.average;
+  const pickType = "pickToSort";
+  const shouldCountPickType = shouldCountPickTypeOnDate_(pickType, person.date);
+  const buKey = normalizeBu_(person.bu);
+  const meta = {
+    shift: person.shift,
+    affiliation: person.affiliation || "Pick to Sort",
+    bu: person.bu,
+    zone: person.zone || "BE",
+    totalPick: person.totalPick,
+  };
+
+  addValue_(target.overall, average);
+  addPickerValue_(target.pickers, person.userId, person.name, average, {
+    ...meta,
+    buKey,
+    pickType,
+  });
+
+  if (shouldCountPickType && categories[pickType]) {
+    addValue_(categories[pickType], average);
+  }
+
+  if (shouldCountPickType) {
+    addPickToSortValue_(target.pickToSortDetails, person.userId, person.name, average, meta);
+  }
+
+  const zoneMatch = findZoneMatch_("BE");
+
+  if (zoneMatch && target.zones[zoneMatch.groupKey] && target.zones[zoneMatch.groupKey][zoneMatch.zoneKey]) {
+    addValue_(target.zones[zoneMatch.groupKey][zoneMatch.zoneKey], average);
+  }
+
+  addShiftValue_(target.shifts, person.shift, meta.affiliation, average);
+  addValue_(target.bu[buKey], average);
+
+  if (shouldCountPickType && target.bu[buKey].details && target.bu[buKey].details[pickType]) {
+    addValue_(target.bu[buKey].details[pickType], average);
+  }
+}
+
+function addSortPeopleToDaily_(day, group) {
+  if (!day || !group || !group.entries) {
+    return;
+  }
+
+  group.entries.forEach((person) => {
+    day.filteredRows += 1;
+    day.totalPick += person.totalPick;
+
+    if (!person.valid) {
+      day.excludedCount += 1;
+      return;
+    }
+
+    addSortPersonAggregateValue_(day, person);
+  });
+}
+
+function addSortPeopleToRange_(state, group) {
+  if (!state || !group || !group.entries) {
+    return;
+  }
+
+  group.entries.forEach((person) => {
+    state.filteredRows += 1;
+    state.totalPick += person.totalPick;
+
+    if (!state.totalPickStartDate || person.date < state.totalPickStartDate) {
+      state.totalPickStartDate = new Date(person.date.getTime());
+    }
+
+    if (!state.totalPickEndDate || person.date > state.totalPickEndDate) {
+      state.totalPickEndDate = new Date(person.date.getTime());
+    }
+
+    if (!person.valid) {
+      state.excludedCount += 1;
+      return;
+    }
+
+    addSortPersonAggregateValue_(state, person);
+    addMonthlyTrendValue_(state.monthlyTrend, person.date, person.average, person.totalPick);
+
+    if (!state.latestMonthlyTrendDate || person.date > state.latestMonthlyTrendDate) {
+      state.latestMonthlyTrendDate = person.date;
+    }
+
+    if (!state.selectedMonthlyTrendDate || person.date > state.selectedMonthlyTrendDate) {
+      state.selectedMonthlyTrendDate = person.date;
+    }
+  });
+}
+
 function buildDashboardPayload_(startDateText, endDateText) {
   const startedAt = Date.now();
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -853,6 +1224,9 @@ function buildDashboardPayload_(startDateText, endDateText) {
     pickType: SHEET_COLUMN.PICK_TYPE - SHEET_COLUMN.DATE,
   };
 
+  const sortPeopleByDate = buildSortPeopleByDate_(ss);
+  enrichSortPeopleFromResults_(sortPeopleByDate, dataValues, nameValues, columnOffset);
+
   const summary = {
     overall: createBucket_(),
     fullRack: createBucket_(),
@@ -877,6 +1251,7 @@ function buildDashboardPayload_(startDateText, endDateText) {
   let totalPickEndDate = null;
   let latestMonthlyTrendDate = null;
   let selectedMonthlyTrendDate = null;
+  const replacedSortBeDates = {};
   const filterDiagnostics = {
     enabled: shouldFilterByDate,
     sourceColumn: "C",
@@ -899,10 +1274,15 @@ function buildDashboardPayload_(startDateText, endDateText) {
     const average = toNumber_(dataValues[index][columnOffset.average]);
     const rawTotalPick = dataValues[index][columnOffset.totalPick];
     const rowTotalPick = getTotalPickValue_(rawTotalPick, rawTotalPick);
+    const rowDateKey = formatDateISO_(rowDateForTraining);
+    const sortBeReplacement = Boolean(
+      sortPeopleByDate[rowDateKey] &&
+      isSortBeRow_(dataValues[index][columnOffset.position], dataValues[index][columnOffset.pickType])
+    );
 
     const rawUserId = dataValues[index][columnOffset.userId];
 
-    if (average > 0) {
+    if (average > 0 && !sortBeReplacement) {
       addTrainingValue_(
         trainingSummary,
         trainingRoster,
@@ -953,6 +1333,11 @@ function buildDashboardPayload_(startDateText, endDateText) {
       filterDiagnostics.matchedDateRows += 1;
       filterDiagnostics.firstMatchedDate = filterDiagnostics.firstMatchedDate || matchedText;
       filterDiagnostics.lastMatchedDate = matchedText;
+    }
+
+    if (sortBeReplacement) {
+      replacedSortBeDates[rowDateKey] = true;
+      continue;
     }
 
     if (rowDateForTraining && average > 0) {
@@ -1036,6 +1421,36 @@ function buildDashboardPayload_(startDateText, endDateText) {
       addValue_(buSummary[buKey].details[pickType], average);
     }
   }
+
+  const sortRangeState = {
+    overall: summary.overall,
+    categories: summary,
+    zones: zoneSummary,
+    bu: buSummary,
+    shifts: shiftSummary,
+    pickers: pickerSummary,
+    pickToSortDetails,
+    monthlyTrend,
+    filteredRows,
+    excludedCount,
+    totalPick,
+    totalPickStartDate,
+    totalPickEndDate,
+    latestMonthlyTrendDate,
+    selectedMonthlyTrendDate,
+  };
+
+  Object.keys(replacedSortBeDates).forEach((dateKey) => {
+    addSortPeopleToRange_(sortRangeState, sortPeopleByDate[dateKey]);
+  });
+
+  filteredRows = sortRangeState.filteredRows;
+  excludedCount = sortRangeState.excludedCount;
+  totalPick = sortRangeState.totalPick;
+  totalPickStartDate = sortRangeState.totalPickStartDate;
+  totalPickEndDate = sortRangeState.totalPickEndDate;
+  latestMonthlyTrendDate = sortRangeState.latestMonthlyTrendDate;
+  selectedMonthlyTrendDate = sortRangeState.selectedMonthlyTrendDate;
 
   return {
     ok: true,

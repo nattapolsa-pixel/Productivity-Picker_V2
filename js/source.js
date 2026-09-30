@@ -5,7 +5,9 @@
   const resignedSpreadsheetId = '1AWOeqhCqmBlSfGI5FWJVU4F77lDGNWBUH-TYpJeiYnI';
   const tabs = [
     {name: 'Results Master', gid: 0, query: 'select *', headers: ['Name','Date','User ID','Total pick','AVERAGE']},
+    {name: 'Sort_Data', gid: 820001, query: 'select *', headers: ['Column Name','UOM Qty','Sort DateTime','Shift Date','Sorter ID'], optional: true},
     {name: 'Dashboard', gid: 820003, query: 'select *', headers: ['SORT MONITORING DASHBOARD'], optional: true},
+    {name: 'V3 History', gid: 534205775, query: 'select *', headers: ['date','zone','totalPick','productivity','people'], optional: true},
     {name: 'Update name', gid: 1715298723, query: 'select *', headers: ['รหัสพนักงาน']},
     {name: '2ND', gid: 185723535, query: 'select *', headers: ['รหัสพนักงาน']},
     {name: 'Zone_V2', gid: 375021866, query: 'select *', headers: ['Zone']},

@@ -47,19 +47,21 @@
     const start = $('startDate') ? $('startDate').value : '';
     const end = $('endDate') ? $('endDate').value : '';
     const filters = window.V3Data ? window.V3Data.filters : {};
-    return rows.filter((r) => {
+    const filtered = rows.filter((r) => {
       const d = M.date(r[2]);
       if (!d) return false;
       if (start && d < start) return false;
       if (end && d > end) return false;
       return M.matches(r, filters);
     });
+    return window.V3Shared?.effectiveRows ? window.V3Shared.effectiveRows(filtered) : filtered;
   }
 
   // แถวที่ผ่านตัวกรองระบบ/กะ แต่ไม่จำกัดช่วงวันที่ — ใช้กางกราฟทั้งเดือนแบบ V2
   function filteredRows() {
     const filters = window.V3Data ? window.V3Data.filters : {};
-    return rows.filter((r) => M.date(r[2]) && M.matches(r, filters));
+    const filtered = rows.filter((r) => M.date(r[2]) && M.matches(r, filters));
+    return window.V3Shared?.effectiveRows ? window.V3Shared.effectiveRows(filtered) : filtered;
   }
 
   function monthKeysAvailable() {

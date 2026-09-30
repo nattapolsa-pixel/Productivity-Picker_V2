@@ -4,7 +4,7 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=(v,d=0)=>v===null||v===undefined?'—':Number(v).toLocaleString('th-TH',{maximumFractionDigits:d,minimumFractionDigits:d});
   const dmy=iso=>/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))?String(iso).split('-').reverse().join('/'):'—';
-  let source=null,rows=[],roster=new Map(),startDateById=new Map(),firstSeenById=new Map(),sortDashboard=null,active='overview',payload=null,tableState={},selectedStaff='';
+  let source=null,rows=[],roster=new Map(),startDateById=new Map(),firstSeenById=new Map(),sortDashboard=null,sortPeopleByDate={},historyByDate=new Map(),active='overview',payload=null,tableState={},selectedStaff='';
   const labels={fullRack:'Full Rack',halfRack:'Half Rack',ea:'Micro Rack',pickToSort:'Pick to Sort',mezzanine:'Mezzanine'};
   const zones=ZONE_GROUPS.flatMap(g=>g.zones.map(z=>({...z,group:g.key})));
   const zoneCache=new Map();
@@ -13,19 +13,37 @@
     for(const z of zones){const codes=z.label.split('-');if(z.label==='AA-AF')codes.push('AB','AC','AD','AE');if(z.label==='BI-BK')codes.push('BJ');if(codes.some(code=>new RegExp(`(?:^|[^A-Z])${code}(?:$|[^A-Z0-9]|\\d)`,'i').test(text))){found=z;break;}}
     zoneCache.set(text,found);return found;
   }
-  function visible(){const start=$('startDate').value,end=$('endDate').value;return rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);});}
+  function effectiveRows(list){
+    return (list||[]).map(row=>{
+      const date=M.date(row[2]),match=zone(row),group=sortPeopleByDate[date];
+      if(!group||match?.key!=='pickToSortBe')return row;
+      const person=group.people.find(item=>String(item.userId)===String(M.userId(row)));if(!person)return row;
+      const copy=[...row];copy[4]=person.total;copy[6]=person.hours;copy[31]=person.valid?person.productivity:'Not Count';copy[32]=person.shift||copy[32];copy[33]='BE';copy[36]='Pick to Sort';copy._sortData=true;return copy;
+    });
+  }
+  function visible(){const start=$('startDate').value,end=$('endDate').value;return effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);}));}
   function zoneAggregate(key,records){
     const rowsForZone=records||[],base=M.aggregate(rowsForZone);
-    if(key!=='pickToSortBe'||!sortDashboard||!rowsForZone.length)return base;
+    if(key!=='pickToSortBe'||!rowsForZone.length)return base;
     const dates=[...new Set(rowsForZone.map(r=>M.date(r[2])).filter(Boolean))];
-    if(dates.length!==1||dates[0]!==sortDashboard.date)return base;
-    return {...base,total:sortDashboard.total,average:sortDashboard.productivity,sum:sortDashboard.productivity*sortDashboard.people,count:sortDashboard.people,people:sortDashboard.people,excluded:0,source:'Dashboard'};
+    const ids=new Set(),combined={total:0,sum:0,count:0,rows:0,excluded:0},usedSortData=[],usedHistory=[];let historyPeople=0;
+    for(const date of dates){
+      const historical=historyByDate.get(date);
+      if(historical){const people=Math.max(0,Number(historical.people)||0),productivity=Number(historical.productivity),total=Number(historical.totalPick)||0;if(Number.isFinite(productivity)&&people>0){combined.total+=total;combined.sum+=productivity*people;combined.count+=people;combined.rows+=Number(historical.rows)||people;historyPeople+=people;usedHistory.push(date);continue;}}
+      const group=sortPeopleByDate[date];
+      const people=group?.people?.filter(p=>!V3Data.filters.shift||V3Data.filters.shift==='ALL'||String(p.shift||'').trim()===String(V3Data.filters.shift).trim());
+      if(group&&people&&people.length){const valid=people.filter(p=>p.valid);combined.total+=people.reduce((sum,p)=>sum+p.total,0);combined.sum+=valid.reduce((sum,p)=>sum+p.productivity,0);combined.count+=valid.length;combined.rows+=people.length;combined.excluded+=people.length-valid.length;people.forEach(p=>ids.add(p.userId));usedSortData.push(date);continue;}
+      const fallback=M.aggregate(rowsForZone.filter(r=>M.date(r[2])===date));combined.total+=fallback.total;combined.sum+=fallback.sum;combined.count+=fallback.count;combined.rows+=fallback.rows;combined.excluded+=fallback.excluded;rowsForZone.filter(r=>M.date(r[2])===date&&r[3]).forEach(r=>ids.add(String(r[3]).trim()));
+    }
+    if(usedHistory.length||usedSortData.length)return {...combined,average:combined.count?combined.sum/combined.count:null,people:historyPeople+ids.size,source:usedHistory.length?'History':'Sort_Data'};
+    if(sortDashboard&&dates.length===1&&dates[0]===sortDashboard.date)return {...base,total:sortDashboard.total,average:sortDashboard.productivity,sum:sortDashboard.productivity*sortDashboard.people,count:sortDashboard.people,people:sortDashboard.people,excluded:0,source:'Dashboard'};
+    return base;
   }
   function employeeStartDate(id){return M.tenureStart(String(id||'').trim(),startDateById,firstSeenById);}
   function employeeTenureContext(){const dates=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)).map(r=>M.date(r[2])).sort();const anchor=dates[dates.length-1]||'';return {anchor,cutoff:anchor?M.tenureCutoff(anchor):''};}
   function employeeTenure(id,context){const start=employeeStartDate(id),isNew=Boolean(start&&context?.cutoff&&start>context.cutoff);return {key:isNew?'new':'old',label:isNew?'พนักงานใหม่':'พนักงานเก่า',startDate:start};}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
-  function stats(records,zoneKey){const s=zoneKey?zoneAggregate(zoneKey,records):M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),s.source==='Dashboard'?'Team Productivity จาก Dashboard':'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function stats(records,zoneKey){const s=zoneKey?zoneAggregate(zoneKey,records):M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),s.source==='Sort_Data'?'Sort_Data · เฉลี่ยรายคน':s.source==='Dashboard'?'Team Productivity จาก Dashboard':'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function addDays(iso,days){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
   function addMonthKey(month,months){const d=new Date(`${String(month||'')}-01T00:00:00Z`);if(Number.isNaN(d.getTime()))return '';d.setUTCMonth(d.getUTCMonth()+months);return d.toISOString().slice(0,7);}
   function weekStart(iso){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';const day=d.getUTCDay();d.setUTCDate(d.getUTCDate()-(day===0?6:day-1));return d.toISOString().slice(0,10);}
@@ -64,7 +82,7 @@
     if(active!=='overview'){host.hidden=true;host.innerHTML='';return;}
     if(!rows.length){host.hidden=true;return;}
     host.hidden=false;
-    const filtered=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters));
+    const filtered=effectiveRows(rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)));
     const start=$('startDate')?.value||'',end=$('endDate')?.value||'';
     const selected=rangeRows(filtered,start,end);
     const selectedDates=[...new Set(selected.map(r=>M.date(r[2])))].sort();
@@ -175,7 +193,7 @@
   function destroyZoneCharts(){destroyZoneMtdChart();destroyZoneWeeklyChart();destroyZoneMonthlyChart();}
   function zoneMonthLabel(month){if(!month)return '—';const d=new Date(`${month}-01T00:00:00Z`);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('th-TH',{month:'long',year:'numeric',timeZone:'UTC'});}
   function zoneMtdModel(selectedKey,target){
-    const filtered=rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);});
+    const filtered=effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);}));
     const anchor=filtered.map(r=>M.date(r[2])).sort().pop()||'';
     if(!anchor)return null;
     const month=anchor.slice(0,7),start=`${month}-01`,zoneRows=filtered.filter(r=>(zone(r)?.key||'unknown')===selectedKey),monthRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor;});
@@ -806,7 +824,7 @@
   }
 
   function render(){if(!source)return;try{renderPeriodComparison();updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
-  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
+  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);sortPeopleByDate=M.sortPeopleSummary(source.sheets);historyByDate=new Map(((source.sheets['V3 History']&&source.sheets['V3 History'].rows)||[]).map(r=>{const date=String(r[0]||'').match(/^\d{4}-\d{2}-\d{2}$/)?String(r[0]):M.dashboardDate(r[0]);return [date,{totalPick:M.number(r[2]),productivity:M.number(r[3]),people:M.number(r[4]),rows:M.number(r[7])||M.number(r[4])}]}).filter(([date,item])=>date&&item.productivity>0));rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
     const warn=(source.warnings||[]);
     $('v3SourceStatus').innerHTML=esc(`${value.index.cacheStatus==='sheet-live'?'Google Sheets ล่าสุด':'ข้อมูลสำรองจาก Google Sheets'} • อ่านเมื่อ ${new Date(source.fetchedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} • ${fmt(value.index.totalRows)} แถวมีวันที่`)
@@ -823,7 +841,7 @@
   function root_V3Shared(){
     globalThis.V3Shared={table,cards,esc,fmt,csvExport,
       // เปิดกฎโซนและตัวกรองร่วมให้หน้าที่แยกไฟล์ใช้ ไม่ต้องคัดลอกกฎ V1 ไปเขียนซ้ำ
-      zone,zones,zoneLabels:labels,visible,statCards,zoneTargetOf,
+      zone,zones,zoneLabels:labels,visible,effectiveRows,statCards,zoneTargetOf,
       get roster(){return roster;},
       get rows(){return rows;},
       get source(){return source;}};

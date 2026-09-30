@@ -1,6 +1,7 @@
 const SPREADSHEET_ID = "1PMnlyYHswnV0nE73Alxh-ocIFtTipB9LMzACdNM9GFs";
 const RESULTS_SHEET_NAME = "Results Master";
 const UPDATE_NAME_SHEET_NAME = "Update name";
+const V3_HISTORY_SHEET_NAME = "V3 History";
 
 const CACHE_SECONDS = 300;
 const CACHE_VERSION = "v49-ajak-half-rack";
@@ -2411,6 +2412,7 @@ function doPost(e) {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (body.targets) return writeTargetsV3_(body.targets, body.updatedBy);
     if (body.rows) return writeRosterV3_(body.rows);
+    if (body.history) return writeHistoryV3_(body.history);
     return jsonOutput_({ok:false,error:'missing rows or targets'});
   } catch (error) {
     return jsonOutput_({ok:false,error:error.message || String(error)});
@@ -2461,6 +2463,19 @@ function writeTargetsV3_(values, updatedBy) {
   sheet.clearContents();
   sheet.getRange(1,1,rows.length,4).setValues(rows);
   return jsonOutput_({ok:true,updatedAt:stamp.toISOString(),updatedBy:updatedBy || 'V3',targets:values});
+}
+
+function writeHistoryV3_(entries) {
+  if (!Array.isArray(entries) || entries.length > 500) return jsonOutput_({ok:false,error:'invalid history'});
+  const book=SpreadsheetApp.openById(SPREADSHEET_ID),sheet=book.getSheetByName(V3_HISTORY_SHEET_NAME)||book.insertSheet(V3_HISTORY_SHEET_NAME);
+  const headers=['date','zone','totalPick','productivity','people','source','capturedAt','rows'];
+  if (sheet.getLastRow()===0) sheet.getRange(1,1,1,headers.length).setValues([headers]);
+  const last=sheet.getLastRow(),old=last>1?sheet.getRange(2,1,last-1,headers.length).getDisplayValues():[],index={};
+  old.forEach((r,i)=>{if(r[0]&&r[1])index[String(r[0]).trim()+'|'+String(r[1]).trim().toUpperCase()]=i+2;});
+  const clean=entries.map(e=>({date:String(e.date||'').trim(),zone:String(e.zone||'').trim().toUpperCase(),total:Number(e.totalPick),productivity:Number(e.productivity),people:Number(e.people),source:String(e.source||'V3'),capturedAt:String(e.capturedAt||new Date().toISOString()),rows:Number(e.rows||e.people)})).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&e.zone&&isFinite(e.total)&&isFinite(e.productivity)&&e.people>0);
+  const latest=clean.reduce((max,e)=>e.date>max?e.date:max,'');let added=0,updated=0,skipped=0;
+  clean.forEach(e=>{const key=e.date+'|'+e.zone,row=[e.date,e.zone,e.total,e.productivity,e.people,e.source,e.capturedAt,e.rows],at=index[key];if(!at){sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([row]);index[key]=sheet.getLastRow();added++;}else if(e.date===latest){sheet.getRange(at,1,1,headers.length).setValues([row]);updated++;}else skipped++;});
+  SpreadsheetApp.flush();return jsonOutput_({ok:true,added,updated,skipped});
 }
 
 function findV3Row_(rows,id) { for (let i=0;i<rows.length;i++) if (normalizeUserId_(rows[i][0]) === id) return i+2; return 0; }

@@ -1,11 +1,11 @@
 /* One source snapshot for every page; calculations run off the UI thread. */
 window.V3Data = (() => {
-  let current = null, pending = null, lastAttempt = 0, sequence = 0;
+  let current = null, pending = null, lastAttempt = 0, sequence = 0, historyWritePromise = null;
   let filters = {system:'ALL',shift:'ALL'}, filterRevision=0;
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
-      const worker = new Worker('js/data-worker.js');
+      const worker = new Worker('js/data-worker.js?v=20260930-sort-person-1');
       const timer = setTimeout(() => {worker.terminate(); reject(new Error('Google Sheet ตอบกลับช้า กรุณาลองรีเฟรชอีกครั้ง'));}, 150000);
       const finish = () => {clearTimeout(timer); worker.terminate();};
       worker.onerror = e => {finish();reject(new Error(e.message));};
@@ -19,6 +19,18 @@ window.V3Data = (() => {
     return value;
   }
   async function save(source) {try {await idbPut('v3-source',source);} catch(e) {console.warn('V3 cache:',e.message);} }
+  function historyEntries(source){
+    const out=[],sheets=source?.sheets||{},dash=globalThis.V3Metrics?.sortDashboardSummary?.(sheets);
+    if(dash?.date&&dash.productivity>0)out.push({date:dash.date,zone:'BE',totalPick:dash.total,productivity:dash.productivity,people:dash.people,source:'Dashboard'});
+    const groups=globalThis.V3Metrics?.sortPeopleSummary?.(sheets)||{};
+    Object.values(groups).forEach(g=>{if(!g?.date||!Number.isFinite(Number(g.average))||Number(g.count)<=0)return;if(out.some(x=>x.date===g.date))return;out.push({date:g.date,zone:'BE',totalPick:g.total,productivity:g.average,people:g.count,source:'Sort_Data'});});
+    return out;
+  }
+  async function rememberHistory(source){
+    const entries=historyEntries(source);if(!entries.length||historyWritePromise)return;
+    historyWritePromise=(async()=>{try{const config=await fetch('data/targets.json?t='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null),url=String(config?.write?.url||'');if(!url)return;const response=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({history:entries}),signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error('HTTP '+response.status);const result=await response.json();if(!result?.ok)throw new Error(result?.error||'history write failed');}catch(e){console.warn('V3 history:',e.message);}})().finally(()=>{historyWritePromise=null;});
+    await historyWritePromise;
+  }
   function publish(value, label) {
     current = value;
     current.index.cacheStatus = label;
@@ -34,6 +46,7 @@ window.V3Data = (() => {
       await save(value.source);
       if(revision!==filterRevision)value=await processLatest(value.source);
       publish(value,'sheet-live');
+      void rememberHistory(value.source);
       if (typeof dailyIndexPayload !== 'undefined') {
         dailyIndexPayload = value.index;
         renderDashboardFromDailyIndex('Google Sheets ล่าสุด');
