@@ -22,7 +22,13 @@
     const m=String(value??'').trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);if(!m)return null;
     let y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;const d=new Date(y,+m[2]-1,+m[1],+m[4],+m[5],+(m[6]||0));return Number.isNaN(d.getTime())?null:d;
   }
-  function sortDate(value){const m=String(value??'').trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);if(!m)return '';let y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;}
+  function sortDate(value){
+    const numeric=Number(value);
+    if(Number.isFinite(numeric)&&numeric>20000&&numeric<70000){const d=new Date(Date.UTC(1899,11,30)+numeric*86400000);return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);}
+    const iso=String(value??'').trim().match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);if(iso)return `${iso[1]}-${String(+iso[2]).padStart(2,'0')}-${String(+iso[3]).padStart(2,'0')}`;
+    const m=String(value??'').trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);if(!m)return '';let y=+m[3];if(y<100)y+=2000;if(y>2400)y-=543;return `${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;
+  }
+  function historyDate(value){return sortDate(value)||dashboardDate(value);}
   function sortDateTimeAt(date,hour,minute,offset){const [y,m,d]=date.split('-').map(Number);const out=new Date(y,m-1,d,hour,minute||0);out.setDate(out.getDate()+Number(offset||0));return out;}
   function sortHours(person){
     const night=String(person.shift??'').toLowerCase().includes('night'),ranges=night?[[sortDateTimeAt(person.date,19,0),sortDateTimeAt(person.date,22,50)],[sortDateTimeAt(person.date,0,0,1),sortDateTimeAt(person.date,4,0,1)],[sortDateTimeAt(person.date,4,30,1),sortDateTimeAt(person.date,7,0,1)]]:[[sortDateTimeAt(person.date,7,0),sortDateTimeAt(person.date,10,50)],[sortDateTimeAt(person.date,12,0),sortDateTimeAt(person.date,16,0)],[sortDateTimeAt(person.date,16,30),sortDateTimeAt(person.date,19,0)]];
@@ -35,6 +41,21 @@
     const groups={};
     for(const row of sheet.rows){const date=sortDate(row[c.shiftDate]),dt=sortDateTime(row[c.dateTime]),id=String(row[c.id]??'').trim();if(!date||!dt||!id)continue;if(!groups[date])groups[date]={date,peopleById:{}};const p=groups[date].peopleById[id]||(groups[date].peopleById[id]={userId:id,shift:row[c.shift],total:0,first:dt,last:dt});p.total+=number(row[c.uom]);if(dt<p.first)p.first=dt;if(dt>p.last)p.last=dt;}
     for(const group of Object.values(groups)){const entries=Object.values(group.peopleById).map(p=>{p.hours=sortHours({...p,date:group.date});p.productivity=p.hours>0?p.total/p.hours:0;p.valid=p.hours>3&&p.productivity>0&&p.productivity<1000;return p;});const valid=entries.filter(p=>p.valid);group.people=entries;group.total=entries.reduce((sum,p)=>sum+p.total,0);group.sum=valid.reduce((sum,p)=>sum+p.productivity,0);group.count=valid.length;group.average=group.count?group.sum/group.count:null;group.excluded=entries.length-group.count;delete group.peopleById;}
+    return groups;
+  }
+  function sortTimeSummary(sheets){
+    const sheet=sheets&&sheets.Sort_Data;if(!sheet||!sheet.rows||!sheet.rows.length)return {};
+    const headers=sheet.headers||[],c={dateTime:sortColumn(headers,['Sort DateTime','DateTime']),slot:sortColumn(headers,['Time Slot']),date:sortColumn(headers,['Shift Date']),uom:sortColumn(headers,['UOM Qty','UOM']),id:sortColumn(headers,['Sorter ID','User ID'])};
+    if(Object.values(c).some(i=>i<0))return {};
+    const groups={};
+    for(const row of sheet.rows){
+      const date=historyDate(row[c.date]),dateTime=String(row[c.dateTime]??'').trim(),slot=String(row[c.slot]??'').trim(),id=String(row[c.id]??'').trim();
+      if(!date||!dateTime||!slot||!id||!/^\d{1,2}:\d{2}\-\d{1,2}:\d{2}$/.test(slot))continue;
+      const group=groups[date]||(groups[date]={date,total:0,lines:0,peopleById:new Set(),slots:{}}),value=number(row[c.uom]);
+      group.total+=value;group.lines+=1;group.peopleById.add(id);
+      const bucket=group.slots[slot]||(group.slots[slot]={total:0,lines:0,peopleById:new Set()});bucket.total+=value;bucket.lines+=1;bucket.peopleById.add(id);
+    }
+    Object.values(groups).forEach(group=>{group.people=group.peopleById.size;delete group.peopleById;Object.values(group.slots).forEach(bucket=>{bucket.people=bucket.peopleById.size;delete bucket.peopleById;});});
     return groups;
   }
   function type(v){const t=String(v||'').toLowerCase().trim();if(t.includes('sort'))return 'pickToSort';if(t.includes('full'))return 'fullRack';if(t.includes('half')||t.includes('haft'))return 'halfRack';if(t.includes('micro')||t.includes('ea'))return 'ea';if(t.includes('mezz'))return 'mezzanine';return '';}
@@ -132,7 +153,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDashboardSummary,sortPeopleSummary,type,system,shiftKey,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,type,system,shiftKey,matches,aggregate,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

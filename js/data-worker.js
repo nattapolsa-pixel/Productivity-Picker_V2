@@ -1,4 +1,4 @@
-importScripts('v1-engine.js?v=20260930-sort-person-1', 'source.js?v=20260930-sort-person-1', 'metrics.js?v=20260930-sort-person-1');
+importScripts('v1-engine.js?v=20260930-sort-history-2', 'source.js?v=20260930-sort-history-2', 'metrics.js?v=20260930-sort-history-2');
 self.onmessage = async ({data}) => {
   try {
     const source = data.source || await V3Source.download();

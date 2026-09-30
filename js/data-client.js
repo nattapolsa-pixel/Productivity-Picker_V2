@@ -5,7 +5,7 @@ window.V3Data = (() => {
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
-      const worker = new Worker('js/data-worker.js?v=20260930-sort-person-1');
+      const worker = new Worker('js/data-worker.js?v=20260930-sort-history-2');
       const timer = setTimeout(() => {worker.terminate(); reject(new Error('Google Sheet ตอบกลับช้า กรุณาลองรีเฟรชอีกครั้ง'));}, 150000);
       const finish = () => {clearTimeout(timer); worker.terminate();};
       worker.onerror = e => {finish();reject(new Error(e.message));};
@@ -20,10 +20,12 @@ window.V3Data = (() => {
   }
   async function save(source) {try {await idbPut('v3-source',source);} catch(e) {console.warn('V3 cache:',e.message);} }
   function historyEntries(source){
-    const out=[],sheets=source?.sheets||{},dash=globalThis.V3Metrics?.sortDashboardSummary?.(sheets);
-    if(dash?.date&&dash.productivity>0)out.push({date:dash.date,zone:'BE',totalPick:dash.total,productivity:dash.productivity,people:dash.people,source:'Dashboard'});
-    const groups=globalThis.V3Metrics?.sortPeopleSummary?.(sheets)||{};
-    Object.values(groups).forEach(g=>{if(!g?.date||!Number.isFinite(Number(g.average))||Number(g.count)<=0)return;if(out.some(x=>x.date===g.date))return;out.push({date:g.date,zone:'BE',totalPick:g.total,productivity:g.average,people:g.count,source:'Sort_Data'});});
+    const sheets=source?.sheets||{},dash=globalThis.V3Metrics?.sortDashboardSummary?.(sheets),people=globalThis.V3Metrics?.sortPeopleSummary?.(sheets)||{},time=globalThis.V3Metrics?.sortTimeSummary?.(sheets)||{},out=[];
+    Object.values(time).filter(g=>g?.date&&g.date>='2026-09-29').forEach(g=>{
+      const p=people[g.date],isDashboard=dash?.date===g.date,productivity=isDashboard?Number(dash.productivity):Number(p?.average),peopleCount=isDashboard?Number(dash.people):Number(p?.people?.length||p?.people||p?.count||g.people);
+      out.push({date:g.date,zone:'BE',totalPick:Number(g.total)||0,productivity:Number.isFinite(productivity)?productivity:0,people:peopleCount,source:isDashboard?'Dashboard + Time_Slot':'Time_Slot',rows:g.lines,timeJson:g.slots,sortLines:g.lines});
+    });
+    if(dash?.date&&dash.date>='2026-09-29'&&!out.some(x=>x.date===dash.date))out.push({date:dash.date,zone:'BE',totalPick:dash.total,productivity:dash.productivity,people:dash.people,source:'Dashboard'});
     return out;
   }
   async function rememberHistory(source){

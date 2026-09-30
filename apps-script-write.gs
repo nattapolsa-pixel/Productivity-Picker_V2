@@ -2468,13 +2468,14 @@ function writeTargetsV3_(values, updatedBy) {
 function writeHistoryV3_(entries) {
   if (!Array.isArray(entries) || entries.length > 500) return jsonOutput_({ok:false,error:'invalid history'});
   const book=SpreadsheetApp.openById(SPREADSHEET_ID),sheet=book.getSheetByName(V3_HISTORY_SHEET_NAME)||book.insertSheet(V3_HISTORY_SHEET_NAME);
-  const headers=['date','zone','totalPick','productivity','people','source','capturedAt','rows'];
-  if (sheet.getLastRow()===0) sheet.getRange(1,1,1,headers.length).setValues([headers]);
+  const headers=['date','zone','totalPick','productivity','people','source','capturedAt','rows','sortLines','timeJson'];
+  sheet.getRange(1,1,1,headers.length).setValues([headers]);
+  if (sheet.getMaxRows()>1) sheet.getRange(2,1,sheet.getMaxRows()-1,1).setNumberFormat('@');
   const last=sheet.getLastRow(),old=last>1?sheet.getRange(2,1,last-1,headers.length).getDisplayValues():[],index={};
   old.forEach((r,i)=>{if(r[0]&&r[1])index[String(r[0]).trim()+'|'+String(r[1]).trim().toUpperCase()]=i+2;});
-  const clean=entries.map(e=>({date:String(e.date||'').trim(),zone:String(e.zone||'').trim().toUpperCase(),total:Number(e.totalPick),productivity:Number(e.productivity),people:Number(e.people),source:String(e.source||'V3'),capturedAt:String(e.capturedAt||new Date().toISOString()),rows:Number(e.rows||e.people)})).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&e.zone&&isFinite(e.total)&&isFinite(e.productivity)&&e.people>0);
+  const clean=entries.map(e=>({date:String(e.date||'').trim(),zone:String(e.zone||'').trim().toUpperCase(),total:Number(e.totalPick),productivity:Number(e.productivity),people:Number(e.people),source:String(e.source||'V3'),capturedAt:String(e.capturedAt||new Date().toISOString()),rows:Number(e.rows||e.people),sortLines:Number(e.sortLines||e.rows||0),timeJson:e.timeJson||{}})).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&e.zone&&isFinite(e.total)&&isFinite(e.productivity)&&e.people>0);
   const latest=clean.reduce((max,e)=>e.date>max?e.date:max,'');let added=0,updated=0,skipped=0;
-  clean.forEach(e=>{const key=e.date+'|'+e.zone,row=[e.date,e.zone,e.total,e.productivity,e.people,e.source,e.capturedAt,e.rows],at=index[key];if(!at){sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([row]);index[key]=sheet.getLastRow();added++;}else if(e.date===latest){sheet.getRange(at,1,1,headers.length).setValues([row]);updated++;}else skipped++;});
+  clean.forEach(e=>{const key=e.date+'|'+e.zone,row=[e.date,e.zone,e.total,e.productivity,e.people,e.source,e.capturedAt,e.rows,e.sortLines,JSON.stringify(e.timeJson)],at=index[key];if(!at){sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([row]);index[key]=sheet.getLastRow();added++;}else if(e.date===latest){sheet.getRange(at,1,1,headers.length).setValues([row]);updated++;}else skipped++;});
   SpreadsheetApp.flush();return jsonOutput_({ok:true,added,updated,skipped});
 }
 
