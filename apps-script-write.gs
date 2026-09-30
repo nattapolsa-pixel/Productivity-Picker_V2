@@ -2469,6 +2469,7 @@ function writeHistoryV3_(entries) {
   if (!Array.isArray(entries) || entries.length > 500) return jsonOutput_({ok:false,error:'invalid history'});
   const book=SpreadsheetApp.openById(SPREADSHEET_ID),sheet=book.getSheetByName(V3_HISTORY_SHEET_NAME)||book.insertSheet(V3_HISTORY_SHEET_NAME);
   const headers=['date','zone','totalPick','productivity','people','source','capturedAt','rows','sortLines','timeJson'];
+  if (sheet.getMaxColumns()<headers.length) sheet.insertColumnsAfter(sheet.getMaxColumns(),headers.length-sheet.getMaxColumns());
   sheet.getRange(1,1,1,headers.length).setValues([headers]);
   if (sheet.getMaxRows()>1) sheet.getRange(2,1,sheet.getMaxRows()-1,1).setNumberFormat('@');
   const last=sheet.getLastRow(),old=last>1?sheet.getRange(2,1,last-1,headers.length).getDisplayValues():[],index={};
