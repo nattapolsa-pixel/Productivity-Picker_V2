@@ -5,6 +5,7 @@
   const resignedSpreadsheetId = '1AWOeqhCqmBlSfGI5FWJVU4F77lDGNWBUH-TYpJeiYnI';
   const tabs = [
     {name: 'Results Master', gid: 0, query: 'select *', headers: ['Name','Date','User ID','Total pick','AVERAGE']},
+    {name: 'Dashboard', gid: 820003, query: 'select *', headers: ['SORT MONITORING DASHBOARD'], optional: true},
     {name: 'Update name', gid: 1715298723, query: 'select *', headers: ['รหัสพนักงาน']},
     {name: '2ND', gid: 185723535, query: 'select *', headers: ['รหัสพนักงาน']},
     {name: 'Zone_V2', gid: 375021866, query: 'select *', headers: ['Zone']},
@@ -66,7 +67,7 @@
   function parseCsv(text, tab) {
     const values=csv(text.replace(/^\uFEFF/,''));
     const headers=values.shift()||[];
-    for(const expected of tab.headers)if(!headers.includes(expected))throw new Error('โครงสร้าง '+tab.name+' เปลี่ยน: ไม่พบ '+expected);
+    for(const expected of (tab.headers||[]))if(!headers.includes(expected))throw new Error('โครงสร้าง '+tab.name+' เปลี่ยน: ไม่พบ '+expected);
     const dateColumns=tab.name==='Results Master'?[2]:tab.name==='Update name'?[7,12]:tab.name==='2ND'?[6,8]:[];
     const monthFirst=tab.monthFirstDateColumns||[];
     return {headers,rows:values.map(row=>row.map((v,i)=>

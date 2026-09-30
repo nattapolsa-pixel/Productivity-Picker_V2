@@ -1,6 +1,16 @@
 (function(root){
   function number(v){if(typeof v==='number')return Number.isFinite(v)?v:0;const text=String(v??'').trim();if(!text||/^not\s?count$/i.test(text))return 0;const cleaned=text.replace(/[,％%]/g,'').trim();const direct=Number(cleaned);if(Number.isFinite(direct))return direct;const match=cleaned.match(/-?\d+(?:\.\d+)?/);return match?Number(match[0]):0;}
   function date(v){const m=String(v||'').match(/^Date\((\d+),(\d+),(\d+)/);return m?`${m[1]}-${String(+m[2]+1).padStart(2,'0')}-${m[3].padStart(2,'0')}`:'';}
+  function dashboardDate(v){const text=String(v??'').trim(),m=text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(!m)return '';return `${m[3]}-${String(+m[2]).padStart(2,'0')}-${String(+m[1]).padStart(2,'0')}`;}
+  function sortDashboardSummary(sheets){
+    const rows=(sheets&&sheets.Dashboard&&sheets.Dashboard.rows)||[];
+    for(const row of rows){
+      const reportDate=dashboardDate(row&&row[0]),productivity=number(row&&row[16]);
+      if(!reportDate||productivity<=0)continue;
+      return {date:reportDate,total:number(row[5]),people:number(row[11]),productivity};
+    }
+    return null;
+  }
   function type(v){const t=String(v||'').toLowerCase().trim();if(t.includes('sort'))return 'pickToSort';if(t.includes('full'))return 'fullRack';if(t.includes('half')||t.includes('haft'))return 'halfRack';if(t.includes('micro')||t.includes('ea'))return 'ea';if(t.includes('mezz'))return 'mezzanine';return '';}
   function system(row){const t=type(row[36]);return t==='pickToSort'?'BPS':t?'PTT':'Not Found';}
   /* กะที่ใช้กรอง/จับกลุ่ม อ่านจากคอลัมน์ AG ตามที่ Sheet บันทึกไว้ ไม่คาดเดาจากเวลา
@@ -96,7 +106,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,type,system,shiftKey,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDashboardSummary,type,system,shiftKey,matches,aggregate,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

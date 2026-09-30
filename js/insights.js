@@ -4,7 +4,7 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=(v,d=0)=>v===null||v===undefined?'—':Number(v).toLocaleString('th-TH',{maximumFractionDigits:d,minimumFractionDigits:d});
   const dmy=iso=>/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))?String(iso).split('-').reverse().join('/'):'—';
-  let source=null,rows=[],roster=new Map(),startDateById=new Map(),firstSeenById=new Map(),active='overview',payload=null,tableState={},selectedStaff='';
+  let source=null,rows=[],roster=new Map(),startDateById=new Map(),firstSeenById=new Map(),sortDashboard=null,active='overview',payload=null,tableState={},selectedStaff='';
   const labels={fullRack:'Full Rack',halfRack:'Half Rack',ea:'Micro Rack',pickToSort:'Pick to Sort',mezzanine:'Mezzanine'};
   const zones=ZONE_GROUPS.flatMap(g=>g.zones.map(z=>({...z,group:g.key})));
   const zoneCache=new Map();
@@ -14,11 +14,18 @@
     zoneCache.set(text,found);return found;
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);});}
+  function zoneAggregate(key,records){
+    const rowsForZone=records||[],base=M.aggregate(rowsForZone);
+    if(key!=='pickToSortBe'||!sortDashboard||!rowsForZone.length)return base;
+    const dates=[...new Set(rowsForZone.map(r=>M.date(r[2])).filter(Boolean))];
+    if(dates.length!==1||dates[0]!==sortDashboard.date)return base;
+    return {...base,total:sortDashboard.total,average:sortDashboard.productivity,sum:sortDashboard.productivity*sortDashboard.people,count:sortDashboard.people,people:sortDashboard.people,excluded:0,source:'Dashboard'};
+  }
   function employeeStartDate(id){return M.tenureStart(String(id||'').trim(),startDateById,firstSeenById);}
   function employeeTenureContext(){const dates=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)).map(r=>M.date(r[2])).sort();const anchor=dates[dates.length-1]||'';return {anchor,cutoff:anchor?M.tenureCutoff(anchor):''};}
   function employeeTenure(id,context){const start=employeeStartDate(id),isNew=Boolean(start&&context?.cutoff&&start>context.cutoff);return {key:isNew?'new':'old',label:isNew?'พนักงานใหม่':'พนักงานเก่า',startDate:start};}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
-  function stats(records){const s=M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function stats(records,zoneKey){const s=zoneKey?zoneAggregate(zoneKey,records):M.aggregate(records);return cards([['Total Pick',fmt(s.total),'รวมทุกแถวในช่วงที่เลือก'],['Productivity',fmt(s.average,0),s.source==='Dashboard'?'Team Productivity จาก Dashboard':'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function addDays(iso,days){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
   function addMonthKey(month,months){const d=new Date(`${String(month||'')}-01T00:00:00Z`);if(Number.isNaN(d.getTime()))return '';d.setUTCMonth(d.getUTCMonth()+months);return d.toISOString().slice(0,7);}
   function weekStart(iso){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';const day=d.getUTCDay();d.setUTCDate(d.getUTCDate()-(day===0?6:day-1));return d.toISOString().slice(0,10);}
@@ -172,14 +179,14 @@
     const anchor=filtered.map(r=>M.date(r[2])).sort().pop()||'';
     if(!anchor)return null;
     const month=anchor.slice(0,7),start=`${month}-01`,zoneRows=filtered.filter(r=>(zone(r)?.key||'unknown')===selectedKey),monthRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor;});
-    const days=[];for(let d=start;d<=anchor;d=addDays(d,1)){const dayRows=monthRows.filter(r=>M.date(r[2])===d),s=M.aggregate(dayRows);days.push({date:d,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people});}
-    const summary=M.aggregate(monthRows);
+    const days=[];for(let d=start;d<=anchor;d=addDays(d,1)){const dayRows=monthRows.filter(r=>M.date(r[2])===d),s=zoneAggregate(selectedKey,dayRows);days.push({date:d,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people});}
+    const summary=zoneAggregate(selectedKey,monthRows);
     const zoneDates=[...new Set(zoneRows.map(r=>M.date(r[2])))].sort();
     const firstZoneMonth=zoneDates[0]?.slice(0,7)||month,monthlyStart=firstZoneMonth>addMonthKey(month,-11)?firstZoneMonth:addMonthKey(month,-11),monthlyKeys=[];
     for(let key=monthlyStart;key<=month;key=addMonthKey(key,1))monthlyKeys.push(key);
-    const monthly=monthlyKeys.map(key=>{const monthRowsForKey=zoneRows.filter(r=>M.date(r[2]).slice(0,7)===key),s=M.aggregate(monthRowsForKey);return {month:key,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people};});
+    const monthly=monthlyKeys.map(key=>{const monthRowsForKey=zoneRows.filter(r=>M.date(r[2]).slice(0,7)===key),s=zoneAggregate(selectedKey,monthRowsForKey);return {month:key,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people};});
     const lastWeekStart=weekStart(anchor),firstWeekStart=addDays(lastWeekStart,-77),weekly=[];
-    for(let startWeek=firstWeekStart;startWeek<=lastWeekStart;startWeek=addDays(startWeek,7)){const endWeek=addDays(startWeek,6),weekRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=startWeek&&d<=endWeek;}),s=M.aggregate(weekRows);weekly.push({start:startWeek,end:endWeek,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people});}
+    for(let startWeek=firstWeekStart;startWeek<=lastWeekStart;startWeek=addDays(startWeek,7)){const endWeek=addDays(startWeek,6),weekRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=startWeek&&d<=endWeek;}),s=zoneAggregate(selectedKey,weekRows);weekly.push({start:startWeek,end:endWeek,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people});}
     const dailyComparisons=days.map(day=>{
       const previousWorkday=zoneDates.filter(d=>d<day.date).pop()||addDays(day.date,-1);
       const periods=[
@@ -342,7 +349,7 @@
     if(!$('v3ZoneMap')||!$('v3ZoneTable'))return;
     const data=visible(),buckets=new Map(zones.map(z=>[z.key,[]])),unknown=[];
     data.forEach(r=>{const z=zone(r);(z?buckets.get(z.key):unknown).push(r);});
-    const groups=zones.map(z=>({...z,stats:M.aggregate(buckets.get(z.key))}));
+    const groups=zones.map(z=>({...z,stats:zoneAggregate(z.key,buckets.get(z.key))}));
     if(unknown.length)groups.push({key:'unknown',label:'ข้อมูล Zone ไม่ครบ',group:'',stats:M.aggregate(unknown)});
     const shown=groups.filter(z=>z.key==='unknown'||z.stats.rows>0);
     const realGroups=shown.filter(z=>z.key!=='unknown').sort((a,b)=>b.stats.total-a.stats.total);
@@ -376,7 +383,7 @@
       destroyZoneCharts();
       const mtd=zoneMtdModel(selected.key,zoneTarget(selected));
       const mtdBlock=mtd&&!mtd.summary.rows?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีข้อมูลสะสมของ Zone นี้ในเดือน ${esc(zoneMonthLabel(mtd.month))}</div></section>`:mtd?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-head"><div><span class="v3-zone-mtd-kicker">MONTH TO DATE</span><h3>ยอดสะสม ${esc(zoneMonthLabel(mtd.month))}</h3><p>ตั้งแต่ ${esc(dmy(`${mtd.month}-01`))} ถึง ${esc(dmy(mtd.anchor))} · กรองตามระบบและกะด้านบน</p></div><span class="v3-zone-mtd-date">${fmt(mtd.daysWithData)} วันมีข้อมูล</span></div><div class="v3-zone-mtd-summary"><div><small>Total Pick MTD</small><strong>${fmt(mtd.summary.total)}</strong><span>ชิ้น</span></div><div><small>Productivity เฉลี่ย MTD</small><strong>${fmt(mtd.summary.average,0)}</strong><span>หยิบ/ชม. · เป้า ${fmt(mtd.target)}</span></div><div><small>พนักงานใน Zone</small><strong>${fmt(mtd.summary.people)}</strong><span>${fmt(mtd.summary.count)} แถวเข้าเฉลี่ย</span></div></div><div class="v3-zone-mtd-chart"><canvas id="v3ZoneMtdChart" aria-label="กราฟ Month to date ของ Zone"></canvas></div>${zoneMtdDailyHtml(mtd)}<p class="v3-zone-mtd-note">แท่ง = Total Pick รายวัน · เส้นแดง = Productivity · จุดและตัวเลขสีเขียว = ผ่าน Target, สีแดง = ไม่ผ่าน · เส้นเขียว = Target · วางเมาส์บนวันเพื่อดูค่าเทียบ 1D, 7D และ 30D</p></section>${zoneWeeklyHtml(mtd)}${zoneMonthlyHtml(mtd)}`:'<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีวันที่ในข้อมูลผลงานสำหรับคำนวณ MTD</div></section>';
-      panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail)+mtdBlock+'<div id="v3ZoneDetailRows"></div>';
+      panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail,selected.key)+mtdBlock+'<div id="v3ZoneDetailRows"></div>';
       table($('v3ZoneDetailRows'),'zone-detail',detail,recordColumns,{valid:r=>M.number(r[31])>0});
       drawZoneMtdChart(mtd);
       drawZoneWeeklyChart(mtd);
@@ -799,7 +806,7 @@
   }
 
   function render(){if(!source)return;try{renderPeriodComparison();updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
-  V3Data.subscribe(value=>{source=value.source;rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
+  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
     const warn=(source.warnings||[]);
     $('v3SourceStatus').innerHTML=esc(`${value.index.cacheStatus==='sheet-live'?'Google Sheets ล่าสุด':'ข้อมูลสำรองจาก Google Sheets'} • อ่านเมื่อ ${new Date(source.fetchedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} • ${fmt(value.index.totalRows)} แถวมีวันที่`)
