@@ -9,7 +9,7 @@
   // เพื่อให้นำหน้ากลับได้โดยไม่ต้องแก้ไฟล์นี้ — มาร์กอัปอยู่ที่ parked/sections.html
   const TITLES = {
     overview: 'ภาพรวมวันนี้',
-    monthly: 'แนวโน้มรายเดือน',
+    monthly: 'แนวโน้ม',
     present: 'สรุปผล & Present',
     trend: '📈 เทรนรายสัปดาห์ / รายเดือน',
     pickers: 'อันดับพนักงาน (Picker)',

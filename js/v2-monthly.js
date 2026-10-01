@@ -53,6 +53,130 @@
     catch (e) { return 'split'; }
   })();
 
+  const PERIOD_KEY = 'pickProductivityTrendPeriod:v3';
+  let periodMode = (() => {
+    try { return localStorage.getItem(PERIOD_KEY) === 'month' ? 'month' : 'week'; }
+    catch (e) { return 'week'; }
+  })();
+
+  function periodUnit() { return periodMode === 'week' ? 'สัปดาห์' : 'เดือน'; }
+  function periodKeyOf(item) { return item.weekKey || item.monthKey || ''; }
+
+  function mergePeriodBucket(map, name, source) {
+    const count = Number(source?.count) || 0;
+    if (!count) return;
+    const key = name || 'ไม่ระบุสังกัด';
+    if (!map[key]) map[key] = { sum: 0, count: 0 };
+    map[key].sum += source.sum !== undefined ? Number(source.sum) || 0 : (Number(source.average) || 0) * count;
+    map[key].count += count;
+  }
+
+  function mergePeriodShifts(period, rawShifts) {
+    if (Array.isArray(rawShifts)) {
+      rawShifts.forEach((shift) => {
+        const affiliations = Array.isArray(shift?.affiliations)
+          ? shift.affiliations
+          : Object.entries(shift?.affiliations || {}).map(([name, bucket]) => ({ ...bucket, name }));
+        affiliations.forEach((aff) => mergePeriodBucket(period.affiliations, aff.title || aff.label || aff.name, aff));
+      });
+      return;
+    }
+    Object.values(rawShifts || {}).forEach((shift) => {
+      Object.entries(shift?.affiliations || {}).forEach(([name, bucket]) => mergePeriodBucket(period.affiliations, name, bucket));
+    });
+  }
+
+  function isoDateKey(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function weekStartKey(dateKey) {
+    const date = new Date(dateKey + 'T00:00:00Z');
+    if (Number.isNaN(date.getTime())) return '';
+    const day = date.getUTCDay();
+    date.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1));
+    return isoDateKey(date);
+  }
+
+  function addDaysKey(dateKey, days) {
+    const date = new Date(dateKey + 'T00:00:00Z');
+    date.setUTCDate(date.getUTCDate() + days);
+    return isoDateKey(date);
+  }
+
+  function shortDate(dateKey) {
+    const day = String(Number(dateKey.slice(8, 10)) || 0).padStart(2, '0');
+    const month = String(Number(dateKey.slice(5, 7)) || 0).padStart(2, '0');
+    const year = (Number(dateKey.slice(0, 4)) || 0) + 543;
+    return day + '/' + month + '/' + year;
+  }
+
+  function finalizePeriodData(data, key) {
+    const average = data.count > 0 ? data.sum / data.count : 0;
+    const affList = Object.keys(data.affiliations || {}).map((name) => {
+      const a = data.affiliations[name];
+      const avg = a.count > 0 ? a.sum / a.count : 0;
+      return { name, average: Math.round(avg * 10) / 10, rawAverage: avg, count: a.count };
+    }).sort((a, b) => String(a.name).localeCompare(String(b.name), 'th'));
+    const categoryList = Object.keys(data.categories || {}).map((name) => {
+      const c = data.categories[name];
+      const avg = c.count > 0 ? c.sum / c.count : 0;
+      const displayName = name === 'fullRack' ? 'Full Rack' : name === 'halfRack' ? 'Half Rack'
+        : name === 'ea' ? 'Micro Rack' : name === 'pickToSort' ? 'Pick to Sort'
+          : name === 'mezzanine' ? 'Mezzanine' : name;
+      return { name: displayName, key: name, average: Math.round(avg * 10) / 10, rawAverage: avg, count: c.count };
+    }).sort((a, b) => String(a.name).localeCompare(String(b.name), 'th'));
+    const buList = Object.keys(data.bu || {}).map((name) => {
+      const b = data.bu[name];
+      const avg = b.count > 0 ? b.sum / b.count : 0;
+      const config = typeof BU_GROUPS !== 'undefined' && Array.isArray(BU_GROUPS) ? BU_GROUPS.find((item) => item.key === name) : null;
+      return { name: config ? (config.label || config.title) : name, key: name, average: Math.round(avg * 10) / 10, rawAverage: avg, count: b.count };
+    }).sort((a, b) => String(a.name).localeCompare(String(b.name), 'th'));
+    const endKey = addDaysKey(key, 6);
+    return {
+      weekKey: key,
+      monthKey: key,
+      year: Number(key.slice(0, 4)),
+      average: Math.round(average * 10) / 10,
+      rawAverage: average,
+      totalPick: Math.round(data.totalPick),
+      activeDays: data.activeDays,
+      transactions: data.transactions,
+      labelThai: 'สัปดาห์ ' + shortDate(key) + ' – ' + shortDate(endKey),
+      labelThaiShort: shortDate(key).slice(0, 5) + '–' + shortDate(endKey).slice(0, 5),
+      affiliations: affList,
+      categories: categoryList,
+      bu: buList
+    };
+  }
+
+  function getWeeklyAggregates() {
+    if (typeof dailyIndexPayload === 'undefined' || !dailyIndexPayload || !dailyIndexPayload.dates) return [];
+    const dateKeys = dailyIndexPayload.dateKeys || Object.keys(dailyIndexPayload.dates).sort();
+    const weeks = {};
+    dateKeys.forEach((dateKey) => {
+      const dateData = dailyIndexPayload.dates[dateKey];
+      if (!dateData || !dateData.overall) return;
+      const key = weekStartKey(dateKey);
+      if (!key) return;
+      if (!weeks[key]) weeks[key] = { sum: 0, count: 0, totalPick: 0, activeDays: 0, transactions: 0, affiliations: {}, categories: {}, bu: {} };
+      const period = weeks[key];
+      const overall = dateData.overall;
+      const count = Number(overall.count) || 0;
+      if (count > 0) {
+        period.sum += overall.sum !== undefined ? Number(overall.sum) || 0 : (Number(overall.average) || 0) * count;
+        period.count += count;
+        period.totalPick += Number(dateData.totalPick) || 0;
+        period.activeDays += 1;
+        period.transactions += count;
+      }
+      mergePeriodShifts(period, dateData.shifts || {});
+      Object.entries(dateData.categories || {}).forEach(([name, bucket]) => mergePeriodBucket(period.categories, name, bucket));
+      Object.entries(dateData.bu || {}).forEach(([name, bucket]) => mergePeriodBucket(period.bu, name, bucket));
+    });
+    return Object.keys(weeks).sort().map((key) => finalizePeriodData(weeks[key], key));
+  }
+
   /* วาดเส้นเป้าและเส้นค่าเฉลี่ยรวมเองหลังแท่งวาดเสร็จ เพื่อให้เส้นอยู่บนแท่งแน่นอน
      (Chart.js วาดชุดข้อมูลย้อนลำดับ order จึงคุมยาก ปลั๊กอินนี้ตัดปัญหาไปเลย) */
   const OVERLAY = {
@@ -122,17 +246,52 @@
     charts.set(id, new Chart(el, config));
   }
 
+  function renderPeriodKpis(periods) {
+    const host = $('monthlyKpiRow');
+    if (!host) return;
+    const unit = periodUnit();
+    const valid = periods.filter((item) => Number(item.transactions) > 0 && Number(item.average) > 0);
+    const totalTransactions = valid.reduce((sum, item) => sum + (Number(item.transactions) || 0), 0);
+    const totalSum = valid.reduce((sum, item) => sum + (Number(item.rawAverage) || 0) * (Number(item.transactions) || 0), 0);
+    const average = totalTransactions ? totalSum / totalTransactions : 0;
+    const best = valid.length ? valid.reduce((a, b) => Number(b.average) > Number(a.average) ? b : a) : null;
+    const totalPick = periods.reduce((sum, item) => sum + (Number(item.totalPick) || 0), 0);
+    const t = target();
+    const pass = average >= t;
+    host.innerHTML = '<article class="kpi-main ' + (pass ? 'is-good' : 'is-warning') + '" id="monthlyYtdCard">'
+      + '<div class="kpi-main-head"><span class="kpi-main-label">เฉลี่ยรวมราย' + unit + '</span><span class="kpi-badge">' + (pass ? 'ถึง Target' : 'ต่ำกว่า Target') + '</span></div>'
+      + '<div class="kpi-main-number" id="monthlyYtdAvg">' + prod(average) + '</div>'
+      + '<div class="kpi-main-sub"><span>Target ≥ ' + fmt(t) + '</span><span>' + (pass ? 'สูงกว่า ' : 'ต่ำกว่า ') + prod(Math.abs(average - t)) + ' Pick/Hr</span></div>'
+      + '<div class="progress-track"><div class="progress-fill" style="width:' + Math.min(100, t ? Math.max(0, average / t * 100) : 0) + '%"></div></div></article>'
+      + '<article class="kpi-stat kpi-stat-total"><div class="kpi-stat-icon">★</div><div class="kpi-stat-body">'
+      + '<div class="kpi-stat-label">' + unit + 'ที่ดีที่สุด (Best ' + unit + ')</div>'
+      + '<div class="kpi-stat-value" style="font-size:1.5rem; margin-top:.5rem; color:var(--good);">' + (best ? esc(best.labelThai) : '—') + '</div>'
+      + '<div class="kpi-stat-note">Avg Pick/Hr: <strong>' + (best ? prod(best.average) : '—') + '</strong></div></div></article>'
+      + '<article class="kpi-stat kpi-stat-pick-to-sort"><div class="kpi-stat-icon">Σ</div><div class="kpi-stat-body">'
+      + '<div class="kpi-stat-label">ยอดหยิบรวมทั้งหมด (' + unit + ')</div><div class="kpi-stat-value" id="monthlyYtdTotal">' + fmt(totalPick) + '</div>'
+      + '<div class="kpi-stat-note">รวมจากทุก' + unit + 'ที่มีข้อมูล</div></div></article>';
+  }
+
+  function syncLegacyMonthlySections() {
+    const weekly = periodMode === 'week';
+    const details = document.querySelector('.monthly-details-section');
+    const briefing = $('monthlyPresentBriefing');
+    if (details) details.style.display = weekly ? 'none' : 'block';
+    if (briefing) briefing.style.display = weekly ? 'none' : 'block';
+  }
+
   /* ── การ์ดที่ 1: ภาพรวมรายเดือน ── */
   function drawOverview(months) {
     const t = target();
-    const labels = months.map((m) => m.labelThaiShort || m.monthKey);
+    const unit = periodUnit();
+    const labels = months.map((m) => m.labelThaiShort || periodKeyOf(m));
     draw('v3MonthlyOverviewChart', {
       type: 'bar',
       data: {
         labels,
         datasets: [
           {
-            type: 'bar', label: 'ยอดหยิบรวมของเดือน', data: months.map((m) => m.totalPick),
+            type: 'bar', label: 'ยอดหยิบรวมของ' + unit, data: months.map((m) => m.totalPick),
             backgroundColor: 'rgba(99,102,241,.75)', hoverBackgroundColor: 'rgba(79,70,229,.95)',
             borderRadius: 8, maxBarThickness: 62, yAxisID: 'y', order: 1,   // แท่งวาดก่อน เส้นจะได้ทับบนแท่ง
             datalabels: {
@@ -153,7 +312,7 @@
             }
           },
           {
-            type: 'line', label: 'ค่าเฉลี่ยต่อชั่วโมงของเดือน', data: months.map((m) => Number(m.average) || 0),
+            type: 'line', label: 'ค่าเฉลี่ยต่อชั่วโมงของ' + unit, data: months.map((m) => Number(m.average) || 0),
             borderColor: '#f43f5e', backgroundColor: '#fff',
             borderWidth: 0, pointRadius: 0, showLine: false,   // ปลั๊กอิน OVERLAY วาดเส้นจริงทับบนแท่ง
             tension: .32, fill: false, yAxisID: 'y1', order: 3,   // เส้นค่าเฉลี่ยวาดท้ายสุด อยู่บนสุด
@@ -187,7 +346,7 @@
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 12, cornerRadius: 10, displayColors: true,
             callbacks: {
-              title: (items) => months[items[0].dataIndex].labelThai || months[items[0].dataIndex].monthKey,
+              title: (items) => months[items[0].dataIndex].labelThai || periodKeyOf(months[items[0].dataIndex]),
               afterBody: (items) => {
                 const m = months[items[0].dataIndex];
                 const gap = (Number(m.average) || 0) - t;
@@ -234,13 +393,14 @@
   function drawBreakdown(months, key) {
     const names = namesOf(months, key);
     const t = target();
+    const unit = periodUnit();
     const all = [];
     months.forEach((m) => (m[key] || []).forEach((it) => all.push(Number(it.average) || 0)));
     const top = Math.max(t, ...(all.length ? all : [t]));
     draw('v3MonthlyBreakdownChart', {
       type: 'bar',
       data: {
-        labels: months.map((m) => m.labelThaiShort || m.monthKey),
+        labels: months.map((m) => m.labelThaiShort || periodKeyOf(m)),
         datasets: names.map((name, i) => ({
           label: name,
           data: months.map((m) => {
@@ -258,8 +418,8 @@
           datalabels: { display: false }
         })).concat([
           {
-            // เส้นค่าเฉลี่ยรวมของเดือน ให้เห็นแนวโน้มทั้งเดือนคู่กับแท่งรายประเภท
-            type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน',
+            // เส้นค่าเฉลี่ยรวมของงวด ให้เห็นแนวโน้มคู่กับแท่งรายประเภท
+            type: 'line', label: 'ค่าเฉลี่ยรวมของ' + unit,
             data: months.map((m) => Number(m.average) || 0),
             borderColor: '#f43f5e', backgroundColor: '#fff',
             borderWidth: 0, pointRadius: 0, showLine: false,   // ปลั๊กอิน OVERLAY วาดเส้นจริงทับบนแท่ง
@@ -294,7 +454,7 @@
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 11, cornerRadius: 10,
             callbacks: {
-              title: (items) => months[items[0].dataIndex].labelThai || months[items[0].dataIndex].monthKey,
+              title: (items) => months[items[0].dataIndex].labelThai || periodKeyOf(months[items[0].dataIndex]),
               label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : prod(item.raw) + ' หยิบ/ชม.')
             }
           }
@@ -318,6 +478,7 @@
      เส้นแดงบางคือค่าเฉลี่ยรวมของเดือน ไว้ดูว่าประเภทนี้อยู่เหนือหรือใต้ค่าเฉลี่ยรวม (ไม่ติดตัวเลข กันรกตา) */
   function drawSmall(canvasId, months, key, name, color) {
     const t = target();
+    const unit = periodUnit();
     const series = months.map((m) => {
       const hit = (m[key] || []).find((it) => it.name === name);
       return hit ? Number(hit.average) || 0 : null;
@@ -326,7 +487,7 @@
     draw(canvasId, {
       type: 'bar',
       data: {
-        labels: months.map((m) => m.labelThaiShort || m.monthKey),
+        labels: months.map((m) => m.labelThaiShort || periodKeyOf(m)),
         datasets: [
           {
             type: 'bar', label: name, data: series,
@@ -347,7 +508,7 @@
             }
           },
           {
-            type: 'line', label: 'ค่าเฉลี่ยรวมของเดือน', data: months.map((m) => Number(m.average) || 0),
+            type: 'line', label: 'ค่าเฉลี่ยรวมของ' + unit, data: months.map((m) => Number(m.average) || 0),
             borderColor: '#f43f5e',
             borderWidth: 0, pointRadius: 0, showLine: false,   // ปลั๊กอิน OVERLAY วาดเส้นจริงทับบนแท่ง
             tension: .3, fill: false, order: 3, datalabels: { display: false }   // เส้นค่าเฉลี่ยอยู่บนสุด
@@ -372,7 +533,7 @@
           tooltip: {
             backgroundColor: 'rgba(15,23,42,.94)', padding: 10, cornerRadius: 9,
             callbacks: {
-              title: (items) => months[items[0].dataIndex].labelThai || months[items[0].dataIndex].monthKey,
+              title: (items) => months[items[0].dataIndex].labelThai || periodKeyOf(months[items[0].dataIndex]),
               label: (item) => item.dataset.label + ': ' + (item.raw === null ? 'ไม่มีข้อมูล' : prod(item.raw) + ' หยิบ/ชม.')
             }
           }
@@ -388,6 +549,7 @@
   /* หัวการ์ดของกราฟย่อย บอกค่าเฉลี่ยรวมของประเภทนั้นและจำนวนเดือนที่ถึงเป้า */
   function smallHead(months, key, name, color, idx) {
     const t = target();
+    const unit = periodUnit();
     let sum = 0, count = 0, hit = 0, has = 0;
     months.forEach((m) => {
       const it = (m[key] || []).find((x) => x.name === name);
@@ -404,7 +566,7 @@
       + '<div><h3 style="font-size:14px; display:flex; align-items:center; gap:8px;">'
       + '<span style="width:12px; height:12px; border-radius:4px; background:' + color + '; flex-shrink:0;"></span>'
       + esc(name) + '</h3>'
-      + '<div class="sub">เฉลี่ยรวม ' + (avg === null ? '—' : prod(avg)) + ' หยิบ/ชม. · ถึงเป้า ' + fmt(hit) + ' / ' + fmt(has) + ' เดือน</div></div>'
+       + '<div class="sub">เฉลี่ยรวม ' + (avg === null ? '—' : prod(avg)) + ' หยิบ/ชม. · ถึงเป้า ' + fmt(hit) + ' / ' + fmt(has) + ' ' + unit + '</div></div>'
       + '<span class="v3-pill ' + pillClass + '">' + (avg === null ? 'ไม่มีข้อมูล' : (avg >= t ? 'ถึงเป้า' : 'ต่ำกว่าเป้า ' + prod(t - avg))) + '</span></div>';
   }
 
@@ -412,7 +574,8 @@
   function breakdownTable(months, key, names) {
     if (!names.length) return '<div class="staff-miss-ok">ยังไม่มีข้อมูลของประเภทนี้ในช่วงที่มี</div>';
     const t = target();
-    const head = '<tr><th>เดือน</th>' + names.map((n) => '<th class="num">' + esc(n) + '</th>').join('') + '<th class="num">เฉลี่ยรวมเดือน</th></tr>';
+    const unit = periodUnit();
+    const head = '<tr><th>' + unit + '</th>' + names.map((n) => '<th class="num">' + esc(n) + '</th>').join('') + '<th class="num">เฉลี่ยรวม' + unit + '</th></tr>';
     const body = [...months].reverse().map((m) => {
       const cells = names.map((n) => {
         const hit = (m[key] || []).find((it) => it.name === n);
@@ -441,13 +604,14 @@
     const host = $('v3Monthly');
     if (!host) return;
     if (typeof getMonthlyAggregates !== 'function') return;
-    const months = getMonthlyAggregates();
+    const months = periodMode === 'week' ? getWeeklyAggregates() : getMonthlyAggregates();
     if (!months || !months.length) {
       destroyAll();
-      host.innerHTML = '<div class="card v3-card"><div class="staff-miss-ok">ยังไม่มีข้อมูลรายเดือน</div></div>';
+      host.innerHTML = '<div class="card v3-card"><div class="staff-miss-ok">ยังไม่มีข้อมูล' + periodUnit() + '</div></div>';
       return;
     }
     const t = target();
+    const unit = periodUnit();
     const withAvg = months.filter((m) => Number(m.average) > 0);
     const best = withAvg.length ? withAvg.reduce((a, b) => (Number(b.average) > Number(a.average) ? b : a)) : null;
     const worst = withAvg.length ? withAvg.reduce((a, b) => (Number(b.average) < Number(a.average) ? b : a)) : null;
@@ -457,31 +621,39 @@
     const delta = prev ? (Number(last.average) || 0) - (Number(prev.average) || 0) : null;
 
     destroyAll();
+    renderPeriodKpis(months);
+    syncLegacyMonthlySections();
     host.innerHTML =
-      '<div class="zone-summary" style="margin-bottom:18px;">'
+      '<div class="trend-period-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">'
+      + '<div><strong style="color:#172554; font-size:15px;">มุมมองแนวโน้ม</strong><div class="sub">เลือกดูข้อมูลแบบรายสัปดาห์หรือรายเดือน</div></div>'
+      + '<div class="seg" id="v3MonthlyPeriodTog">'
+      + '<button type="button" data-period="week"' + (periodMode === 'week' ? ' class="active"' : '') + '>📅 Weekly</button>'
+      + '<button type="button" data-period="month"' + (periodMode === 'month' ? ' class="active"' : '') + '>🗓️ Monthly</button>'
+      + '</div></div>'
+      + '<div class="zone-summary" style="margin-bottom:18px;">'
       + [
-        ['เดือนล่าสุด', prod(last.average), 'หยิบ/ชม.', esc(last.labelThai || ''), Number(last.average) >= t ? '#16a34a' : '#e11d48'],
-        ['เทียบเดือนก่อน', delta === null ? '—' : (delta >= 0 ? '▲ ' : '▼ ') + prod(Math.abs(delta)), delta === null ? '' : 'หยิบ/ชม.',
+        [unit + 'ล่าสุด', prod(last.average), 'หยิบ/ชม.', esc(last.labelThai || ''), Number(last.average) >= t ? '#16a34a' : '#e11d48'],
+        ['เทียบ' + unit + 'ก่อน', delta === null ? '—' : (delta >= 0 ? '▲ ' : '▼ ') + prod(Math.abs(delta)), delta === null ? '' : 'หยิบ/ชม.',
           prev ? 'เทียบกับ ' + esc(prev.labelThai || '') : 'ไม่มีเดือนก่อนให้เทียบ',
           delta === null ? '#64748b' : (delta >= 0 ? '#16a34a' : '#e11d48')],
-        ['เดือนที่ดีที่สุด', best ? prod(best.average) : '—', 'หยิบ/ชม.', best ? esc(best.labelThai || '') : '', '#7c3aed'],
-        ['เดือนที่ต่ำสุด', worst ? prod(worst.average) : '—', 'หยิบ/ชม.', worst ? esc(worst.labelThai || '') : '', '#ea580c'],
-        ['เดือนที่ถึงเป้า', fmt(hit) + ' / ' + fmt(withAvg.length), 'เดือน', 'เป้า ' + fmt(t) + ' หยิบ/ชม.', hit === withAvg.length ? '#16a34a' : '#0ea5e9']
+        [unit + 'ที่ดีที่สุด', best ? prod(best.average) : '—', 'หยิบ/ชม.', best ? esc(best.labelThai || '') : '', '#7c3aed'],
+        [unit + 'ที่ต่ำสุด', worst ? prod(worst.average) : '—', 'หยิบ/ชม.', worst ? esc(worst.labelThai || '') : '', '#ea580c'],
+        [unit + 'ที่ถึงเป้า', fmt(hit) + ' / ' + fmt(withAvg.length), unit, 'เป้า ' + fmt(t) + ' หยิบ/ชม.', hit === withAvg.length ? '#16a34a' : '#0ea5e9']
       ].map(([label, value, unit, detail, color]) =>
         '<div class="zone-stat"><div class="zone-stat-label">' + label + '</div>'
         + '<div class="zone-stat-value" style="color:' + color + '">' + value + (unit ? '<span> ' + unit + '</span>' : '') + '</div>'
         + '<div class="zone-stat-detail">' + detail + '</div></div>').join('')
       + '</div>'
-      + card('📊 ภาพรวมทุกเดือน',
-        'แท่ง = ยอดหยิบรวมของเดือน (แกนซ้าย) · เส้นแดง = ค่าเฉลี่ยต่อชั่วโมง (แกนขวา) · เส้นประ = เป้า'
+      + card('📊 ภาพรวมทุก' + unit,
+        'แท่ง = ยอดหยิบรวมของ' + unit + ' (แกนซ้าย) · เส้นแดง = ค่าเฉลี่ยต่อชั่วโมง (แกนขวา) · เส้นประ = เป้า'
         + ' · ตัวเลขของเส้นอยู่ด้านบน ส่วนยอดหยิบเป็นป้ายที่โคนแท่ง จึงอยู่คนละระดับ ไม่ทับกัน',
         'v3MonthlyOverviewChart', true)
       + '<section class="card wide" style="margin-bottom:18px;">'
-        + '<div class="staff-card-head"><div><h3>🔍 เทียบรายเดือนทีละประเภท</h3>'
+        + '<div class="staff-card-head"><div><h3>🔍 เทียบราย' + unit + 'ทีละประเภท</h3>'
         + '<div class="sub">เลือกว่าจะดูแยกทีละประเภทหรือรวมในกราฟเดียว'
         + ' · <b>แยกทีละประเภท</b> มีตัวเลขในแท่งของประเภทนั้น · <b>รวมในกราฟเดียว</b> มีเฉพาะตัวเลขของเส้น'
         + ' เพื่อไม่ให้ป้ายสองชั้นชนกัน (ตัวเลขรายประเภทดูที่ตารางท้ายการ์ดหรือชี้ที่แท่ง)'
-        + ' · เส้นแดง = ค่าเฉลี่ยรวมของเดือน วาดทับบนแท่ง · เส้นประส้ม = เป้า</div></div>'
+        + ' · เส้นแดง = ค่าเฉลี่ยรวมของ' + unit + ' วาดทับบนแท่ง · เส้นประส้ม = เป้า</div></div>'
         + '<div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">'
         + '<div class="seg" id="v3MonthlyModeTog">'
         + MODES.map((m) => '<button type="button" data-mmode="' + m.key + '"'
@@ -496,12 +668,21 @@
         + '<summary style="cursor:pointer; font-size:12px; font-weight:700; color:#4f46e5;">ดูตัวเลขทุกค่าเป็นตาราง</summary>'
         + '<div data-after="v3MonthlyBreakdownChart" style="margin-top:10px;"></div></details>'
         + '</section>'
-      + '<div class="note v3-notice">ค่าเฉลี่ยของเดือนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว'
+      + '<div class="note v3-notice">ค่าเฉลี่ยของ' + unit + 'คือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น รวมครั้งเดียว'
       + ' ไม่ได้เอาค่าเฉลี่ยรายวันมาเฉลี่ยซ้ำ · สีเขียวในตารางคือถึงเป้า สีแดงคือยังไม่ถึง'
-      + ' · หน้านี้กางทุกเดือนที่มีข้อมูล ไม่หุบตามตัวกรองวันที่ด้านบน</div>';
+      + ' · หน้านี้กางทุก' + unit + 'ที่มีข้อมูล ไม่หุบตามตัวกรองวันที่ด้านบน</div>';
 
     drawOverview(months);
     paintBreakdown(host, months);
+
+    host.querySelectorAll('#v3MonthlyPeriodTog button[data-period]').forEach((b) => {
+      b.addEventListener('click', () => {
+        if (b.dataset.period === periodMode) return;
+        periodMode = b.dataset.period;
+        try { localStorage.setItem(PERIOD_KEY, periodMode); } catch (e) { /* โหมดส่วนตัวเขียนไม่ได้ ไม่เป็นไร */ }
+        render();
+      });
+    });
 
     host.querySelectorAll('#v3MonthlyModeTog button[data-mmode]').forEach((b) => {
       b.addEventListener('click', () => {
