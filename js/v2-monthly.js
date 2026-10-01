@@ -626,9 +626,10 @@
     host.innerHTML =
       '<div class="trend-period-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap;">'
       + '<div><strong style="color:#172554; font-size:15px;">มุมมองแนวโน้ม</strong><div class="sub">เลือกดูข้อมูลแบบรายสัปดาห์หรือรายเดือน</div></div>'
-      + '<div class="seg" id="v3MonthlyPeriodTog">'
-      + '<button type="button" data-period="week"' + (periodMode === 'week' ? ' class="active"' : '') + '>📅 Weekly</button>'
-      + '<button type="button" data-period="month"' + (periodMode === 'month' ? ' class="active"' : '') + '>🗓️ Monthly</button>'
+      + '<div class="trend-period-toggle-wrap"><span class="trend-period-toggle-label">ช่วงข้อมูล</span><div class="seg" id="v3MonthlyPeriodTog">'
+      + '<button type="button" data-period="week" aria-pressed="' + (periodMode === 'week') + '"' + (periodMode === 'week' ? ' class="active"' : '') + '><span>📅 Weekly</span><small>รายสัปดาห์</small></button>'
+      + '<button type="button" data-period="month" aria-pressed="' + (periodMode === 'month') + '"' + (periodMode === 'month' ? ' class="active"' : '') + '><span>🗓️ Monthly</span><small>รายเดือน</small></button>'
+      + '</div></div>'
       + '</div></div>'
       + '<div class="zone-summary" style="margin-bottom:18px;">'
       + [

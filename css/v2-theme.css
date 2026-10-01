@@ -681,6 +681,18 @@ body {
   gap: 18px;
 }
 
+.trend-period-toolbar { padding: 14px 16px; border: 1px solid #c7d2fe; border-radius: 16px; background: linear-gradient(135deg, #eef2ff 0%, #ffffff 58%, #ecfeff 100%); box-shadow: 0 8px 22px rgba(67, 56, 202, .09); }
+.trend-period-toggle-wrap { display: flex; align-items: center; gap: 9px; padding: 5px; border: 1px solid #a5b4fc; border-radius: 14px; background: rgba(255,255,255,.8); box-shadow: 0 3px 10px rgba(30,64,175,.08); }
+.trend-period-toggle-label { padding: 0 4px 0 7px; color: #3730a3; font-size: 11px; font-weight: 900; white-space: nowrap; }
+#v3MonthlyPeriodTog { gap: 4px; padding: 0; background: transparent; }
+#v3MonthlyPeriodTog button { min-width: 118px; padding: 8px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 13px; font-weight: 900; line-height: 1.15; }
+#v3MonthlyPeriodTog button span, #v3MonthlyPeriodTog button small { display: block; }
+#v3MonthlyPeriodTog button small { margin-top: 3px; color: #64748b; font-size: 10px; font-weight: 700; }
+#v3MonthlyPeriodTog button:hover { border-color: #818cf8; background: #eef2ff; color: #3730a3; transform: translateY(-1px); }
+#v3MonthlyPeriodTog button.active { border-color: #4f46e5; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; box-shadow: 0 5px 12px rgba(79,70,229,.3); }
+#v3MonthlyPeriodTog button.active small { color: #e0e7ff; }
+@media (max-width: 700px) { .trend-period-toggle-wrap { width: 100%; justify-content: space-between; } #v3MonthlyPeriodTog { flex: 1; } #v3MonthlyPeriodTog button { flex: 1; min-width: 0; } }
+
 /* seg / range switch → .seg ของ V2 */
 .present-range-switch,
 .quick-filters,
