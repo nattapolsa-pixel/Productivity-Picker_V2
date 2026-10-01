@@ -386,7 +386,10 @@
     data.forEach(r=>{const z=zone(r);(z?buckets.get(z.key):unknown).push(r);});
     const groups=zones.map(z=>({...z,stats:zoneAggregate(z.key,buckets.get(z.key))}));
     if(unknown.length)groups.push({key:'unknown',label:'ข้อมูล Zone ไม่ครบ',group:'',stats:M.aggregate(unknown)});
-    const shown=groups.filter(z=>z.key==='unknown'||z.stats.rows>0);
+    const ownerFilter=String(V3Data.filters.owner||'ALL');
+    // GFA owns Zone AG even when the selected date has no AG rows yet; keep the zone visible so the map remains a stable operating view.
+    const keepEmptyAg=ownerFilter==='GFA';
+    const shown=groups.filter(z=>z.key==='unknown'||z.stats.rows>0||(keepEmptyAg&&z.key==='fullRackAg'));
     const realGroups=shown.filter(z=>z.key!=='unknown').sort((a,b)=>b.stats.total-a.stats.total);
     const unknownGroup=shown.find(z=>z.key==='unknown');
     const zoneTarget=z=>z.key==='unknown'?(Number(TARGETS.overall)||170):(Number(getZoneTarget(z.key,z.group))||170);
