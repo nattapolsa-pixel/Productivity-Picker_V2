@@ -23,9 +23,14 @@ assert.equal(count,expectedAll.count);assert.ok(Math.abs(sum-expectedAll.sum)<1e
 const days=[index.dateKeys[0],index.dateKeys[Math.floor(index.dateKeys.length/2)],index.dateKeys.at(-2),index.dateKeys.at(-1)];
 const reconciliation=[];
 for(const day of days){const filtered=rows.filter(r=>M.date(r[2])===day);const expected=adjusted(filtered);const actual=V1Engine.buildRange(source.sheets,day,day);assert.equal(actual.totalPick,expected.total);assert.equal(actual.overall.count,expected.count);assert.equal(actual.overall.average,Math.round((expected.average||0)*10)/10);reconciliation.push({date:day,totalPick:actual.totalPick,productivity:actual.overall.average,validRows:actual.overall.count});}
-const sample=(date,total,af,type='Full Rack',shift='A')=>{const r=Array(43).fill('');r[2]=date;r[3]='00123';r[4]=total;r[31]=af;r[32]=shift;r[36]=type;return r;};
+const sample=(date,total,af,type='Full Rack',shift='A')=>{const r=Array(43).fill('');r[2]=date;r[3]='00123';r[4]=total;r[31]=af;r[32]=shift;r[33]='AF';r[36]=type;return r;};
 const fixture=[sample('Date(2026,8,1)',100,100),sample('Date(2026,8,1)',500,'Not Count'),sample('Date(2026,8,2)',300,300),sample('Date(2026,8,2)',200,200)];
 assert.equal(M.aggregate(fixture).total,1100);assert.equal(M.aggregate(fixture).average,200);
+const invalidZone=sample('Date(2026,8,3)',900,900);invalidZone[33]='YA';
+assert.equal(M.isValidZoneRow(invalidZone),false);assert.equal(M.aggregate([invalidZone]).total,900);assert.equal(M.aggregate([invalidZone]).count,0);assert.equal(M.aggregate([invalidZone]).average,null);
+const zoneFixtureSheets={...source.sheets,'Results Master':{...source.sheets['Results Master'],rows:[sample('Date(2026,8,3)',100,100),invalidZone]}};
+const zoneFixture=V1Engine.buildRange(zoneFixtureSheets,'2026-09-03','2026-09-03');
+assert.equal(zoneFixture.totalPick,1000);assert.equal(zoneFixture.overall.count,1);assert.equal(zoneFixture.overall.average,100);
 assert.equal(M.matches(sample('Date(2026,5,7)',1,50,'Pick to Sort'),{system:'BPS'}),false);
 assert.equal(M.matches(sample('Date(2026,5,8)',1,50,'Pick to Sort'),{system:'BPS'}),true);
 assert.equal(M.matches(sample('Date(2026,5,8)',1,50,'Full Rack','C'),{shift:'C'}),true);

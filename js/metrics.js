@@ -85,12 +85,17 @@
        - #N/A จากสูตรที่หาไม่เจอ และขีด -
      ค่าดิบยังแสดงตามต้นทางในตารางรายการ จึงตรวจย้อนได้ว่าแถวนั้นว่างหรือเป็นข้อความแบบใด */
   function shiftKey(row){const text=String((row&&row[32])??'').trim();if(!text)return 'Not Found';if(/^not\s?found(\s*data)?$/i.test(text))return 'Not Found';if(/^#n\/a$/i.test(text)||text==='-')return 'Not Found';return text;}
+  /* Position ที่ใช้คำนวณต้องเป็น Zone จริงของระบบ V3 เท่านั้น
+     ค่าอย่าง Not Found Data, YA, สื่อ/สินค้าพรีเมี่ยม, ALL ZONE และค่าว่างยังคงอยู่ในรายการตรวจสอบได้ แต่ไม่เข้า Average */
+  const VALID_ZONE_CODES=['AA','AB','AC','AD','AE','AF','AG','AH','AI','AJ','AK','AL','AM','AN','BE','BG','BH','BI','BJ','BK','BL','BM','BN','CA','CB','CC','CD','CE','CF','DA','DB','DC','DD','DE','DF','EA','FA'];
+  function isValidZoneValue(value){const text=String(value??'').toUpperCase().trim();if(!text)return false;return VALID_ZONE_CODES.some(code=>new RegExp(`(?:^|[^A-Z])${code}(?:$|[^A-Z0-9]|\\d)`,'i').test(text));}
+  function isValidZoneRow(row){return isValidZoneValue(row&&row[33]);}
   function matches(row,filters={}){
     const filterOwner=String(filters.owner??'').trim();
     const ownerOk=!filterOwner||filterOwner==='ALL'||ownerKey(row&&row[35])===ownerKey(filterOwner);
     return (!filters.system||filters.system==='ALL'||(system(row)===filters.system&&(filters.system!=='BPS'||date(row[2])>='2026-06-08'))) && (!filters.shift||filters.shift==='ALL'||shiftKey(row)===filters.shift) && ownerOk;
   }
-  function aggregate(rows){let total=0,sum=0,count=0,hours=0;const ids=new Set();for(const r of rows){total+=number(r[4]);hours+=number(r[6]);const a=number(r[31]);if(a>0){sum+=a;count++;}if(r[3])ids.add(String(r[3]).trim());}return {total,sum,count,average:count?sum/count:null,rows:rows.length,hours,people:ids.size,excluded:rows.length-count};}
+  function aggregate(rows){let total=0,sum=0,count=0,hours=0;const ids=new Set();for(const r of rows){total+=number(r[4]);hours+=number(r[6]);const a=number(r[31]);if(a>0&&isValidZoneRow(r)){sum+=a;count++;}if(r[3])ids.add(String(r[3]).trim());}return {total,sum,count,average:count?sum/count:null,rows:rows.length,hours,people:ids.size,excluded:rows.length-count};}
 
   /* ── ช่วงเวลา: คอลัมน์ H–AE (ดัชนี 7–30) เป็นยอดหยิบต่อชั่วโมง 24 ช่อง
         หัวตารางจริงใน Sheet เริ่ม "7:00 - 8:00" ไปจนถึง "6:00 - 7:00"
@@ -175,7 +180,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,type,system,ownerKey,ownerLabel,shiftKey,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,type,system,ownerKey,ownerLabel,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

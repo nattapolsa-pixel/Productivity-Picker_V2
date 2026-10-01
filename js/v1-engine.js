@@ -25,7 +25,7 @@ const RESULTS_SHEET_NAME = "Results Master";
 const UPDATE_NAME_SHEET_NAME = "Update name";
 
 const CACHE_SECONDS = 300;
-const CACHE_VERSION = "v49-ajak-half-rack";
+const CACHE_VERSION = "v50-zone-valid-average";
 const PICK_TO_SORT_START_DATE_KEY = "2026-06-08";
 
 const SHEET_COLUMN = {
@@ -606,6 +606,8 @@ function buildDailyIndexPayload_() {
     }
 
     const day = dates[dateKey];
+    const zoneMatch = findZoneMatch_(dataValues[index][columnOffset.position]);
+    const validZone = Boolean(zoneMatch);
     const sortBeReplacement = Boolean(
       sortPeopleByDate[dateKey] &&
       isSortBeRow_(dataValues[index][columnOffset.position], dataValues[index][columnOffset.pickType])
@@ -623,7 +625,7 @@ function buildDailyIndexPayload_() {
 
     const average = toNumber_(dataValues[index][columnOffset.average]);
 
-    if (average <= 0) {
+    if (average <= 0 || !validZone) {
       day.excludedCount += 1;
       continue;
     }
@@ -678,8 +680,6 @@ function buildDailyIndexPayload_() {
         }
       );
     }
-
-    const zoneMatch = findZoneMatch_(dataValues[index][columnOffset.position]);
 
     if (zoneMatch && day.zones[zoneMatch.groupKey] && day.zones[zoneMatch.groupKey][zoneMatch.zoneKey]) {
       addValue_(day.zones[zoneMatch.groupKey][zoneMatch.zoneKey], average);
@@ -1275,6 +1275,8 @@ function buildDashboardPayload_(startDateText, endDateText) {
     const rawTotalPick = dataValues[index][columnOffset.totalPick];
     const rowTotalPick = getTotalPickValue_(rawTotalPick, rawTotalPick);
     const rowDateKey = formatDateISO_(rowDateForTraining);
+    const zoneMatch = findZoneMatch_(dataValues[index][columnOffset.position]);
+    const validZone = Boolean(zoneMatch);
     const sortBeReplacement = Boolean(
       sortPeopleByDate[rowDateKey] &&
       isSortBeRow_(dataValues[index][columnOffset.position], dataValues[index][columnOffset.pickType])
@@ -1282,7 +1284,7 @@ function buildDashboardPayload_(startDateText, endDateText) {
 
     const rawUserId = dataValues[index][columnOffset.userId];
 
-    if (average > 0 && !sortBeReplacement) {
+    if (average > 0 && validZone && !sortBeReplacement) {
       addTrainingValue_(
         trainingSummary,
         trainingRoster,
@@ -1340,7 +1342,7 @@ function buildDashboardPayload_(startDateText, endDateText) {
       continue;
     }
 
-    if (rowDateForTraining && average > 0) {
+    if (rowDateForTraining && average > 0 && validZone) {
       if (!selectedMonthlyTrendDate || rowDateForTraining > selectedMonthlyTrendDate) {
         selectedMonthlyTrendDate = rowDateForTraining;
       }
@@ -1362,7 +1364,7 @@ function buildDashboardPayload_(startDateText, endDateText) {
       }
     }
 
-    if (average <= 0) {
+    if (average <= 0 || !validZone) {
       excludedCount += 1;
       continue;
     }
@@ -1406,8 +1408,6 @@ function buildDashboardPayload_(startDateText, endDateText) {
         }
       );
     }
-
-    const zoneMatch = findZoneMatch_(dataValues[index][columnOffset.position]);
 
     if (zoneMatch && zoneSummary[zoneMatch.groupKey] && zoneSummary[zoneMatch.groupKey][zoneMatch.zoneKey]) {
       addValue_(zoneSummary[zoneMatch.groupKey][zoneMatch.zoneKey], average);

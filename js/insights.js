@@ -348,7 +348,7 @@
   function percentile(values,ratio){const list=values.filter(v=>Number.isFinite(Number(v))).map(Number).sort((a,b)=>a-b);if(!list.length)return null;const index=(list.length-1)*ratio,low=Math.floor(index),high=Math.ceil(index);return list[low]+(list[high]-list[low])*(index-low);}
   function zonePeopleWindow(list,target){
     const byId=new Map();
-    list.forEach(r=>{const id=M.userId(r);if(!id)return;let p=byId.get(id);if(!p){p={id,sum:0,count:0};byId.set(id,p);}const value=M.number(r[31]);if(value>0){p.sum+=value;p.count+=1;}});
+    list.forEach(r=>{const id=M.userId(r);if(!id||!M.isValidZoneRow(r))return;let p=byId.get(id);if(!p){p={id,sum:0,count:0};byId.set(id,p);}const value=M.number(r[31]);if(value>0){p.sum+=value;p.count+=1;}});
     const values=[...byId.values()].filter(p=>p.count).map(p=>p.sum/p.count);
     const stats=M.aggregate(list);
     return {stats,people:values.length,pass:values.filter(v=>v>=target).length,below:values.filter(v=>v<target).length,values};
