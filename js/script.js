@@ -452,9 +452,9 @@ const ZONE_GROUPS = [
     title: "Picking Productivity - Full Rack (หยิบ)",
     target: TARGETS.fullRack,
     zones: [
-      /* Zone AA-AF และ AG เลิกใช้แล้ว ถอดออก 21/09/2569 (งานสุดท้าย 19/07/2026)
-         ผลงานย้อนหลังไม่ถูกลบตามกฎ V1 แต่แถวที่ต้นทางเขียน Position ว่า "AG-AH"
-         จะไปเข้าโซน AH-AI ตามรหัสที่เหลือ ส่วน "AA" ไปกอง Not Found */
+      /* AA-AF ยังไม่ใช้ แต่ AG กลับมาใช้งานในข้อมูลปัจจุบันของ GFA
+         และต้องอยู่ก่อน AH-AI เพื่อให้ Position แบบ AG-AH จัดเข้า AG */
+      { key: "fullRackAg", title: "Picking Productivity - Zone AG", label: "AG" },
       { key: "fullRackAhAi", title: "Picking Productivity - Zone AH-AI", label: "AH-AI" },
       { key: "fullRackAlBlBmAm", title: "Picking Productivity - Zone AL-BL-BM-AM", label: "AL-BL-BM-AM" },
     ],
