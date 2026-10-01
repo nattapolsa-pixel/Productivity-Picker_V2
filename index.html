@@ -143,7 +143,7 @@
       </div>
 
       <!-- แถบตัวกรองรูปแบบ .sysbar ของ V2 (ค่าและตัวคำนวณยังเป็นของ V1) -->
-      <!-- แถบตัวกรอง .sysbar เรียงตามต้นฉบับของ V2: ระบบ → กะ → เป้า Target → วันที่ → ช่วงสำเร็จรูป → รีเฟรช
+      <!-- แถบตัวกรอง .sysbar เรียงตามต้นฉบับของ V2: ระบบ → Owner → กะ → เป้า Target → วันที่ → ช่วงสำเร็จรูป → รีเฟรช
            ปุ่มทุกกลุ่มส่งค่าต่อให้ตัวกรองเดิม ค่าและสูตรทั้งหมดยังเป็นของ V1 -->
       <div class="sysbar">
         <span class="lab">ระบบ:</span>
@@ -157,6 +157,22 @@
           <option value="PTT">Pick (PTT)</option>
           <option value="BPS">Pick to Sort (BPS)</option>
           <option value="Not Found">ไม่ระบุประเภทงาน</option>
+        </select>
+
+        <span class="lab">🏷️ Owner:</span>
+        <div class="systog ownerog" id="v3OwnerTog">
+          <button type="button" data-owner="ALL" class="active">ทุก Owner</button>
+          <button type="button" data-owner="Mart">Mart</button>
+          <button type="button" data-owner="Punthai">Punthai</button>
+          <button type="button" data-owner="GFA">GFA</button>
+          <button type="button" data-owner="UNKNOWN">ไม่ระบุ</button>
+        </div>
+        <select id="v3Owner" aria-label="Owner" hidden tabindex="-1">
+          <option value="ALL">ทุก Owner</option>
+          <option value="Mart">Mart</option>
+          <option value="Punthai">Punthai</option>
+          <option value="GFA">GFA</option>
+          <option value="UNKNOWN">ไม่ระบุ Owner</option>
         </select>
 
         <span class="lab">กะ:</span>
@@ -940,12 +956,12 @@
     </section>
   </div>
 
-  <script src="js/data-client.js?v=20260930-sort-history-2"></script>
-  <script src="js/metrics.js?v=20260930-sort-history-2"></script>
+  <script src="js/data-client.js?v=20261001-owner-filter-2"></script>
+  <script src="js/metrics.js?v=20261001-owner-filter-2"></script>
   <script src="js/script.js?v=20260922-manual-refresh-1"></script>
-  <script src="js/insights.js?v=20260930-sort-history-2"></script>
-  <script src="js/v2-shell.js?v=20260921-guide-1"></script>
-  <script src="js/v2-views.js?v=20260930-sort-history-2"></script>
+  <script src="js/insights.js?v=20261001-owner-filter-2"></script>
+  <script src="js/v2-shell.js?v=20261001-owner-filter-2"></script>
+  <script src="js/v2-views.js?v=20261001-owner-filter-2"></script>
   <script src="js/v2-roster-write.js?v=20260918-2"></script>
   <script src="js/v2-staff.js?v=20260929-new-old-staff-periods-3"></script>
   <script src="js/v2-efficiency.js?v=20260921-round0-1"></script>

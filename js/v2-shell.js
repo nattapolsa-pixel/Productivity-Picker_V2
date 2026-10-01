@@ -39,6 +39,8 @@
   const endDate = document.getElementById('endDate');
   const systemSelect = document.getElementById('v3System');
   const systemTog = document.getElementById('v3SystemTog');
+  const ownerSelect = document.getElementById('v3Owner');
+  const ownerTog = document.getElementById('v3OwnerTog');
   const shiftSelect = document.getElementById('v3Shift');
   const shiftTog = document.getElementById('v3ShiftTog');
   const targetInput = document.getElementById('prodTargetInput');
@@ -50,6 +52,7 @@
     BPS: 'Pick to Sort (BPS)',
     'Not Found': 'ไม่ระบุประเภทงาน'
   };
+  const OWNER_LABEL = { ALL: 'ทุก Owner', Mart: 'Mart', Punthai: 'Punthai', GFA: 'GFA', UNKNOWN: 'ไม่ระบุ Owner' };
 
   function dmy(value) {
     if (!value) return '';
@@ -69,6 +72,8 @@
 
     const sys = systemSelect ? systemSelect.value : 'ALL';
     if (sys && sys !== 'ALL') text += ` · ${SYSTEM_LABEL[sys] || sys}`;
+    const owner = ownerSelect ? ownerSelect.value : 'ALL';
+    if (owner && owner !== 'ALL') text += ` · Owner ${OWNER_LABEL[owner] || owner}`;
     const shift = shiftSelect ? shiftSelect.value : 'ALL';
     if (shift && shift !== 'ALL') text += ` · กะ ${shift}`;
     daterange.innerHTML = text;
@@ -127,6 +132,25 @@
       });
     });
     syncButtons();
+  }
+
+  /* ── ปุ่ม Owner แบบเดียวกับระบบ/กะ → ตัวกรองกลางของทุกหน้า ── */
+  if (ownerTog && ownerSelect) {
+    const buttons = Array.from(ownerTog.querySelectorAll('button[data-owner]'));
+    const syncButtons = () => {
+      buttons.forEach((b) => b.classList.toggle('active', b.dataset.owner === ownerSelect.value));
+    };
+    buttons.forEach((b) => {
+      b.addEventListener('click', () => {
+        if (b.dataset.owner === ownerSelect.value) return;
+        ownerSelect.value = b.dataset.owner;
+        syncButtons();
+        ownerSelect.dispatchEvent(new Event('change'));
+        updateDateHeader();
+      });
+    });
+    syncButtons();
+    ownerSelect.addEventListener('change', syncButtons);
   }
 
   /* ── ปุ่มกะแบบ .systog.shiftog ของ V2 ──

@@ -18,12 +18,14 @@
       const date=M.date(row[2]),match=zone(row),group=sortPeopleByDate[date];
       if(!group||match?.key!=='pickToSortBe')return row;
       const person=group.people.find(item=>String(item.userId)===String(M.userId(row)));if(!person)return row;
+      const ownerFilter=String(V3Data.filters.owner||'ALL');
+      if(ownerFilter!=='ALL'&&M.ownerKey(person.owner)!==M.ownerKey(ownerFilter))return row;
       const copy=[...row];copy[4]=person.total;copy[6]=person.hours;copy[31]=person.valid?person.productivity:'Not Count';copy[32]=person.shift||copy[32];copy[33]='BE';copy[36]='Pick to Sort';copy._sortData=true;return copy;
     });
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);}));}
   function zoneAggregate(key,records,dateHints){
-    const rowsForZone=records||[],base=M.aggregate(rowsForZone),useHistory=key==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL';
+    const rowsForZone=records||[],base=M.aggregate(rowsForZone),useHistory=key==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL'&&V3Data.filters.owner==='ALL';
     if(!useHistory)return base;
     const dates=new Set(rowsForZone.map(r=>M.date(r[2])).filter(Boolean));(dateHints||[]).forEach(date=>{if(date)dates.add(date);});
     if(!dates.size)return base;
@@ -112,7 +114,7 @@
       </article>`;
     }).join('');
     const selectedText=start||end?`${dmy(start||anchor)}${start&&end?'–'+dmy(end):''}`:'ทั้งหมด';
-    host.innerHTML=`<div class="v3-period-compare-head"><div class="v3-period-heading"><span class="v3-period-heading-icon">↗</span><div><strong>เปรียบเทียบ Productivity</strong><span>ใช้ตัวกรองระบบและกะเดียวกันทุกหน้า · ล่าสุดอ้างอิงวันที่ ${esc(dmy(anchor))}</span></div></div><div class="v3-period-toolbar"><span class="v3-period-legend up">↑ ดีขึ้น</span><span class="v3-period-legend down">↓ ลดลง</span><small>ช่วงที่เลือก: ${esc(selectedText)}</small></div></div><div class="v3-period-compare-grid">${cardsHtml}</div>`;
+    host.innerHTML=`<div class="v3-period-compare-head"><div class="v3-period-heading"><span class="v3-period-heading-icon">↗</span><div><strong>เปรียบเทียบ Productivity</strong><span>ใช้ตัวกรอง Owner ระบบ และกะเดียวกันทุกหน้า · ล่าสุดอ้างอิงวันที่ ${esc(dmy(anchor))}</span></div></div><div class="v3-period-toolbar"><span class="v3-period-legend up">↑ ดีขึ้น</span><span class="v3-period-legend down">↓ ลดลง</span><small>ช่วงที่เลือก: ${esc(selectedText)}</small></div></div><div class="v3-period-compare-grid">${cardsHtml}</div>`;
   }
   function csvExport(items,columns,name){const csv=[columns.map(c=>c.title),...items.map(item=>columns.map(c=>c.value(item)))].map(row=>row.map(value=>{let text=String(value??'');if(/^[=+@\-\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   /* กดหัวคอลัมน์เพื่อเรียง ครั้งแรกมาก -> น้อย ครั้งที่สองน้อย -> มาก ครั้งที่สามกลับลำดับตั้งต้น
@@ -196,7 +198,7 @@
   function zoneMonthLabel(month){if(!month)return '—';const d=new Date(`${month}-01T00:00:00Z`);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('th-TH',{month:'long',year:'numeric',timeZone:'UTC'});}
   function zoneMtdModel(selectedKey,target){
     const filtered=effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);}));
-    const historyDates=selectedKey==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL'?[...historyByDate.keys()]:[];
+    const historyDates=selectedKey==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL'&&V3Data.filters.owner==='ALL'?[...historyByDate.keys()]:[];
     const anchor=[...new Set(filtered.map(r=>M.date(r[2])).filter(Boolean).concat(historyDates))].sort().pop()||'';
     if(!anchor)return null;
     const month=anchor.slice(0,7),start=`${month}-01`,zoneRows=filtered.filter(r=>(zone(r)?.key||'unknown')===selectedKey),monthRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor;});
@@ -842,6 +844,9 @@
   function render(){if(!source)return;try{renderPeriodComparison();updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
   V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);sortPeopleByDate=M.sortPeopleSummary(source.sheets);historyByDate=new Map(((source.sheets['V3 History']&&source.sheets['V3 History'].rows)||[]).map(r=>{const date=M.historyDate(r[0]);let timeSlots={};try{timeSlots=r[9]?JSON.parse(String(r[9])):null;}catch(e){timeSlots=null;}return [date,{totalPick:M.number(r[2]),productivity:M.number(r[3]),people:M.number(r[4]),rows:M.number(r[7])||M.number(r[4]),sortLines:M.number(r[8]),timeSlots}]}).filter(([date,item])=>date&&(Number(item.totalPick)>0||Number(item.productivity)>0||item.timeSlots)));rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
     const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
+    const ownerKeys=new Set(rows.filter(r=>M.date(r[2])).map(r=>M.ownerKey(r[35]))),ownerOptions=['ALL','Mart','Punthai','GFA'];
+    if(ownerKeys.has('UNKNOWN'))ownerOptions.push('UNKNOWN');
+    $('v3Owner').innerHTML=ownerOptions.map(key=>`<option value="${esc(key)}">${esc(key==='ALL'?'ทุก Owner':M.ownerLabel(key))}</option>`).join('');$('v3Owner').value=V3Data.filters.owner;
     const warn=(source.warnings||[]);
     $('v3SourceStatus').innerHTML=esc(`${value.index.cacheStatus==='sheet-live'?'Google Sheets ล่าสุด':'ข้อมูลสำรองจาก Google Sheets'} • อ่านเมื่อ ${new Date(source.fetchedAt).toLocaleString('th-TH',{timeZone:'Asia/Bangkok'})} • ${fmt(value.index.totalRows)} แถวมีวันที่`)
       +(warn.length?` • <span class="v3-loadwarn" title="${esc(warn.join(' · '))}">⚠️ อ่านบางชีตไม่ได้ สถานะออกแล้วอาจหาย</span>`:'');
@@ -851,7 +856,7 @@
   // หน่วงเล็กน้อยให้ v2-shell.js ใส่คลาส active ก่อน ไม่งั้นกราฟถูกวาดตอน .tab-panel ยัง display:none
   // แล้วได้ canvas สูง 0 ซึ่ง Chart.js ไม่วัดใหม่ให้เอง (insights.js ผูก listener ก่อน v2-shell.js ตามลำดับ script)
   document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{destroyZoneCharts();active=btn.dataset.tab;setTimeout(render,60);window.scrollTo({top:0,behavior:'instant'});}));
-  async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value;$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift});$('v3FilterStatus').textContent=system==='BPS'?'BPS เริ่มนับ 08/06/2026 ':'กรองแล้ว • ทุกหน้าใช้ข้อมูลชุดเดียวกัน';}catch(e){$('v3FilterStatus').textContent=e.message;}}
+  async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value,owner=$('v3Owner').value;$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift,owner});const ownerText=owner==='ALL'?'ทุก Owner':M.ownerLabel(owner);$('v3FilterStatus').textContent=(system==='BPS'?'BPS เริ่มนับ 08/06/2026 ':'กรองแล้ว')+` • Owner: ${ownerText} • ทุกหน้าใช้ข้อมูลชุดเดียวกัน`;}catch(e){$('v3FilterStatus').textContent=e.message;}}
   // เปิด table(), cards() และตัวช่วยจัดรูปแบบให้ v2-staff.js ใช้ร่วมกัน ไม่ต้องเขียนตารางซ้ำ
   root_V3Shared();
   function root_V3Shared(){
@@ -865,5 +870,6 @@
 
   if($('v3System'))$('v3System').onchange=applyFilter;
   if($('v3Shift'))$('v3Shift').onchange=applyFilter;
+  if($('v3Owner'))$('v3Owner').onchange=applyFilter;
   if($('v3Print'))$('v3Print').onclick=()=>window.print();
 })();

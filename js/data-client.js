@@ -1,11 +1,11 @@
 /* One source snapshot for every page; calculations run off the UI thread. */
 window.V3Data = (() => {
   let current = null, pending = null, lastAttempt = 0, sequence = 0, historyWritePromise = null;
-  let filters = {system:'ALL',shift:'ALL'}, filterRevision=0;
+  let filters = {system:'ALL',shift:'ALL',owner:'ALL'}, filterRevision=0;
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
-      const worker = new Worker('js/data-worker.js?v=20260930-sort-history-2');
+      const worker = new Worker('js/data-worker.js?v=20261001-owner-filter-2');
       const timer = setTimeout(() => {worker.terminate(); reject(new Error('Google Sheet ตอบกลับช้า กรุณาลองรีเฟรชอีกครั้ง'));}, 150000);
       const finish = () => {clearTimeout(timer); worker.terminate();};
       worker.onerror = e => {finish();reject(new Error(e.message));};
@@ -84,7 +84,7 @@ window.V3Data = (() => {
     return pending;
   }
   async function setFilters(next){
-    filters={...next}; const revision=++filterRevision;
+    filters={system:'ALL',shift:'ALL',owner:'ALL',...next}; const revision=++filterRevision;
     if(!current)return;
     const source=current.source;
     let value=await process(source);
@@ -93,7 +93,7 @@ window.V3Data = (() => {
     if(revision!==filterRevision)return;
     publish(value,current.index.cacheStatus);
     dailyIndexPayload=value.index;
-    renderDashboardFromDailyIndex('กรองระบบ / กะ ตาม Google Sheets');
+    renderDashboardFromDailyIndex('กรอง Owner / ระบบ / กะ ตาม Google Sheets');
   }
   return {request,refresh,setFilters,subscribe(fn){listeners.add(fn);if(current)fn(current);},get current(){return current;},get filters(){return filters;}};
 })();

@@ -1423,6 +1423,11 @@ th.num {
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #fff;
 }
+.systog.ownerog button.active[data-owner="ALL"] { background: linear-gradient(135deg,#8b5cf6,#6366f1); }
+.systog.ownerog button.active[data-owner="Mart"] { background: linear-gradient(135deg,#0ea5e9,#2563eb); }
+.systog.ownerog button.active[data-owner="Punthai"] { background: linear-gradient(135deg,#10b981,#059669); }
+.systog.ownerog button.active[data-owner="GFA"] { background: linear-gradient(135deg,#f59e0b,#ea580c); }
+.systog.ownerog button.active[data-owner="UNKNOWN"] { background: linear-gradient(135deg,#64748b,#475569); }
 
 /* ── กันคลาสของ V1 ทับค่า display ของแอตทริบิวต์ hidden (เช่น .btn-apply ที่ซ่อนไว้) ── */
 [hidden] {

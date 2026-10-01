@@ -38,9 +38,16 @@
     const sheet=sheets&&sheets.Sort_Data;if(!sheet||!sheet.rows||!sheet.rows.length)return {};
     const headers=sheet.headers||[],c={uom:sortColumn(headers,['UOM Qty','UOM']),dateTime:sortColumn(headers,['Sort DateTime','DateTime']),shift:sortColumn(headers,['Shift']),shiftDate:sortColumn(headers,['Shift Date']),id:sortColumn(headers,['Sorter ID','User ID'])};
     if(Object.values(c).some(i=>i<0))return {};
+    /* Sort_Data ไม่มีคอลัมน์ Owner จึงผูก Owner จาก Results Master ด้วย Date + User ID
+       เพื่อให้การกรอง Mart / Punthai / GFA ไม่เอายอด BE ของทุก Owner มาปนกัน */
+    const ownerByPersonDate=new Map();
+    for(const row of (sheets['Results Master']?.rows||[])){
+      const rowDate=date(row[2])||sortDate(row[2])||dashboardDate(row[2]),id=String(row[3]??'').trim();
+      if(rowDate&&id)ownerByPersonDate.set(`${rowDate}|${id}`,ownerKey(row[35]));
+    }
     const groups={};
     for(const row of sheet.rows){const date=sortDate(row[c.shiftDate]),dt=sortDateTime(row[c.dateTime]),id=String(row[c.id]??'').trim();if(!date||!dt||!id)continue;if(!groups[date])groups[date]={date,peopleById:{}};const p=groups[date].peopleById[id]||(groups[date].peopleById[id]={userId:id,shift:row[c.shift],total:0,first:dt,last:dt});p.total+=number(row[c.uom]);if(dt<p.first)p.first=dt;if(dt>p.last)p.last=dt;}
-    for(const group of Object.values(groups)){const entries=Object.values(group.peopleById).map(p=>{p.hours=sortHours({...p,date:group.date});p.productivity=p.hours>0?p.total/p.hours:0;p.valid=p.hours>3&&p.productivity>0&&p.productivity<1000;return p;});const valid=entries.filter(p=>p.valid);group.people=entries;group.total=entries.reduce((sum,p)=>sum+p.total,0);group.sum=valid.reduce((sum,p)=>sum+p.productivity,0);group.count=valid.length;group.average=group.count?group.sum/group.count:null;group.excluded=entries.length-group.count;delete group.peopleById;}
+    for(const group of Object.values(groups)){const entries=Object.values(group.peopleById).map(p=>{p.owner=ownerByPersonDate.get(`${group.date}|${p.userId}`)||'UNKNOWN';p.hours=sortHours({...p,date:group.date});p.productivity=p.hours>0?p.total/p.hours:0;p.valid=p.hours>3&&p.productivity>0&&p.productivity<1000;return p;});const valid=entries.filter(p=>p.valid);group.people=entries;group.total=entries.reduce((sum,p)=>sum+p.total,0);group.sum=valid.reduce((sum,p)=>sum+p.productivity,0);group.count=valid.length;group.average=group.count?group.sum/group.count:null;group.excluded=entries.length-group.count;delete group.peopleById;}
     return groups;
   }
   function sortTimeSummary(sheets){
@@ -60,6 +67,17 @@
   }
   function type(v){const t=String(v||'').toLowerCase().trim();if(t.includes('sort'))return 'pickToSort';if(t.includes('full'))return 'fullRack';if(t.includes('half')||t.includes('haft'))return 'halfRack';if(t.includes('micro')||t.includes('ea'))return 'ea';if(t.includes('mezz'))return 'mezzanine';return '';}
   function system(row){const t=type(row[36]);return t==='pickToSort'?'BPS':t?'PTT':'Not Found';}
+  /* Owner ของเว็บอ่านจาก Results Master คอลัมน์ AJ (Bu)
+     ต้นทางใช้ชื่อ Max Mart แต่หน้าเว็บใช้ป้ายสั้นว่า Mart เพื่อให้เลือกง่ายและสื่อสารตรงกันทุกหน้า */
+  function ownerKey(value){
+    const text=String(value??'').trim().toLowerCase().replace(/\s+/g,' ');
+    if(!text||/^not\s?found(\s*data)?$/i.test(text)||/^#n\/a$/i.test(text)||text==='-')return 'UNKNOWN';
+    if(text==='punthai')return 'Punthai';
+    if(text==='gfa')return 'GFA';
+    if(text==='mart'||text==='max mart'||text.includes('max mart'))return 'Mart';
+    return 'UNKNOWN';
+  }
+  function ownerLabel(value){const key=ownerKey(value);return key==='Mart'?'Mart':key==='Punthai'?'Punthai':key==='GFA'?'GFA':'ไม่ระบุ Owner';}
   /* กะที่ใช้กรอง/จับกลุ่ม อ่านจากคอลัมน์ AG ตามที่ Sheet บันทึกไว้ ไม่คาดเดาจากเวลา
      ค่าที่แปลว่า "ไม่รู้กะ" มีได้หลายแบบในต้นทาง จึงรวมเป็นถังเดียวชื่อ Not Found
        - เซลล์ว่าง (ไม่มีการกรอกกะ)
@@ -67,7 +85,11 @@
        - #N/A จากสูตรที่หาไม่เจอ และขีด -
      ค่าดิบยังแสดงตามต้นทางในตารางรายการ จึงตรวจย้อนได้ว่าแถวนั้นว่างหรือเป็นข้อความแบบใด */
   function shiftKey(row){const text=String((row&&row[32])??'').trim();if(!text)return 'Not Found';if(/^not\s?found(\s*data)?$/i.test(text))return 'Not Found';if(/^#n\/a$/i.test(text)||text==='-')return 'Not Found';return text;}
-  function matches(row,filters={}){return (!filters.system||filters.system==='ALL'||(system(row)===filters.system&&(filters.system!=='BPS'||date(row[2])>='2026-06-08'))) && (!filters.shift||filters.shift==='ALL'||shiftKey(row)===filters.shift);}
+  function matches(row,filters={}){
+    const filterOwner=String(filters.owner??'').trim();
+    const ownerOk=!filterOwner||filterOwner==='ALL'||ownerKey(row&&row[35])===ownerKey(filterOwner);
+    return (!filters.system||filters.system==='ALL'||(system(row)===filters.system&&(filters.system!=='BPS'||date(row[2])>='2026-06-08'))) && (!filters.shift||filters.shift==='ALL'||shiftKey(row)===filters.shift) && ownerOk;
+  }
   function aggregate(rows){let total=0,sum=0,count=0,hours=0;const ids=new Set();for(const r of rows){total+=number(r[4]);hours+=number(r[6]);const a=number(r[31]);if(a>0){sum+=a;count++;}if(r[3])ids.add(String(r[3]).trim());}return {total,sum,count,average:count?sum/count:null,rows:rows.length,hours,people:ids.size,excluded:rows.length-count};}
 
   /* ── ช่วงเวลา: คอลัมน์ H–AE (ดัชนี 7–30) เป็นยอดหยิบต่อชั่วโมง 24 ช่อง
@@ -153,7 +175,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,type,system,shiftKey,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,type,system,ownerKey,ownerLabel,shiftKey,matches,aggregate,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

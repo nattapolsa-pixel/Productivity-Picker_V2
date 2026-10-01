@@ -30,6 +30,21 @@ assert.equal(M.matches(sample('Date(2026,5,7)',1,50,'Pick to Sort'),{system:'BPS
 assert.equal(M.matches(sample('Date(2026,5,8)',1,50,'Pick to Sort'),{system:'BPS'}),true);
 assert.equal(M.matches(sample('Date(2026,5,8)',1,50,'Full Rack','C'),{shift:'C'}),true);
 assert.equal(M.system(sample('Date(2026,5,8)',1,50,'ช่วยงานส่วนอื่น')),'Not Found');
+const ownerFixture=sample('Date(2026,5,8)',1,50,'Full Rack','C');
+ownerFixture[35]='Max Mart';
+assert.equal(M.ownerKey(ownerFixture[35]),'Mart');
+assert.equal(M.ownerLabel(ownerFixture[35]),'Mart');
+assert.equal(M.matches(ownerFixture,{owner:'Mart'}),true);
+assert.equal(M.matches(ownerFixture,{owner:'Punthai'}),false);
+assert.equal(M.ownerKey('Not Found Data'),'UNKNOWN');
+assert.equal(M.matches(ownerFixture,{owner:'ALL'}),true);
+for(const owner of ['Mart','Punthai','GFA']){
+  const selected=rows.filter(r=>M.matches(r,{owner}));
+  assert.ok(selected.length>0,`Owner ${owner} should have rows in snapshot`);
+  const sheets={...source.sheets,'Results Master':{...source.sheets['Results Master'],rows:selected}};
+  const p=V1Engine.buildIndex(sheets);
+  assert.equal(p.totalPick,M.aggregate(selected).total,`Owner ${owner} total should reconcile`);
+}
 assert.equal(V3Source.dateValue('02/01/2026 '),'Date(2026,0,2)');
 assert.equal(V3Source.dateValue('16-ก.ย.-26'),'Date(2026,8,16)');
 assert.equal(V3Source.dateValue('31/02/2026'),'31/02/2026');
@@ -40,5 +55,5 @@ assert.ok(source.sheets['Update name'].rows.length>1,'Read all roster rows, not 
 assert.equal(sortPeople['2026-09-28'].total,3630);
 assert.equal(Math.round(sortPeople['2026-09-28'].average),58);
 for(const system of ['PTT','BPS','Not Found']){const selected=rows.filter(r=>M.matches(r,{system}));const sheets={...source.sheets,'Results Master':{...source.sheets['Results Master'],rows:selected}};const p=V1Engine.buildIndex(sheets);assert.equal(p.totalPick,M.aggregate(selected).total);}
-console.log('PASS: V1 formula, BE Sort_Data per-person merge, all/day parity, Not Count totals, BPS cutoff, calendar dates, shift C, mixed IDs, CSV, full roster');
+console.log('PASS: V1 formula, BE Sort_Data per-person merge, Owner filter, all/day parity, Not Count totals, BPS cutoff, calendar dates, shift C, mixed IDs, CSV, full roster');
 console.table(reconciliation);
