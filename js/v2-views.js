@@ -742,7 +742,7 @@
     });
   }
 
-  /* ── 4. โดนัทสัดส่วนระบบ PTT / BPS + แผงสถิติ (แบบ V2) ── */
+  /* ── 4. โดนัทสัดส่วนระบบ + แผงสถิติ (ยอดต้องรวมเท่ากับยอดรวมด้านบน) ── */
   function renderSystemShare(list) {
     const ptt = [], bps = [], other = [];
     list.forEach((r) => {
@@ -752,7 +752,7 @@
       else other.push(r);
     });
     const a = M.aggregate(ptt), b = M.aggregate(bps), c = M.aggregate(other);
-    const data = [a.total, b.total];
+    const data = [a.total, b.total, c.total];
     const total = data.reduce((x, y) => x + y, 0) || 1;
     const pct = (v) => (Number(v) || 0) / total * 100;
 
@@ -763,12 +763,15 @@
     if ($('bpsSharePct')) $('bpsSharePct').textContent = `${pct(b.total).toFixed(1)}%`;
     if ($('bpsVal')) $('bpsVal').textContent = `${fmt(b.total)} ชิ้น`;
     if ($('bpsSubText')) $('bpsSubText').textContent = `${fmt(b.rows)} แถว · Productivity ${prod(b.average)} หยิบ/ชม.`;
+    if ($('otherSharePct')) $('otherSharePct').textContent = `${pct(c.total).toFixed(1)}%`;
+    if ($('otherVal')) $('otherVal').textContent = `${fmt(c.total)} ชิ้น`;
+    if ($('otherSubText')) $('otherSubText').textContent = `${fmt(c.rows)} แถว · Productivity ${prod(c.average)} หยิบ/ชม.`;
 
     draw('cat', {
       type: 'doughnut',
       data: {
-        labels: ['Pick (PTT)', 'Pick to Sort (BPS)'],
-        datasets: [{ data, backgroundColor: ['#6366f1', '#f59e0b'], borderWidth: 3, borderColor: '#fff' }]
+        labels: ['Pick (PTT)', 'Pick to Sort (BPS)', 'ข้อมูลอื่น / ยังไม่ระบุระบบ'],
+        datasets: [{ data, backgroundColor: ['#6366f1', '#f59e0b', '#94a3b8'], borderWidth: 3, borderColor: '#fff' }]
       },
       options: {
         maintainAspectRatio: false,
@@ -785,7 +788,7 @@
           tooltip: {
             callbacks: {
               label: (ctx) => {
-                const s = ctx.dataIndex === 0 ? a : b;
+                const s = ctx.dataIndex === 0 ? a : ctx.dataIndex === 1 ? b : c;
                 return [` ${ctx.label}`, ` Total Pick: ${fmt(s.total)} ชิ้น`, ` Productivity: ${prod(s.average)} หยิบ/ชม.`];
               }
             }

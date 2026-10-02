@@ -43,8 +43,24 @@
     if(entry?.timeSlots){for(let hour=0;hour<24;hour+=1){const from=String((7+hour)%24).padStart(2,'0'),to=String((8+hour)%24).padStart(2,'0');row[7+hour]=Number(entry.timeSlots[`${from}:00-${to}:00`]?.total)||0;}}
     return [row];
   }
+  function syntheticSortRow(date,person){
+    const [year,month,day]=String(date).split('-').map(Number),row=new Array(43).fill('');
+    row[2]=`Date(${year},${month-1},${day})`;row[3]=String(person?.userId||'').trim();row[4]=Number(person?.total)||0;row[6]=Number(person?.hours)||0;row[31]=person?.valid?Number(person.productivity)||0:'Not Count';row[32]=person?.shift||'';row[33]='BE';row[34]=person?.affiliation||'Pick to Sort';row[35]=person?.owner||'Punthai';row[36]='Pick to Sort';row._sortData=true;return row;
+  }
   function historyAwareRows(list){
-    const effective=effectiveRows(list||[]),dates=new Set(effective.map(r=>M.date(r[2])).filter(Boolean)),out=effective.filter(r=>!(M.date(r[2])>=BE_HISTORY_CUTOFF&&zone(r)?.key==='pickToSortBe'));
+    const effective=effectiveRows(list||[]),dates=new Set(effective.map(r=>M.date(r[2])).filter(Boolean)),replacedSortDates=new Set(),out=[];
+    effective.forEach(row=>{
+      const date=M.date(row[2]),isBe=zone(row)?.key==='pickToSortBe';
+      if(isBe&&date<BE_HISTORY_CUTOFF&&sortPeopleByDate[date]){replacedSortDates.add(date);return;}
+      if(isBe&&date>=BE_HISTORY_CUTOFF){return;}
+      out.push(row);
+    });
+    replacedSortDates.forEach(date=>{
+      (sortPeopleByDate[date]?.people||[]).forEach(person=>{
+        const row=syntheticSortRow(date,person);
+        if(M.matches(row,V3Data.filters))out.push(row);
+      });
+    });
     if(!canUseBeHistory())return out;
     dates.forEach(date=>{const entry=beHistoryEntry(date);if(entry)out.push(...syntheticBeRows(date,entry));});
     return out;
