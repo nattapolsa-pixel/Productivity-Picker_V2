@@ -54,14 +54,14 @@
       if (end && d > end) return false;
       return M.matches(r, filters);
     });
-    return window.V3Shared?.effectiveRows ? window.V3Shared.effectiveRows(filtered) : filtered;
+    return window.V3Shared?.historyAwareRows ? window.V3Shared.historyAwareRows(filtered) : (window.V3Shared?.effectiveRows ? window.V3Shared.effectiveRows(filtered) : filtered);
   }
 
   // แถวที่ผ่านตัวกรองระบบ/กะ แต่ไม่จำกัดช่วงวันที่ — ใช้กางกราฟทั้งเดือนแบบ V2
   function filteredRows() {
     const filters = window.V3Data ? window.V3Data.filters : {};
     const filtered = rows.filter((r) => M.date(r[2]) && M.matches(r, filters));
-    return window.V3Shared?.effectiveRows ? window.V3Shared.effectiveRows(filtered) : filtered;
+    return window.V3Shared?.historyAwareRows ? window.V3Shared.historyAwareRows(filtered) : (window.V3Shared?.effectiveRows ? window.V3Shared.effectiveRows(filtered) : filtered);
   }
 
   function monthKeysAvailable() {
@@ -1153,7 +1153,7 @@
       renderBuShare(list);
       renderAffiliation(list);
       renderShiftCompare(list);
-      renderPickers(list);
+      renderPickers(list.filter((row) => !row._beHistory));
     } catch (e) {
       console.error('V3 views:', e);
     }
@@ -1193,7 +1193,7 @@
     b.addEventListener('click', () => {
       document.querySelectorAll('#pickerCountTog button[data-count]').forEach((x) => x.classList.toggle('active', x === b));
       pickerTop = Number(b.dataset.count) || 12;
-      renderPickers(visibleRows());
+      renderPickers(visibleRows().filter((row) => !row._beHistory));
     });
   });
 

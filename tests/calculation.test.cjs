@@ -60,5 +60,10 @@ assert.ok(source.sheets['Update name'].rows.length>1,'Read all roster rows, not 
 assert.equal(sortPeople['2026-09-28'].total,3630);
 assert.equal(Math.round(sortPeople['2026-09-28'].average),58);
 for(const system of ['PTT','BPS','Not Found']){const selected=rows.filter(r=>M.matches(r,{system}));const sheets={...source.sheets,'Results Master':{...source.sheets['Results Master'],rows:selected}};const p=V1Engine.buildIndex(sheets);assert.equal(p.totalPick,M.aggregate(selected).total);}
-console.log('PASS: V1 formula, BE Sort_Data per-person merge, Owner filter, all/day parity, Not Count totals, BPS cutoff, calendar dates, shift C, mixed IDs, CSV, full roster');
+const postCutoffRow=(zone,id,total,af,type='Full Rack')=>{const r=Array(43).fill('');r[2]='Date(2026,8,30)';r[3]=id;r[4]=total;r[31]=af;r[32]='A';r[33]=zone;r[34]='PTG';r[35]=zone==='BE'?'Punthai':'Mart';r[36]=type;return r;};
+const postCutoffRows=Array.from({length:84},(_,i)=>postCutoffRow('AF','AF'+i,122,122)).concat([postCutoffRow('AF','AF84',168,168),postCutoffRow('BE','BE1',999,400,'Pick to Sort'),postCutoffRow('BE','BE2',888,500,'Pick to Sort')]);
+const postCutoffSheets={...source.sheets,'Results Master':{...source.sheets['Results Master'],rows:postCutoffRows},Dashboard:{headers:[],rows:[]},'V3 History':{headers:['date','zone','totalPick','productivity','people','source'],rows:[['2026-09-30','BE',433,195,4,'Dashboard + Time_Slot']]},__filters:{system:'ALL',owner:'ALL',shift:'ALL'}};
+const postCutoffDay=V1Engine.buildIndex(postCutoffSheets).dates['2026-09-30'];
+assert.equal(postCutoffDay.totalPick,10849);assert.equal(postCutoffDay.overall.count,86);assert.equal(postCutoffDay.overall.sum,10611);assert.equal(Math.round(postCutoffDay.overall.sum/postCutoffDay.overall.count),123);
+console.log('PASS: V1 formula, BE history team replacement, Sort_Data pre-cutoff merge, Owner filter, all/day parity, Not Count totals, BPS cutoff, calendar dates, shift C, mixed IDs, CSV, full roster');
 console.table(reconciliation);

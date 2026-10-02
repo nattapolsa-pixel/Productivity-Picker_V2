@@ -93,7 +93,7 @@
   function shiftKey(row){const text=String((row&&row[32])??'').trim();if(!text)return 'Not Found';if(/^not\s?found(\s*data)?$/i.test(text))return 'Not Found';if(/^#n\/a$/i.test(text)||text==='-')return 'Not Found';return text;}
   /* Position ที่ใช้คำนวณต้องเป็น Zone จริงของระบบ V3 เท่านั้น
      ค่าอย่าง Not Found Data, YA, สื่อ/สินค้าพรีเมี่ยม, ALL ZONE และค่าว่างยังคงอยู่ในรายการตรวจสอบได้ แต่ไม่เข้า Average */
-  const VALID_ZONE_CODES=['AA','AB','AC','AD','AE','AF','AG','AH','AI','AJ','AK','AL','AM','AN','BE','BG','BH','BI','BJ','BK','BL','BM','BN','CA','CB','CC','CD','CE','CF','DA','DB','DC','DD','DE','DF','EA','FA'];
+  const VALID_ZONE_CODES=['AA','AB','AC','AD','AE','AF','AG','AH','AI','AJ','AK','AL','AM','AN','BE','BG','BH','BI','BJ','BK','BL','BM','BN','CA','CB','CC','CD','CE','CF','DA','DB','DC','DD','DE','DF','EA','FA','HB'];
   function isValidZoneValue(value){const text=String(value??'').toUpperCase().trim();if(!text)return false;return VALID_ZONE_CODES.some(code=>new RegExp(`(?:^|[^A-Z])${code}(?:$|[^A-Z0-9]|\\d)`,'i').test(text));}
   function isValidZoneRow(row){return isValidZoneValue(row&&row[33]);}
   function matches(row,filters={}){

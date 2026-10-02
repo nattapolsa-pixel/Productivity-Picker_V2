@@ -23,6 +23,32 @@
       const copy=[...row];copy[4]=person.total;copy[6]=person.hours;copy[31]=person.valid?person.productivity:'Not Count';copy[32]=person.shift||copy[32];copy[33]='BE';copy[36]='Pick to Sort';copy._sortData=true;return copy;
     });
   }
+  const BE_HISTORY_CUTOFF='2026-09-29';
+  function canUseBeHistory(){
+    const filters=V3Data.filters||{},system=String(filters.system||'ALL').trim().toUpperCase(),owner=String(filters.owner||'ALL').trim().toUpperCase(),shift=String(filters.shift||'ALL').trim().toUpperCase();
+    return (system==='ALL'||system==='BPS')&&(owner==='ALL'||owner==='PUNTHAI')&&shift==='ALL';
+  }
+  function beHistoryEntry(date){
+    if(!date||date<BE_HISTORY_CUTOFF)return null;
+    if(sortDashboard&&sortDashboard.date===date&&Number(sortDashboard.productivity)>0){
+      const saved=historyByDate.get(date)||{};
+      return {date,totalPick:Number(sortDashboard.total)||0,productivity:Number(sortDashboard.productivity),people:Math.max(1,Number(sortDashboard.people)||Number(saved.people)||1),timeSlots:saved.timeSlots||null};
+    }
+    const saved=historyByDate.get(date);
+    return saved&&Number(saved.productivity)>0?{...saved,totalPick:Number(saved.totalPick)||0,productivity:Number(saved.productivity),people:Math.max(1,Number(saved.people)||1)}:null;
+  }
+  function syntheticBeRows(date,entry){
+    const [year,month,day]=String(date).split('-').map(Number),row=new Array(43).fill('');
+    row[2]=`Date(${year},${month-1},${day})`;row[3]=`__BE_TEAM_${date}`;row[4]=Number(entry?.totalPick)||0;row[31]=Number(entry?.productivity)||0;row[33]='BE';row[34]='PTG';row[35]='Punthai';row[36]='Pick to Sort';row._beHistory=true;row._bePeople=Math.max(0,Number(entry?.people)||0);
+    if(entry?.timeSlots){for(let hour=0;hour<24;hour+=1){const from=String((7+hour)%24).padStart(2,'0'),to=String((8+hour)%24).padStart(2,'0');row[7+hour]=Number(entry.timeSlots[`${from}:00-${to}:00`]?.total)||0;}}
+    return [row];
+  }
+  function historyAwareRows(list){
+    const effective=effectiveRows(list||[]),dates=new Set(effective.map(r=>M.date(r[2])).filter(Boolean)),out=effective.filter(r=>!(M.date(r[2])>=BE_HISTORY_CUTOFF&&zone(r)?.key==='pickToSortBe'));
+    if(!canUseBeHistory())return out;
+    dates.forEach(date=>{const entry=beHistoryEntry(date);if(entry)out.push(...syntheticBeRows(date,entry));});
+    return out;
+  }
   function visible(){const start=$('startDate').value,end=$('endDate').value;return effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);}));}
   function zoneAggregate(key,records,dateHints){
     const rowsForZone=records||[],base=M.aggregate(rowsForZone),useHistory=key==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL'&&V3Data.filters.owner==='ALL';
@@ -48,7 +74,7 @@
   function employeeTenureContext(){const dates=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)).map(r=>M.date(r[2])).sort();const anchor=dates[dates.length-1]||'';return {anchor,cutoff:anchor?M.tenureCutoff(anchor):''};}
   function employeeTenure(id,context){const start=employeeStartDate(id),isNew=Boolean(start&&context?.cutoff&&start>context.cutoff);return {key:isNew?'new':'old',label:isNew?'พนักงานใหม่':'พนักงานเก่า',startDate:start};}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
-   function stats(records,zoneKey){const s=zoneKey?zoneAggregate(zoneKey,records):M.aggregate(records),totalLabel=zoneKey==='pickToSortBe'?'Total Sort UOM':'Total Pick';return cards([[totalLabel,fmt(s.total),'รวมยอดจากข้อมูลต้นทางในช่วงที่เลือก'],['Productivity',fmt(s.average,0),s.source==='Sort_Data'?'Sort_Data · เฉลี่ยรายคน':s.source?.startsWith('History')?'V3 History/Sort_Data · ใช้ยอดเก็บย้อนหลังร่วมกับรายบุคคล':s.source==='Dashboard'?'Team Productivity จาก Dashboard':'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function stats(records,zoneKey){const s=zoneKey?zoneAggregate(zoneKey,records):M.aggregate(historyAwareRows(records)),totalLabel=zoneKey==='pickToSortBe'?'Total Sort UOM':'Total Pick';return cards([[totalLabel,fmt(s.total),'รวมยอดจากข้อมูลต้นทางในช่วงที่เลือก'],['Productivity',fmt(s.average,0),s.source==='Sort_Data'?'Sort_Data · เฉลี่ยรายคน':s.source?.startsWith('History')?'V3 History/Sort_Data · ใช้ยอดเก็บย้อนหลังร่วมกับรายบุคคล':s.source==='Dashboard'?'Team Productivity จาก Dashboard':'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
   function addDays(iso,days){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
   function addMonthKey(month,months){const d=new Date(`${String(month||'')}-01T00:00:00Z`);if(Number.isNaN(d.getTime()))return '';d.setUTCMonth(d.getUTCMonth()+months);return d.toISOString().slice(0,7);}
   function weekStart(iso){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';const day=d.getUTCDay();d.setUTCDate(d.getUTCDate()-(day===0?6:day-1));return d.toISOString().slice(0,10);}
@@ -63,7 +89,7 @@
     return {className:delta>0?'up':'down',label:`${delta>0?'↑':'↓'} ${sign}${fmt(delta,1)} Pick/ชม. · ${sign}${fmt(pct,1)}%`};
   }
   function dateRange(start,end){const out=[];for(let d=start;d&&end&&d<=end;d=addDays(d,1))out.push(d);return out;}
-  function periodStatsFor(list,periods,zoneKey){const calc=(start,end)=>zoneKey?zoneAggregate(zoneKey,rangeRows(list,start,end),dateRange(start,end)):M.aggregate(rangeRows(list,start,end));return periods.map(p=>({...p,current:calc(p.currentStart,p.currentEnd),previous:calc(p.previousStart,p.previousEnd)}));}
+  function periodStatsFor(list,periods,zoneKey){const calc=(start,end)=>zoneKey?zoneAggregate(zoneKey,rangeRows(list,start,end),dateRange(start,end)):M.aggregate(historyAwareRows(rangeRows(list,start,end)));return periods.map(p=>({...p,current:calc(p.currentStart,p.currentEnd),previous:calc(p.previousStart,p.previousEnd)}));}
   function miniComparisonHtml(stats,key,label){
     const items=stats.map(item=>{
       const current=item.current[key],previous=item.previous[key],code=item.key==='day'?'1D':item.key==='week'?'7D':'30D';
@@ -866,7 +892,7 @@
   function root_V3Shared(){
     globalThis.V3Shared={table,cards,esc,fmt,csvExport,
       // เปิดกฎโซนและตัวกรองร่วมให้หน้าที่แยกไฟล์ใช้ ไม่ต้องคัดลอกกฎ V1 ไปเขียนซ้ำ
-      zone,zones,zoneLabels:labels,visible,effectiveRows,statCards,zoneTargetOf,
+      zone,zones,zoneLabels:labels,visible,effectiveRows,historyAwareRows,statCards,zoneTargetOf,
       get roster(){return roster;},
       get rows(){return rows;},
       get source(){return source;}};
