@@ -52,7 +52,7 @@
     BPS: 'Pick to Sort (BPS)',
     'Not Found': 'ไม่ระบุประเภทงาน'
   };
-  const OWNER_LABEL = { ALL: 'ทุก Owner', Mart: 'Mart', Punthai: 'Punthai', GFA: 'GFA', UNKNOWN: 'ไม่ระบุ Owner' };
+  const OWNER_LABEL = { ALL: 'ทุก Owner', Mart: 'Mart', Punthai: 'Punthai', GFA: 'GFA' };
 
   function dmy(value) {
     if (!value) return '';
