@@ -2404,6 +2404,7 @@ function isSafeCallbackName_(callback) {
 
 const V3_FIELDS_ = {name:3,nickname:4,affiliation:5,role:6,startDate:7,statusWork:8,trainingEnd:9,zone:10,pickType:11,bu:12,shift:13};
 const V3_TARGET_KEYS_ = ['overall','fullRack','halfRack','ea','pickToSort','mezzanine','training','fullRackAhAi','fullRackAlBlBmAm','halfRackAf','halfRackAjAk','halfRackAnCaBnDa','halfRackBgBh','halfRackBiBk','halfRackCbDbDcCc','halfRackCdCe','halfRackDdDe','halfRackCfDf','microEa','microFa','pickToSortBe'];
+const V3_WEIGHT_KEYS_ = ['types.fullRack','types.halfRack','types.ea','zones.fullRackAg','zones.fullRackAhAi','zones.fullRackAlBlBmAm','zones.fullRackBe','zones.halfRackAf','zones.halfRackAjAk','zones.halfRackAnCaBnDa','zones.halfRackBgBh','zones.halfRackBiBk','zones.halfRackCbDbDcCc','zones.halfRackDdDe','zones.halfRackCdCe','zones.halfRackCfDf','zones.microEa','zones.microFa'];
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
@@ -2411,6 +2412,7 @@ function doPost(e) {
   try {
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (body.targets) return writeTargetsV3_(body.targets, body.updatedBy);
+    if (body.weights) return writeWeightsV3_(body.weights, body.updatedBy);
     if (body.rows) return writeRosterV3_(body.rows);
     if (body.history) return writeHistoryV3_(body.history);
     return jsonOutput_({ok:false,error:'missing rows or targets'});
@@ -2463,6 +2465,45 @@ function writeTargetsV3_(values, updatedBy) {
   sheet.clearContents();
   sheet.getRange(1,1,rows.length,4).setValues(rows);
   return jsonOutput_({ok:true,updatedAt:stamp.toISOString(),updatedBy:updatedBy || 'V3',targets:values});
+}
+
+function writeWeightsV3_(values, updatedBy) {
+  const book = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = book.getSheetByName('V3 Weight') || book.insertSheet('V3 Weight');
+  const stamp = new Date(), rows = [['คีย์','ค่า','อัปเดตเมื่อ','โดย']];
+  const changed = [];
+  V3_WEIGHT_KEYS_.forEach((key) => {
+    const parts = key.split('.');
+    const value = Number(values && values[parts[0]] && values[parts[0]][parts[1]]);
+    if (!isFinite(value) || value < 0 || value > 100) throw new Error('invalid weight '+key);
+    rows.push([key, Math.round(value), stamp, updatedBy || 'V3']);
+  });
+  const sums = {
+    types: ['types.fullRack','types.halfRack','types.ea'],
+    fullRack: ['zones.fullRackAg','zones.fullRackAhAi','zones.fullRackAlBlBmAm','zones.fullRackBe'],
+    halfRack: ['zones.halfRackAf','zones.halfRackAjAk','zones.halfRackAnCaBnDa','zones.halfRackBgBh','zones.halfRackBiBk','zones.halfRackCbDbDcCc','zones.halfRackDdDe','zones.halfRackCdCe','zones.halfRackCfDf'],
+    ea: ['zones.microEa','zones.microFa'],
+  };
+  Object.keys(sums).forEach((group) => {
+    const total = sums[group].reduce((sum, key) => {
+      const parts = key.split('.');
+      return sum + Number(values && values[parts[0]] && values[parts[0]][parts[1]] || 0);
+    }, 0);
+    if (total !== 100) throw new Error('weight '+group+' must total 100');
+  });
+  const last = sheet.getLastRow();
+  if (last > 1) {
+    const previous = sheet.getRange(2,1,last-1,2).getDisplayValues();
+    const old = {};
+    previous.forEach((row) => { if (row[0]) old[row[0]] = row[1]; });
+    rows.slice(1).forEach((row) => { if (String(old[row[0]]) !== String(row[1])) changed.push(row[0]); });
+  } else {
+    rows.slice(1).forEach((row) => changed.push(row[0]));
+  }
+  sheet.clearContents();
+  sheet.getRange(1,1,rows.length,4).setValues(rows);
+  SpreadsheetApp.flush();
+  return jsonOutput_({ok:true,updatedAt:stamp.toISOString(),updatedBy:updatedBy || 'V3',changed:changed.length,weights:values});
 }
 
 function writeHistoryV3_(entries) {

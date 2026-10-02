@@ -32,6 +32,80 @@ const DEFAULT_TARGETS = Object.freeze({
   pickToSortBe: 170,
 });
 
+/* Weight% เป็นโหมดทางเลือก แยกจากสูตรปกติทั้งหมด
+   - Overall = Full Rack 37% + Half Rack 48% + EA 15%
+   - Full Rack = AH-AI 30% + AL-BL-BM-AM 20% + BE 50%
+   - Half Rack / EA ยึดตัวเลขตามตาราง Weight ที่ผู้ใช้ให้มา
+   - AG ยังไม่มี Weight ตามตาราง จึงเริ่มที่ 0% แต่ตั้งค่าเพิ่มได้ภายหลัง */
+const DEFAULT_WEIGHTS = Object.freeze({
+  types: Object.freeze({ fullRack: 37, halfRack: 48, ea: 15 }),
+  zones: Object.freeze({
+    fullRackAg: 0,
+    fullRackAhAi: 30,
+    fullRackAlBlBmAm: 20,
+    fullRackBe: 50,
+    halfRackAf: 30,
+    halfRackAjAk: 10,
+    halfRackAnCaBnDa: 10,
+    halfRackBgBh: 5,
+    halfRackBiBk: 5,
+    halfRackCbDbDcCc: 10,
+    halfRackDdDe: 10,
+    halfRackCdCe: 10,
+    halfRackCfDf: 10,
+    microEa: 60,
+    microFa: 40,
+  }),
+});
+const WEIGHT_STORAGE_KEY = "pickProductivityWeights:v1";
+const WEIGHT_GROUPS = Object.freeze([
+  { key: "types", label: "Overall แยกตาม Type", total: 100 },
+  { key: "fullRack", label: "Full Rack แยกตาม Zone", total: 100 },
+  { key: "halfRack", label: "Half Rack แยกตาม Zone", total: 100 },
+  { key: "ea", label: "EA แยกตาม Zone", total: 100 },
+]);
+
+function cloneWeightConfig(value) {
+  return {
+    types: { ...DEFAULT_WEIGHTS.types, ...(value?.types || {}) },
+    zones: { ...DEFAULT_WEIGHTS.zones, ...(value?.zones || {}) },
+  };
+}
+
+function sanitizeWeightConfig(value) {
+  const source = cloneWeightConfig(value);
+  const clean = cloneWeightConfig();
+  Object.keys(DEFAULT_WEIGHTS.types).forEach((key) => {
+    const number = Number(source.types[key]);
+    clean.types[key] = Number.isFinite(number) && number >= 0 && number <= 100 ? Math.round(number) : DEFAULT_WEIGHTS.types[key];
+  });
+  Object.keys(DEFAULT_WEIGHTS.zones).forEach((key) => {
+    const number = Number(source.zones[key]);
+    clean.zones[key] = Number.isFinite(number) && number >= 0 && number <= 100 ? Math.round(number) : DEFAULT_WEIGHTS.zones[key];
+  });
+  return clean;
+}
+
+function readStoredWeights() {
+  try {
+    const raw = localStorage.getItem(WEIGHT_STORAGE_KEY);
+    if (raw) return sanitizeWeightConfig(JSON.parse(raw));
+    const cookie = getCookie(WEIGHT_STORAGE_KEY);
+    if (cookie && typeof cookie === "object") return sanitizeWeightConfig(cookie);
+  } catch (error) {
+    console.warn("Weight read failed", error);
+  }
+  return sanitizeWeightConfig(DEFAULT_WEIGHTS);
+}
+
+let WEIGHTS = readStoredWeights();
+let teamWeights = null;
+let teamWeightsMeta = { updatedAt: "", by: "", from: "" };
+let teamWeightsWrite = { url: "", sheetTab: "", sheetId: "" };
+let weightOverride = false;
+let teamWeightSaving = false;
+let teamWeightSaveNote = "";
+
 function setCookie(name, value, days = 365) {
   try {
     const date = new Date();
@@ -257,6 +331,168 @@ async function loadTeamTargets() {
 
 function teamTargetWriteReady() {
   return Boolean(teamTargetsWrite.url);
+}
+
+function flattenWeightConfig(config) {
+  const clean = sanitizeWeightConfig(config);
+  return [
+    ...Object.entries(clean.types).map(([key, value]) => [`types.${key}`, value]),
+    ...Object.entries(clean.zones).map(([key, value]) => [`zones.${key}`, value]),
+  ];
+}
+
+function expandWeightRows(rows) {
+  const result = cloneWeightConfig();
+  let found = 0;
+  (rows || []).forEach((cells) => {
+    const key = String(cells?.[0] || "").trim();
+    const value = Number(String(cells?.[1] || "").replace(/%/g, "").trim());
+    if (!key || !Number.isFinite(value)) return;
+    const match = key.match(/^(types|zones)\.(.+)$/);
+    if (!match || result[match[1]][match[2]] === undefined) return;
+    result[match[1]][match[2]] = value;
+    found += 1;
+  });
+  return { config: sanitizeWeightConfig(result), found };
+}
+
+function fetchWeightsFromSheet(tabName, sheetId) {
+  if (!sheetId) throw new Error("ยังไม่ได้ตั้ง sheetId ใน data/targets.json");
+  const url = "https://docs.google.com/spreadsheets/d/" + sheetId
+    + "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tabName) + "&t=" + Date.now();
+  return fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15000) })
+    .then((response) => {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      return response.text();
+    })
+    .then((text) => {
+      if (/^\s*</.test(text)) throw new Error("ไม่พบแท็บ " + tabName);
+      const rows = text.trim().split(/\r?\n/).map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "").replace(/""/g, '"')));
+      const result = expandWeightRows(rows);
+      const expected = flattenWeightConfig(DEFAULT_WEIGHTS).length;
+      if (result.found !== expected) throw new Error("แท็บ " + tabName + " มีค่าไม่ครบ (" + result.found + "/" + expected + ")");
+      return { weights: result.config, updatedAt: rows[1]?.[2] || "", updatedBy: rows[1]?.[3] || "" };
+    });
+}
+
+function saveWeightsToStorage() {
+  const clean = sanitizeWeightConfig(WEIGHTS);
+  try { localStorage.setItem(WEIGHT_STORAGE_KEY, JSON.stringify(clean)); } catch (error) { console.warn("Weight localStorage save failed", error); }
+  setCookie(WEIGHT_STORAGE_KEY, clean);
+}
+
+function diffWeightKeys(a, b) {
+  const left = flattenWeightConfig(a);
+  const right = Object.fromEntries(flattenWeightConfig(b));
+  return left.filter(([key, value]) => Number(right[key]) !== Number(value)).map(([key]) => key);
+}
+
+function weightTeamUpdatedLabel() {
+  const text = String(teamWeightsMeta.updatedAt || "");
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!match) return text;
+  const day = `${match[3]}/${match[2]}/${Number(match[1]) + 543}`;
+  return match[4] ? `${day} ${match[4]}:${match[5]}` : day;
+}
+
+function weightTeamWriteReady() {
+  return Boolean(teamWeightsWrite.url);
+}
+
+function renderWeightTeamInfo() {
+  const box = document.querySelector("#weightTeamInfo");
+  if (!box) return;
+  if (!teamWeights) {
+    box.innerHTML = '<p class="tt-note">กำลังโหลด Weight% กลาง…</p>';
+    return;
+  }
+  const label = weightTeamUpdatedLabel();
+  const dirty = teamWeights ? diffWeightKeys(WEIGHTS, teamWeights).length : 0;
+  const parts = [`<p class="tt-note">Weight% ที่ใช้อยู่${label ? ` อัปเดตล่าสุด <strong>${escapeHtml(label)}</strong>` : ""}${teamWeightsMeta.by ? ` · โดย ${escapeHtml(teamWeightsMeta.by)}` : ""}</p>`];
+  if (weightTeamWriteReady()) {
+    parts.push(`<button type="button" class="btn-target-team" data-weight-save-team${teamWeightSaving || !dirty ? " disabled" : ""}>${teamWeightSaving ? "กำลังบันทึก…" : "💾 บันทึกเป็นค่าของทีม"}${dirty && !teamWeightSaving ? ` (${dirty} ช่อง)` : ""}</button>`);
+    parts.push(`<p class="tt-note">${dirty ? "กดแล้วทุกคนจะเห็นชุดนี้เมื่อรีเฟรช" : "ค่าที่เห็นตรงกับของทีมอยู่แล้ว"}</p>`);
+  }
+  if (teamWeightSaveNote) parts.push(`<p class="${teamWeightSaveNote.includes("ไม่สำเร็จ") ? "tt-warn" : "tt-ok"}">${escapeHtml(teamWeightSaveNote)}</p>`);
+  box.innerHTML = parts.join("");
+}
+
+function applyTeamWeights(sourceLabel = "ใช้ Weight% ของทีม") {
+  if (!teamWeights) return;
+  const changed = diffWeightKeys(WEIGHTS, teamWeights);
+  weightOverride = false;
+  if (!changed.length) {
+    renderWeightTeamInfo();
+    return;
+  }
+  updateWeights(teamWeights, sourceLabel, { fromTeam: true });
+}
+
+async function loadTeamWeights() {
+  let filePayload = null;
+  let fileWeights = null;
+  try {
+    const response = await fetch(TEAM_TARGETS_URL + "?t=" + Date.now(), { cache: "no-store" });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    filePayload = await response.json();
+    fileWeights = sanitizeWeightConfig(filePayload?.weights);
+    teamWeightsWrite = {
+      url: String(filePayload?.write?.url || ""),
+      sheetTab: String(filePayload?.weightSheetTab || ""),
+      sheetId: String(filePayload?.sheetId || ""),
+    };
+  } catch (error) {
+    console.warn("Team Weight file load failed", error);
+  }
+
+  let sheetResult = null;
+  if (teamWeightsWrite.sheetTab && teamWeightsWrite.url) {
+    try { sheetResult = await fetchWeightsFromSheet(teamWeightsWrite.sheetTab, teamWeightsWrite.sheetId); }
+    catch (error) { console.warn("Team Weight sheet load failed", error); }
+  }
+
+  if (sheetResult) {
+    teamWeights = sheetResult.weights;
+    teamWeightsMeta = { updatedAt: sheetResult.updatedAt, by: sheetResult.updatedBy, from: "sheet" };
+  } else if (fileWeights) {
+    teamWeights = fileWeights;
+    teamWeightsMeta = { updatedAt: String(filePayload?.weightsUpdatedAt || filePayload?.updatedAt || ""), by: "", from: "file" };
+  } else {
+    renderWeightTeamInfo();
+    return false;
+  }
+  applyTeamWeights("ใช้ Weight% ของทีม");
+  renderWeightTeamInfo();
+  return true;
+}
+
+async function saveTeamWeights() {
+  if (!weightTeamWriteReady() || teamWeightSaving) return;
+  teamWeightSaving = true;
+  teamWeightSaveNote = "กำลังบันทึกเป็นค่าของทีม…";
+  renderWeightTeamInfo();
+  try {
+    const response = await fetch(teamWeightsWrite.url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ weights: sanitizeWeightConfig(WEIGHTS), updatedBy: "V3" }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const result = await response.json();
+    if (!result?.ok) throw new Error(result?.error || "ปลายทางตอบว่าบันทึกไม่สำเร็จ");
+    teamWeights = sanitizeWeightConfig(WEIGHTS);
+    teamWeightsMeta = { updatedAt: String(result.updatedAt || ""), by: String(result.updatedBy || ""), from: "sheet" };
+    weightOverride = false;
+    teamWeightSaveNote = result.changed ? `บันทึกเป็นค่าของทีมแล้ว ${result.changed} ช่อง · คนอื่นรีเฟรชแล้วเห็นตาม` : "ค่าตรงกับของทีมอยู่แล้ว ไม่มีอะไรต้องบันทึก";
+    setSyncStatus("บันทึก Weight% ของทีมแล้ว");
+  } catch (error) {
+    console.warn("Team Weight save failed", error);
+    teamWeightSaveNote = "บันทึกไม่สำเร็จ: " + (error.message || String(error)) + " · ค่าที่ปรับยังมีผลกับเครื่องนี้";
+  } finally {
+    teamWeightSaving = false;
+    renderWeightTeamInfo();
+  }
 }
 
 /* กดบันทึกในหน้าเว็บ → ยิงค่าที่เห็นอยู่ไปที่ apps-script-target-write.gs
@@ -508,6 +744,207 @@ const ZONE_GROUPS = [
      แต่ไม่ถอดแกนนั้นในรอบนี้ เพราะกระทบโครง payload ของ V1) */
 ];
 
+function weightZoneKey(zoneKey, label = "") {
+  const key = String(zoneKey || "");
+  if (key === "pickToSortBe" || String(label).trim().toUpperCase() === "BE") return "fullRackBe";
+  return key;
+}
+
+function weightPositionMatch(position, label) {
+  const text = String(position || "").toUpperCase().trim();
+  if (!text || !label) return false;
+  return String(label).split("-").some((code) => {
+    const value = String(code || "").trim().toUpperCase();
+    return value && new RegExp(`(?:^|[^A-Z])${value}(?:$|[^A-Z0-9]|\\d)`, "i").test(text);
+  });
+}
+
+function weightZoneFromPosition(position) {
+  const text = String(position || "").toUpperCase().trim();
+  if (!text) return null;
+  if (weightPositionMatch(text, "BE")) return { groupKey: "fullRack", key: "fullRackBe", label: "BE" };
+  for (const group of ZONE_GROUPS) {
+    for (const zone of group.zones) {
+      if (weightPositionMatch(text, zone.label)) {
+        return { groupKey: group.key, key: weightZoneKey(zone.key, zone.label), label: zone.label };
+      }
+    }
+  }
+  return null;
+}
+
+function weightedAverage(items, keys) {
+  const allowed = new Set(keys || []);
+  let numerator = 0;
+  let denominator = 0;
+  const used = [];
+  (items || []).forEach((item) => {
+    const key = weightZoneKey(item.key, item.label);
+    const weight = Number(WEIGHTS.zones[key]);
+    const average = Number(item.average);
+    const count = Number(item.count || 0);
+    if (!allowed.has(key) || !Number.isFinite(weight) || weight <= 0 || !Number.isFinite(average) || count <= 0) return;
+    numerator += average * weight;
+    denominator += weight;
+    used.push({ key, label: item.label || key, average, count, weight });
+  });
+  return {
+    average: denominator > 0 ? numerator / denominator : null,
+    usedWeight: denominator,
+    coverage: allowed.size ? denominator / Array.from(allowed).reduce((sum, key) => sum + (Number(WEIGHTS.zones[key]) || 0), 0) : 0,
+    used,
+  };
+}
+
+function weightedTypeAverage(items, typeKey, zoneKeys) {
+  const result = weightedAverage(items, zoneKeys);
+  return {
+    key: typeKey,
+    average: result.average,
+    configuredWeight: Number(WEIGHTS.types[typeKey] || 0),
+    usedWeight: result.usedWeight,
+    coverage: result.coverage,
+    zones: result.used,
+  };
+}
+
+function weightedFromZoneCollections(collections) {
+  const fullItems = [
+    ...(collections?.fullRack || []),
+    ...(collections?.pickToSort || []).map((item) => ({ ...item, key: weightZoneKey(item.key, item.label) })),
+  ];
+  const halfItems = collections?.halfRack || [];
+  const eaItems = collections?.ea || [];
+  const types = {
+    fullRack: weightedTypeAverage(fullItems, "fullRack", ["fullRackAg", "fullRackAhAi", "fullRackAlBlBmAm", "fullRackBe"]),
+    halfRack: weightedTypeAverage(halfItems, "halfRack", ["halfRackAf", "halfRackAjAk", "halfRackAnCaBnDa", "halfRackBgBh", "halfRackBiBk", "halfRackCbDbDcCc", "halfRackCdCe", "halfRackDdDe", "halfRackCfDf"]),
+    ea: weightedTypeAverage(eaItems, "ea", ["microEa", "microFa"]),
+  };
+  let numerator = 0;
+  let denominator = 0;
+  Object.values(types).forEach((item) => {
+    const average = Number(item.average);
+    const weight = Number(WEIGHTS.types[item.key] || 0);
+    if (!Number.isFinite(average) || weight <= 0) return;
+    numerator += average * weight;
+    denominator += weight;
+  });
+  return {
+    mode: "weighted",
+    overall: {
+      average: denominator > 0 ? numerator / denominator : null,
+      usedWeight: denominator,
+      coverage: denominator / 100,
+    },
+    types,
+  };
+}
+
+function payloadZoneCollections(payload) {
+  const groups = Array.isArray(payload?.zones) ? payload.zones : [];
+  const byGroup = (key) => groups.find((group) => group.key === key)?.zones || [];
+  return {
+    fullRack: byGroup("fullRack"),
+    halfRack: byGroup("halfRack"),
+    ea: byGroup("ea"),
+    pickToSort: byGroup("pickToSort"),
+  };
+}
+
+function rawDayZoneCollections(day) {
+  const group = (key) => Object.entries(day?.zones?.[key] || {}).map(([zoneKey, bucket]) => ({
+    key: zoneKey,
+    average: Number(bucket?.count || 0) > 0 ? Number(bucket?.sum || 0) / Number(bucket.count) : null,
+    count: Number(bucket?.count || 0),
+  }));
+  return { fullRack: group("fullRack"), halfRack: group("halfRack"), ea: group("ea"), pickToSort: group("pickToSort") };
+}
+
+function weightedDailySummary(day) {
+  return weightedFromZoneCollections(rawDayZoneCollections(day));
+}
+
+function weightedPayloadSummary(payload) {
+  return weightedFromZoneCollections(payloadZoneCollections(payload));
+}
+
+function cloneDashboardPayload(payload) {
+  try {
+    return JSON.parse(JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Weight payload clone failed", error);
+    return payload;
+  }
+}
+
+function applyWeightModeToPayload(input) {
+  if (!input || input.ok === false) return input;
+  const payload = cloneDashboardPayload(input);
+  const weighted = weightedPayloadSummary(payload);
+  payload.calculationMode = "weighted";
+  payload.weighted = weighted;
+  if (Number.isFinite(Number(weighted.overall.average))) payload.overall.average = round1(weighted.overall.average);
+  Object.keys(weighted.types).forEach((key) => {
+    const item = weighted.types[key];
+    const summary = payload.categories?.[key];
+    if (!summary || !Number.isFinite(Number(item.average))) return;
+    summary.average = round1(item.average);
+    summary.weighted = true;
+    summary.weightCoverage = round1(item.coverage * 100);
+    summary.weightUsed = round1(item.usedWeight);
+  });
+  if (payload.overall) {
+    payload.overall.weighted = true;
+    payload.overall.weightCoverage = round1(weighted.overall.coverage * 100);
+    payload.overall.weightUsed = round1(weighted.overall.usedWeight);
+  }
+  if (payload.previousPayload && payload.previousPayload !== input) {
+    payload.previousPayload = applyWeightModeToPayload(payload.previousPayload);
+  }
+  return payload;
+}
+
+function isWeightedCalculationMode() {
+  return String(globalThis.V3Data?.filters?.calculationMode || "normal") === "weighted";
+}
+
+function weightedAggregateRows(rows) {
+  const metrics = globalThis.V3Metrics;
+  if (!metrics) return null;
+  const list = Array.isArray(rows) ? rows : [];
+  const buckets = new Map();
+  list.forEach((row) => {
+    if (!metrics.isValidZoneRow(row) || metrics.number(row?.[31]) <= 0) return;
+    const match = weightZoneFromPosition(row?.[33]);
+    if (!match) return;
+    const key = match.key;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(row);
+  });
+  const items = [...buckets.entries()].map(([key, values]) => {
+    const aggregate = metrics.aggregate(values);
+    return { key, average: aggregate.average, count: aggregate.count, totalPick: aggregate.total, label: key };
+  });
+  const byType = (typeKey) => items.filter((item) => {
+    if (typeKey === "fullRack") return ["fullRackAg", "fullRackAhAi", "fullRackAlBlBmAm", "fullRackBe"].includes(item.key);
+    if (typeKey === "halfRack") return item.key.startsWith("halfRack");
+    return ["microEa", "microFa"].includes(item.key);
+  });
+  const weighted = weightedFromZoneCollections({ fullRack: byType("fullRack"), halfRack: byType("halfRack"), ea: byType("ea") });
+  const normal = metrics.aggregate(list);
+  return { ...normal, average: weighted.overall.average, weighted };
+}
+
+const V3Weighting = {
+  get config() { return WEIGHTS; },
+  get defaults() { return DEFAULT_WEIGHTS; },
+  sanitize: sanitizeWeightConfig,
+  payload: weightedPayloadSummary,
+  daily: weightedDailySummary,
+  rows: weightedAggregateRows,
+};
+window.V3Weighting = V3Weighting;
+
 const BU_GROUPS = [
   { key: "punthai", title: "BU - Punthai", label: "Punthai", focus: true, pickMix: { fullRack: 51, halfRack: 49, ea: 0 } },
   { key: "mart", title: "BU - Mart", label: "Mart", focus: true, pickMix: { fullRack: 40, halfRack: 50, ea: 10 } },
@@ -567,13 +1004,20 @@ syncTargetReferences();
 
 const refreshButton = document.querySelector("#refreshButton");
 const targetSettingsButton = document.querySelector("#targetSettingsButton");
+const weightSettingsButton = document.querySelector("#weightSettingsButton");
 const themeToggleButton = document.querySelector("#themeToggleButton");
 const targetSettingsModal = document.querySelector("#targetSettingsModal");
+const weightSettingsModal = document.querySelector("#weightSettingsModal");
 const targetSettingsForm = document.querySelector("#targetSettingsForm");
+const weightSettingsForm = document.querySelector("#weightSettingsForm");
 const targetSettingsClose = document.querySelector("#targetSettingsClose");
+const weightSettingsClose = document.querySelector("#weightSettingsClose");
 const targetSettingsCancel = document.querySelector("#targetSettingsCancel");
+const weightSettingsCancel = document.querySelector("#weightSettingsCancel");
 const targetInputs = document.querySelectorAll("[data-target-input]");
+const weightInputs = document.querySelectorAll("[data-weight-input]");
 const targetCloseElements = document.querySelectorAll("[data-target-close]");
+const weightCloseElements = document.querySelectorAll("[data-weight-close]");
 const targetLabels = document.querySelectorAll("[data-target-label]");
 const syncStatus = document.querySelector("#syncStatus");
 const startDateInput = document.querySelector("#startDate");
@@ -1441,6 +1885,101 @@ function getTargetFormValues() {
   }, {});
 }
 
+function weightGroupSum(groupKey, config = WEIGHTS) {
+  const keys = groupKey === "types"
+    ? Object.keys(DEFAULT_WEIGHTS.types).map((key) => `types.${key}`)
+    : Object.keys(DEFAULT_WEIGHTS.zones)
+      .filter((key) => {
+        if (groupKey === "fullRack") return key.startsWith("fullRack");
+        if (groupKey === "halfRack") return key.startsWith("halfRack");
+        if (groupKey === "ea") return key.startsWith("micro");
+        return false;
+      })
+      .map((key) => `zones.${key}`);
+  return keys.reduce((sum, key) => {
+    const [scope, name] = key.split(".");
+    return sum + (Number(config?.[scope]?.[name]) || 0);
+  }, 0);
+}
+
+function updateWeightFormSums() {
+  document.querySelectorAll("[data-weight-sum]").forEach((element) => {
+    const groupKey = element.dataset.weightSum;
+    const inputs = Array.from(weightInputs).filter((input) => input.dataset.weightGroup === groupKey);
+    const sum = inputs.reduce((total, input) => total + (Number(input.value) || 0), 0);
+    element.textContent = `รวม ${formatNumber(sum)}%`;
+    element.dataset.valid = sum === 100 ? "true" : "false";
+  });
+}
+
+function setWeightFormValues() {
+  weightInputs.forEach((input) => {
+    const [scope, key] = String(input.dataset.weightInput || "").split(".");
+    input.value = WEIGHTS?.[scope]?.[key] ?? DEFAULT_WEIGHTS?.[scope]?.[key] ?? 0;
+  });
+  updateWeightFormSums();
+  renderWeightTeamInfo();
+}
+
+function getWeightFormValues() {
+  const next = cloneWeightConfig();
+  weightInputs.forEach((input) => {
+    const [scope, key] = String(input.dataset.weightInput || "").split(".");
+    const value = Number(input.value);
+    if (next[scope] && key && Number.isFinite(value) && value >= 0 && value <= 100) next[scope][key] = Math.round(value);
+  });
+  return sanitizeWeightConfig(next);
+}
+
+function validateWeightConfig(config) {
+  const checks = ["types", "fullRack", "halfRack", "ea"];
+  const values = {
+    types: weightGroupSum("types", config),
+    fullRack: weightGroupSum("fullRack", config),
+    halfRack: weightGroupSum("halfRack", config),
+    ea: weightGroupSum("ea", config),
+  };
+  const invalid = checks.filter((key) => values[key] !== 100);
+  return { ok: invalid.length === 0, values, invalid };
+}
+
+function rerenderWithCurrentWeights(sourceLabel = "ปรับ Weight% แล้ว") {
+  setWeightFormValues();
+  if (lastRenderedPayload) {
+    renderDashboard(lastRenderedPayload, { sourceLabel });
+    return;
+  }
+  renderDashboardFromLocalCache();
+}
+
+function openWeightSettings() {
+  if (!weightSettingsModal) return;
+  setWeightFormValues();
+  weightSettingsModal.hidden = false;
+  document.body.classList.add("target-modal-open");
+  weightInputs[0]?.focus();
+}
+
+function closeWeightSettings() {
+  if (!weightSettingsModal) return;
+  weightSettingsModal.hidden = true;
+  if (!targetSettingsModal || targetSettingsModal.hidden) document.body.classList.remove("target-modal-open");
+}
+
+function updateWeights(nextWeights, sourceLabel = "ปรับ Weight% แล้ว", options = {}) {
+  const clean = sanitizeWeightConfig(nextWeights);
+  const validation = validateWeightConfig(clean);
+  if (!validation.ok) throw new Error(`Weight% ต้องรวมเป็น 100%: ${validation.invalid.join(", ")}`);
+  WEIGHTS = clean;
+  weightOverride = options.fromTeam ? false : Boolean(teamWeights) && diffWeightKeys(WEIGHTS, teamWeights).length > 0;
+  if (!options.keepSaveNote) teamWeightSaveNote = "";
+  saveWeightsToStorage();
+  window.WEIGHTS = WEIGHTS;
+  document.dispatchEvent(new CustomEvent("v3-weights", { detail: sanitizeWeightConfig(WEIGHTS) }));
+  rerenderWithCurrentWeights(sourceLabel);
+  renderWeightTeamInfo();
+}
+
 function rerenderWithCurrentTargets(sourceLabel = "ปรับ Target แล้ว") {
   syncTargetReferences();
   updateStaticTargetLabels();
@@ -1497,6 +2036,9 @@ function updateTargets(nextTargets, sourceLabel, options = {}) {
 window.TARGETS = TARGETS;
 window.DEFAULT_TARGETS = DEFAULT_TARGETS;
 window.updateTargets = updateTargets;
+window.WEIGHTS = WEIGHTS;
+window.DEFAULT_WEIGHTS = DEFAULT_WEIGHTS;
+window.updateWeights = updateWeights;
 
 function renderOverallVisual(summary) {
   if (!overallGauge) {
@@ -3748,6 +4290,12 @@ function renderCategoryCards(categories, payload = {}) {
   CATEGORY_CONFIG.forEach((config) => {
     const data = categories[config.key] || {};
     const info = getStatusInfo(data.average, config.target);
+    const mixLabel = payload.calculationMode === "weighted"
+      ? `Weight ${config.mainKpi}`
+      : `Main KPI ${config.mainKpi}`;
+    const coverageLabel = payload.calculationMode === "weighted" && Number.isFinite(Number(data.weightCoverage))
+      ? ` · ใช้ Weight ${formatNumber(data.weightCoverage)}%`
+      : "";
     const card = document.createElement("article");
     card.className = `category-card ${info.className}${config.key === "pickToSort" ? " is-pick-to-sort" : ""}`;
     card.innerHTML = `
@@ -3757,7 +4305,7 @@ function renderCategoryCards(categories, payload = {}) {
       </div>
       <div class="category-value">-</div>
       <div class="category-meta">
-        <span>Main KPI ${config.mainKpi}</span>
+        <span>${mixLabel}${coverageLabel}</span>
         <span>Target ≥ ${config.target}</span>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${Math.min(info.progress, 100)}%"></div></div>
@@ -5700,6 +6248,39 @@ function buildMonthlyProductivityTrendFromDailyIndex(indexPayload, selectedKeys)
   };
 }
 
+function buildWeightedMonthlyProductivityTrendFromDailyIndex(indexPayload, selectedKeys) {
+  const normal = buildMonthlyProductivityTrendFromDailyIndex(indexPayload, selectedKeys);
+  const days = (normal.days || []).map((day) => {
+    const raw = indexPayload?.dates?.[day.date] || {};
+    const weighted = weightedDailySummary(raw);
+    const hasData = Number.isFinite(Number(weighted.overall.average));
+    return {
+      ...day,
+      productivity: hasData ? round1(weighted.overall.average) : null,
+      hasData,
+      weightedCoverage: hasData ? round1(weighted.overall.coverage * 100) : 0,
+    };
+  });
+  let previous = null;
+  let sum = 0;
+  let count = 0;
+  let peakDay = null;
+  let lowDay = null;
+  const adjusted = days.map((day) => {
+    if (!day.hasData || day.productivity === null) return { ...day, change: null, trend: "none" };
+    const value = Number(day.productivity);
+    const change = previous === null ? null : round1(value - previous);
+    const trend = change === null ? "none" : change > 0 ? "up" : change < 0 ? "down" : "flat";
+    previous = value;
+    sum += value;
+    count += 1;
+    if (!peakDay || value > Number(peakDay.productivity)) peakDay = { date: day.date, dateLabel: day.dateLabel, productivity: value };
+    if (!lowDay || value < Number(lowDay.productivity)) lowDay = { date: day.date, dateLabel: day.dateLabel, productivity: value };
+    return { ...day, change, trend };
+  });
+  return { ...normal, average: count > 0 ? round1(sum / count) : null, peakDay, lowDay, days: adjusted, calculationMode: "weighted" };
+}
+
 function buildDashboardFromDailyIndex(indexPayload, filterStartDate = null, filterEndDate = null) {
   const dateKeys = Array.isArray(indexPayload?.dateKeys) ? indexPayload.dateKeys : [];
 
@@ -5757,7 +6338,9 @@ function buildDashboardFromDailyIndex(indexPayload, filterStartDate = null, filt
     bu: finalizeDailyBu(combined.bu),
     shifts: finalizeDailyShifts(combined.shifts),
     training: finalizeTrainingFromRaw(trainingCombined),
-    monthlyTrend: buildMonthlyProductivityTrendFromDailyIndex(indexPayload, selectedKeys),
+    monthlyTrend: isWeightedCalculationMode()
+      ? buildWeightedMonthlyProductivityTrendFromDailyIndex(indexPayload, selectedKeys)
+      : buildMonthlyProductivityTrendFromDailyIndex(indexPayload, selectedKeys),
     pickers: finalizeRawPickers(combined.pickers),
     pickToSortDetails: finalizeDailyPickToSortDetails(combined.pickToSortDetails),
     totalPick: combined.totalPick,
@@ -5897,7 +6480,10 @@ function getDashboardStatusText(payload, sourceLabel) {
 }
 
 function renderDashboard(rawPayload, options = {}) {
-  const payload = applyCurrentTargets(normalizeDashboardPayload(rawPayload));
+  const normalized = normalizeDashboardPayload(rawPayload);
+  const payload = applyCurrentTargets(
+    isWeightedCalculationMode() ? applyWeightModeToPayload(normalized) : normalized
+  );
 
   if (!payload || payload.ok === false) {
     throw new Error(payload?.error || "โหลด Dashboard ไม่สำเร็จ");
@@ -6611,6 +7197,7 @@ async function loadStoredTargetsIdb() {
 function initializeTargetSettings() {
   updateStaticTargetLabels();
   setTargetFormValues();
+  setWeightFormValues();
   renderTargetTeamInfo();
 
   /* ค่าของทีมต้องชนะค่าในเครื่องเสมอ จึงโหลด data/targets.json ก่อน
@@ -6620,6 +7207,7 @@ function initializeTargetSettings() {
   loadTeamTargets().then((ok) => {
     if (!ok) loadStoredTargetsIdb();
   });
+  loadTeamWeights();
 
   // ชิปกับกล่องถูกเขียน innerHTML ใหม่ทุกครั้ง จึงผูก listener ที่ตัวกล่องครั้งเดียว
   document.querySelector("#teamTargetChip")?.addEventListener("click", (event) => {
@@ -6649,9 +7237,35 @@ function initializeTargetSettings() {
     closeTargetSettings();
   });
 
+  weightSettingsButton?.addEventListener("click", openWeightSettings);
+  weightSettingsClose?.addEventListener("click", closeWeightSettings);
+  weightCloseElements.forEach((element) => element.addEventListener("click", closeWeightSettings));
+  weightInputs.forEach((input) => input.addEventListener("input", updateWeightFormSums));
+  document.querySelector("#weightTeamInfo")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-weight-save-team]")) void saveTeamWeights();
+  });
+  weightSettingsForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      updateWeights(getWeightFormValues(), "ปรับ Weight% แล้ว");
+      closeWeightSettings();
+      setSyncStatus("บันทึก Weight% ใหม่แล้ว");
+    } catch (error) {
+      updateWeightFormSums();
+      setSyncStatus(error.message || "Weight% ต้องรวมเป็น 100%");
+    }
+  });
+  weightSettingsCancel?.addEventListener("click", () => {
+    setWeightFormValues();
+    closeWeightSettings();
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && targetSettingsModal && !targetSettingsModal.hidden) {
       closeTargetSettings();
+    }
+    if (event.key === "Escape" && weightSettingsModal && !weightSettingsModal.hidden) {
+      closeWeightSettings();
     }
   });
 }

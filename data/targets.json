@@ -3,6 +3,7 @@
   "updatedAt": "2026-09-21",
   "note": "ค่าสำรองของ Target — ค่าที่ใช้จริงอ่านจากแท็บ sheetTab ถ้าตั้งค่า write ไว้แล้ว",
   "sheetTab": "V3 Target",
+  "weightSheetTab": "V3 Weight",
   "sheetId": "1PMnlyYHswnV0nE73Alxh-ocIFtTipB9LMzACdNM9GFs",
   "write": {
     "url": "https://script.google.com/macros/s/AKfycbyby7nOGMZe-w8pph0IZ7jz9WqQ17pwFhfW4TdWgoi1PJlkvXhYuNzHav48WBNsOkcGjg/exec"
@@ -32,5 +33,29 @@
     "microEa": 180,
     "microFa": 150,
     "pickToSortBe": 200
+  },
+  "weights": {
+    "types": {
+      "fullRack": 37,
+      "halfRack": 48,
+      "ea": 15
+    },
+    "zones": {
+      "fullRackAg": 0,
+      "fullRackAhAi": 30,
+      "fullRackAlBlBmAm": 20,
+      "fullRackBe": 50,
+      "halfRackAf": 30,
+      "halfRackAjAk": 10,
+      "halfRackAnCaBnDa": 10,
+      "halfRackBgBh": 5,
+      "halfRackBiBk": 5,
+      "halfRackCbDbDcCc": 10,
+      "halfRackDdDe": 10,
+      "halfRackCdCe": 10,
+      "halfRackCfDf": 10,
+      "microEa": 60,
+      "microFa": 40
+    }
   }
 }

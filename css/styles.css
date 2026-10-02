@@ -402,6 +402,47 @@ body {
 
 body.target-modal-open { overflow: hidden; }
 
+.weight-dialog { width: min(760px, calc(100vw - 2rem)); }
+.weight-form { gap: 1rem; }
+.weight-section {
+  display: grid;
+  gap: .55rem;
+  padding: .85rem;
+  border: 1px solid rgba(192, 132, 252, .22);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(88, 28, 135, .12), rgba(15, 23, 42, .34));
+}
+.weight-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: 0 .15rem .25rem;
+  color: var(--text-primary);
+}
+.weight-section-head span {
+  padding: .25rem .55rem;
+  border: 1px solid rgba(192, 132, 252, .35);
+  border-radius: 999px;
+  color: #e9d5ff;
+  background: rgba(126, 34, 206, .24);
+  font-size: .76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.weight-section-head span[data-valid="true"] { color: #a7f3d0; border-color: rgba(52, 211, 153, .38); background: rgba(5, 150, 105, .18); }
+.weight-section-head span[data-valid="false"] { color: #fecdd3; border-color: rgba(251, 113, 133, .44); background: rgba(190, 24, 93, .18); }
+.weight-form .target-field { grid-template-columns: minmax(160px, 1fr) 90px 22px; }
+.weight-form .target-field input { text-align: right; }
+.weight-form .target-field b { color: #d8b4fe; font-size: .95rem; }
+.weight-save-button { background: linear-gradient(135deg, #c026d3, #7c3aed); box-shadow: 0 14px 30px rgba(124, 58, 237, .22); }
+
+@media (max-width: 600px) {
+  .weight-form .target-field { grid-template-columns: minmax(0, 1fr) 74px 18px; padding: .65rem .7rem; }
+  .weight-section { padding: .7rem; }
+  .weight-section-head { align-items: flex-start; flex-direction: column; gap: .35rem; }
+}
+
 .sync-badge {
   font-family: var(--font-mono);
   font-size: .68rem;
@@ -3861,6 +3902,15 @@ body.loading-open { overflow: hidden; }
   background: rgba(26,108,246,.08);
 }
 
+:root.light .weight-section {
+  border-color: rgba(124, 58, 237, .18);
+  background: linear-gradient(145deg, #faf5ff, #ffffff);
+}
+:root.light .weight-section-head span { color: #6b21a8; background: #f3e8ff; border-color: #d8b4fe; }
+:root.light .weight-section-head span[data-valid="true"] { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:root.light .weight-section-head span[data-valid="false"] { color: #be123c; background: #fff1f2; border-color: #fecdd3; }
+:root.light .weight-form .target-field b { color: #7c3aed; }
+
 :root.light .loading-dialog,
 :root.light .skeleton-card {
   background: #FFFFFF;
@@ -4274,4 +4324,3 @@ body.loading-open { overflow: hidden; }
 :root.light .p2s-mini-card {
   background-color: #FFFFFF;
 }
-

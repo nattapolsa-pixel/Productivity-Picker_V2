@@ -79,7 +79,7 @@
     const shift = shiftSelect ? shiftSelect.value : 'ALL';
     if (shift && shift !== 'ALL') text += ` · กะ ${shift}`;
     const calculationMode = calculationModeSelect ? calculationModeSelect.value : 'normal';
-    if (calculationMode === 'weighted') text += ' · Weight% (รอระบุค่าน้ำหนัก)';
+    if (calculationMode === 'weighted') text += ' · Weight% (ตามค่าตั้ง)';
     daterange.innerHTML = text;
   }
 

@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
-  <link rel="stylesheet" href="css/styles.css?v=ajak-half-rack-v72-20260916">
+  <link rel="stylesheet" href="css/styles.css?v=20261002-weight-mode-1">
   <link rel="stylesheet" href="css/v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="css/v2-theme.css?v=20261002-calculation-mode-1">
+  <link rel="stylesheet" href="css/v2-theme.css?v=20261002-weight-mode-1">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -162,7 +162,7 @@
         <span class="lab calc-mode-label">🧮 วิธีคำนวณ:</span>
         <div class="systog calcmodeog" id="v3CalculationModeTog" role="tablist" aria-label="วิธีคำนวณ Productivity">
           <button type="button" data-calc="normal" class="active" role="tab" aria-selected="true">คำนวณปกติ</button>
-          <button type="button" data-calc="weighted" role="tab" aria-selected="false" title="รอระบุ Weight% ของแต่ละ Type และ Zone">คำนวณ Weight%</button>
+          <button type="button" data-calc="weighted" role="tab" aria-selected="false" title="ใช้ Weight% ตามค่าที่ตั้งไว้">คำนวณ Weight%</button>
         </div>
         <select id="v3CalculationMode" aria-label="วิธีคำนวณ Productivity" hidden tabindex="-1">
           <option value="normal">คำนวณปกติ</option>
@@ -201,6 +201,10 @@
             title="คลิกเพื่อตั้งค่า Target ละเอียดจำแนกประเภท Rack/Zone"
             style="border:0; background:linear-gradient(135deg,#0284c7,#2563eb); color:#fff; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:4px;">⚙️
             ตั้งค่า Target</button>
+          <button id="weightSettingsButton" type="button" aria-haspopup="dialog"
+            title="ตั้งค่าสัดส่วน Weight% สำหรับโหมดคำนวณ Weight%"
+            style="border:0; background:linear-gradient(135deg,#c026d3,#7c3aed); color:#fff; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:700; cursor:pointer; transition:.15s; display:inline-flex; align-items:center; gap:4px;">⚖️
+            ตั้งค่า Weight%</button>
         </div>
         <!-- บอกว่าเลข Target ที่เห็นเป็นค่าของทีมหรือของเครื่องนี้
              ถ้าไม่บอก สองคนเห็นเลขต่างกันแล้วไม่มีทางรู้ว่าเพราะอะไร -->
@@ -964,12 +968,68 @@
     </section>
   </div>
 
+  <div class="target-modal weight-modal" id="weightSettingsModal" hidden>
+    <div class="target-modal-backdrop" data-weight-close></div>
+    <section class="target-dialog weight-dialog" role="dialog" aria-modal="true" aria-labelledby="weightSettingsTitle">
+      <div class="target-dialog-head">
+        <div>
+          <p class="panel-eyebrow">WEIGHT SETTINGS</p>
+          <h2 id="weightSettingsTitle">ตั้งค่า Weight%</h2>
+        </div>
+        <button id="weightSettingsClose" class="target-icon-btn" type="button" aria-label="ปิดหน้าตั้งค่า Weight%">×</button>
+      </div>
+      <p class="target-dialog-desc">โหมดนี้จะใช้ Weight ตามลำดับ Overall → Type → Zone ส่วน “คำนวณปกติ” ไม่ได้รับผลกระทบ</p>
+      <div class="target-team-info" id="weightTeamInfo"></div>
+      <form id="weightSettingsForm" class="target-form weight-form">
+        <div class="weight-section">
+          <div class="weight-section-head"><strong>Overall แยกตาม Type</strong><span data-weight-sum="types">รวม 100%</span></div>
+          <label class="target-field"><span>Full Rack</span><input type="number" min="0" max="100" step="1" data-weight-input="types.fullRack" data-weight-group="types" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Half Rack</span><input type="number" min="0" max="100" step="1" data-weight-input="types.halfRack" data-weight-group="types" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>EA / Micro Rack</span><input type="number" min="0" max="100" step="1" data-weight-input="types.ea" data-weight-group="types" inputmode="numeric"><b>%</b></label>
+        </div>
+
+        <div class="weight-section">
+          <div class="weight-section-head"><strong>Full Rack แยกตาม Zone</strong><span data-weight-sum="fullRack">รวม 100%</span></div>
+          <label class="target-field"><span>Zone AG <small>(เริ่มต้นยังไม่กำหนด)</small></span><input type="number" min="0" max="100" step="1" data-weight-input="zones.fullRackAg" data-weight-group="fullRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone AH-AI</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.fullRackAhAi" data-weight-group="fullRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone AL-BL-AM-BM</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.fullRackAlBlBmAm" data-weight-group="fullRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone BE (Sort to Pallet)</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.fullRackBe" data-weight-group="fullRack" inputmode="numeric"><b>%</b></label>
+        </div>
+
+        <div class="weight-section">
+          <div class="weight-section-head"><strong>Half Rack แยกตาม Zone</strong><span data-weight-sum="halfRack">รวม 100%</span></div>
+          <label class="target-field"><span>Zone AF (Sort to Tote)</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackAf" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone AJ-AK</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackAjAk" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone AN-CA-BN-DA</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackAnCaBnDa" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone BG-BH</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackBgBh" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone BI-BK</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackBiBk" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone CB-DB-DC-CC</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackCbDbDcCc" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone DD-DE</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackDdDe" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone CD-CE</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackCdCe" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone CF-DF</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.halfRackCfDf" data-weight-group="halfRack" inputmode="numeric"><b>%</b></label>
+        </div>
+
+        <div class="weight-section">
+          <div class="weight-section-head"><strong>EA / Micro Rack แยกตาม Zone</strong><span data-weight-sum="ea">รวม 100%</span></div>
+          <label class="target-field"><span>Zone EA</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.microEa" data-weight-group="ea" inputmode="numeric"><b>%</b></label>
+          <label class="target-field"><span>Zone FA</span><input type="number" min="0" max="100" step="1" data-weight-input="zones.microFa" data-weight-group="ea" inputmode="numeric"><b>%</b></label>
+        </div>
+
+        <div class="target-form-note">สูตรจะปรับฐานเฉพาะ Zone ที่มีข้อมูลในตัวกรองนั้น เพื่อไม่ให้ Zone ที่ไม่มีข้อมูลทำให้ค่าเฉลี่ยตกเป็นศูนย์ และจะแสดงสัดส่วนที่ใช้จริงในหน้าการ์ด</div>
+        <div class="target-dialog-actions">
+          <button id="weightSettingsCancel" class="btn-target-secondary" type="button">ยกเลิก</button>
+          <button class="btn-target-primary weight-save-button" type="submit">บันทึก Weight%</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <script src="js/data-client.js?v=20261002-calculation-mode-1"></script>
   <script src="js/metrics.js?v=20261002-be-team-aggregate-1"></script>
-  <script src="js/script.js?v=20261001-zone-average-filter-1"></script>
-  <script src="js/insights.js?v=20261002-calculation-mode-1"></script>
-  <script src="js/v2-shell.js?v=20261002-calculation-mode-1"></script>
-  <script src="js/v2-views.js?v=20261002-be-team-aggregate-1"></script>
+  <script src="js/script.js?v=20261002-weight-mode-1"></script>
+  <script src="js/insights.js?v=20261002-weight-mode-1"></script>
+  <script src="js/v2-shell.js?v=20261002-weight-mode-1"></script>
+  <script src="js/v2-views.js?v=20261002-weight-mode-1"></script>
   <script src="js/v2-roster-write.js?v=20260918-2"></script>
   <script src="js/v2-staff.js?v=20260929-new-old-staff-periods-3"></script>
   <script src="js/v2-efficiency.js?v=20260921-round0-1"></script>

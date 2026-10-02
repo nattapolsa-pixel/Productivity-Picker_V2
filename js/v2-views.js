@@ -24,6 +24,9 @@
      ปัดตอนแสดงผลเท่านั้น เกณฑ์สีและการตัดสินผ่าน/ไม่ผ่านยังคิดจากค่าไม่ปัดตามกฎเดิม
      fmt1 คงไว้สำหรับ % และชั่วโมงที่ยังต้องการทสนิยม */
   const prod = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
+  const aggregateForMode = (list) => window.V3Data?.filters?.calculationMode === 'weighted' && window.V3Weighting
+    ? window.V3Weighting.rows(list)
+    : M.aggregate(list);
 
   const TYPE_LABEL = { fullRack: 'Full Rack', halfRack: 'Half Rack', ea: 'Micro Rack', pickToSort: 'Pick to Sort', mezzanine: 'Mezzanine' };
   const TYPE_COLOR = { fullRack: '#6366f1', halfRack: '#8b5cf6', ea: '#14b8a6', pickToSort: '#f59e0b', mezzanine: '#0ea5e9', '': '#94a3b8' };
@@ -495,7 +498,7 @@
 
   /* ── 1. แถว KPI ที่ v2-views รับผิดชอบ (ที่เหลือ script.js เติมตามสูตร V1 เดิม) ── */
   function renderKpiExtras(list) {
-    const s = M.aggregate(list);
+    const s = aggregateForMode(list);
     if ($('kpiTarget')) $('kpiTarget').textContent = fmt((window.TARGETS && window.TARGETS.overall) || 170);
     if ($('kpiPeople')) $('kpiPeople').textContent = fmt(s.people);
     if ($('kpiPeopleNote')) {
@@ -512,12 +515,12 @@
     if (trendMode === 'month') {
       const buckets = groupBy(list, (r) => M.date(r[2]).slice(0, 7));
       labels = [...buckets.keys()].sort();
-      stats = labels.map((k) => M.aggregate(buckets.get(k)));
+      stats = labels.map((k) => aggregateForMode(buckets.get(k)));
       inFilter = labels.map(() => true);
     } else if (trendMode === 'week') {
       const buckets = groupBy(list, (r) => isoWeekKey(M.date(r[2])));
       labels = [...buckets.keys()].sort();
-      stats = labels.map((k) => M.aggregate(buckets.get(k)));
+      stats = labels.map((k) => aggregateForMode(buckets.get(k)));
       inFilter = labels.map(() => true);
     } else {
       // แบบ V2: กางทั้งเดือนปฏิทิน แท่งสีเข้ม = วันที่อยู่ในตัวกรอง
@@ -525,7 +528,7 @@
       const monthRows = filteredRows().filter((r) => M.date(r[2]).slice(0, 7) === month);
       const buckets = groupBy(monthRows, (r) => M.date(r[2]));
       labels = month ? daysInMonth(month) : [...buckets.keys()].sort();
-      stats = labels.map((k) => M.aggregate(buckets.get(k) || []));
+      stats = labels.map((k) => aggregateForMode(buckets.get(k) || []));
       inFilter = labels.map((d) => (!start || d >= start) && (!end || d <= end));
     }
     const totals = stats.map((s) => s.total);
@@ -547,7 +550,7 @@
         : fmt(labels.length) + ' ' + unit + ' \u00b7 ' + fmt(shown) + ' Total Pick';
     }
     if ($('trendSub')) {
-      let text = 'แท่ง = Total Pick รวมยอดหยิบทุกแถว (แกนซ้าย) \u00b7 เส้น = Productivity เฉลี่ยต่อชั่วโมงจากแถวที่นับได้ (แกนขวา) \u00b7 รวมครั้งเดียว ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ';
+      let text = 'แท่ง = Total Pick รวมยอดหยิบทุกแถว (แกนซ้าย) \u00b7 เส้น = Productivity ' + (window.V3Data?.filters?.calculationMode === 'weighted' ? 'ถ่วง Weight% ตาม Type/Zone' : 'เฉลี่ยต่อชั่วโมงจากแถวที่นับได้') + ' (แกนขวา) \u00b7 รวมครั้งเดียว ไม่เฉลี่ยค่าเฉลี่ยรายวันซ้ำ';
       if (trendMode === 'day') {
         text += '<br><b style="color:#4338ca;">กราฟกางทั้งเดือน ' + monthLabel(activeMonthKey()) + '</b>'
           + ' \u2014 แท่งสีเข้ม = วันที่อยู่ในตัวกรอง' + (start ? ' (' + start + (start === end ? '' : ' \u2013 ' + end) + ')' : '')
