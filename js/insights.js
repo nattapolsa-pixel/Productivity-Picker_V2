@@ -31,13 +31,14 @@
     if(!dates.size)return base;
     const ids=new Set(),combined={total:0,sum:0,count:0,rows:0,excluded:0},usedSortData=[],usedHistory=[];let historyPeople=0;
     for(const date of [...dates].sort()){
-      const historical=historyByDate.get(date),hasHistorical=Boolean(historical&&(Number(historical.totalPick)>0||historical.timeSlots)),historicalPeople=Math.max(0,Number(historical?.people)||0),historicalProductivity=Number(historical?.productivity);
-      if(hasHistorical&&Number.isFinite(historicalProductivity)&&historicalProductivity>0&&historicalPeople>0){const total=Number(historical.totalPick)||0;combined.total+=total;combined.rows+=Number(historical.rows)||historicalPeople;historyPeople+=historicalPeople;combined.sum+=historicalProductivity*historicalPeople;combined.count+=historicalPeople;usedHistory.push(date);continue;}
-      const group=sortPeopleByDate[date];
-      const people=group?.people?.filter(p=>!V3Data.filters.shift||V3Data.filters.shift==='ALL'||String(p.shift||'').trim()===String(V3Data.filters.shift).trim());
-      if(group&&people&&people.length){const valid=people.filter(p=>p.valid);combined.total+=hasHistorical?(Number(historical.totalPick)||0):people.reduce((sum,p)=>sum+p.total,0);combined.sum+=valid.reduce((sum,p)=>sum+p.productivity,0);combined.count+=valid.length;combined.rows+=Number(historical?.rows)||people.length;combined.excluded+=people.length-valid.length;people.forEach(p=>ids.add(p.userId));usedSortData.push(date);continue;}
-      if(hasHistorical){combined.total+=Number(historical.totalPick)||0;combined.rows+=Number(historical.rows)||historicalPeople;combined.excluded+=historicalPeople;historyPeople+=historicalPeople;usedHistory.push(date);continue;}
-      const fallback=M.aggregate(rowsForZone.filter(r=>M.date(r[2])===date));combined.total+=fallback.total;combined.sum+=fallback.sum;combined.count+=fallback.count;combined.rows+=fallback.rows;combined.excluded+=fallback.excluded;rowsForZone.filter(r=>M.date(r[2])===date&&r[3]).forEach(r=>ids.add(String(r[3]).trim()));
+      const historical=historyByDate.get(date),hasHistorical=Boolean(historical&&(Number(historical.totalPick)>0||historical.timeSlots)),historicalPeople=Math.max(0,Number(historical?.people)||0),historicalProductivity=Number(historical?.productivity),isNewBeDate=date>='2026-09-29';
+      if(isNewBeDate){
+        const dashboard=sortDashboard&&sortDashboard.date===date&&Number(sortDashboard.productivity)>0?sortDashboard:null;
+        if(dashboard){const total=Number(dashboard.total)||0,people=Math.max(0,Number(dashboard.people)||0);combined.total+=total;combined.rows+=Number(historical?.rows)||people;historyPeople+=people;combined.sum+=Number(dashboard.productivity)*people;combined.count+=people;usedHistory.push(date);continue;}
+        if(hasHistorical){combined.total+=Number(historical.totalPick)||0;combined.rows+=Number(historical.rows)||historicalPeople;historyPeople+=historicalPeople;if(Number.isFinite(historicalProductivity)&&historicalProductivity>0&&historicalPeople>0){combined.sum+=historicalProductivity*historicalPeople;combined.count+=historicalPeople;}else{combined.excluded+=historicalPeople;}usedHistory.push(date);continue;}
+        continue;
+      }
+      const fallback=M.aggregate(rowsForZone.filter(r=>M.date(r[2])===date));combined.total+=fallback.total;combined.sum+=fallback.sum;combined.count+=fallback.count;combined.rows+=fallback.rows;combined.excluded+=fallback.excluded;rowsForZone.filter(r=>M.date(r[2])===date&&r[3]).forEach(r=>ids.add(String(r[3]).trim()));usedSortData.push(date);
     }
     if(usedHistory.length||usedSortData.length)return {...combined,average:combined.count?combined.sum/combined.count:null,people:historyPeople+ids.size,source:usedHistory.length&&usedSortData.length?'History + Sort_Data':usedHistory.length?'History':'Sort_Data'};
     if(sortDashboard&&dates.size===1&&[...dates][0]===sortDashboard.date)return {...base,total:sortDashboard.total,average:sortDashboard.productivity,sum:sortDashboard.productivity*sortDashboard.people,count:sortDashboard.people,people:sortDashboard.people,excluded:0,source:'Dashboard'};

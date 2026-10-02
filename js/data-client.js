@@ -5,7 +5,7 @@ window.V3Data = (() => {
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
-      const worker = new Worker('js/data-worker.js?v=20261001-zone-average-filter-1');
+      const worker = new Worker('js/data-worker.js?v=20261002-be-history-source-1');
       const timer = setTimeout(() => {worker.terminate(); reject(new Error('Google Sheet ตอบกลับช้า กรุณาลองรีเฟรชอีกครั้ง'));}, 150000);
       const finish = () => {clearTimeout(timer); worker.terminate();};
       worker.onerror = e => {finish();reject(new Error(e.message));};
@@ -20,12 +20,10 @@ window.V3Data = (() => {
   }
   async function save(source) {try {await idbPut('v3-source',source);} catch(e) {console.warn('V3 cache:',e.message);} }
   function historyEntries(source){
-    const sheets=source?.sheets||{},dash=globalThis.V3Metrics?.sortDashboardSummary?.(sheets),people=globalThis.V3Metrics?.sortPeopleSummary?.(sheets)||{},time=globalThis.V3Metrics?.sortTimeSummary?.(sheets)||{},out=[];
-    Object.values(time).filter(g=>g?.date&&g.date>='2026-09-29').forEach(g=>{
-      const p=people[g.date],isDashboard=dash?.date===g.date,productivity=isDashboard?Number(dash.productivity):Number(p?.average),peopleCount=isDashboard?Number(dash.people):Number(p?.people?.length||p?.people||p?.count||g.people);
-      out.push({date:g.date,zone:'BE',totalPick:Number(g.total)||0,productivity:Number.isFinite(productivity)?productivity:0,people:peopleCount,source:isDashboard?'Dashboard + Time_Slot':'Time_Slot',rows:g.lines,timeJson:g.slots,sortLines:g.lines});
-    });
-    if(dash?.date&&dash.date>='2026-09-29'&&!out.some(x=>x.date===dash.date))out.push({date:dash.date,zone:'BE',totalPick:dash.total,productivity:dash.productivity,people:dash.people,source:'Dashboard'});
+    const sheets=source?.sheets||{},dash=globalThis.V3Metrics?.sortDashboardSummary?.(sheets),time=globalThis.V3Metrics?.timeSlotSnapshot?.(sheets),out=[];
+    if(dash?.date&&dash.date>='2026-09-29'&&Number(dash.productivity)>0){
+      out.push({date:dash.date,zone:'BE',totalPick:Number(dash.total)||0,productivity:Number(dash.productivity),people:Number(dash.people)||0,source:time?'Dashboard + Time_Slot':'Dashboard',rows:time?.lines||0,timeJson:time?.slots||{},sortLines:time?.lines||0});
+    }
     return out;
   }
   async function rememberHistory(source){

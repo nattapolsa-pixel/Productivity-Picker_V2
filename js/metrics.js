@@ -65,6 +65,12 @@
     Object.values(groups).forEach(group=>{group.people=group.peopleById.size;delete group.peopleById;Object.values(group.slots).forEach(bucket=>{bucket.people=bucket.peopleById.size;delete bucket.peopleById;});});
     return groups;
   }
+  function timeSlotSnapshot(sheets){
+    const sheet=sheets&&sheets.Time_Slot;if(!sheet||!sheet.rows||!sheet.rows.length)return null;
+    const slots={};let total=0,lines=0;
+    for(const row of sheet.rows){const slot=String(row[0]??'').trim();if(!slot||!/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(slot))continue;const item={total:number(row[2]),lines:number(row[1]),people:number(row[4])};slots[slot]=item;total+=item.total;lines+=item.lines;}
+    return Object.keys(slots).length?{slots,total,lines}:null;
+  }
   function type(v){const t=String(v||'').toLowerCase().trim();if(t.includes('sort'))return 'pickToSort';if(t.includes('full'))return 'fullRack';if(t.includes('half')||t.includes('haft'))return 'halfRack';if(t.includes('micro')||t.includes('ea'))return 'ea';if(t.includes('mezz'))return 'mezzanine';return '';}
   function system(row){const t=type(row[36]);return t==='pickToSort'?'BPS':t?'PTT':'Not Found';}
   /* Owner ของเว็บอ่านจาก Results Master คอลัมน์ AJ (Bu)
@@ -180,7 +186,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,type,system,ownerKey,ownerLabel,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,timeSlotSnapshot,type,system,ownerKey,ownerLabel,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};
