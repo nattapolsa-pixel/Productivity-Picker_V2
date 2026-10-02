@@ -17,6 +17,7 @@
   }
 
   const M = window.V3Metrics;
+  const aggregateForMode = (list) => M.aggregateForMode ? M.aggregateForMode(list) : M.aggregate(list);
   const $ = (id) => document.getElementById(id);
   const fmt = (v) => Math.round(Number(v) || 0).toLocaleString('en-US');
   const fmt1 = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
@@ -85,17 +86,19 @@
       if (!date || date < period.start || date > period.end) return;
       const key = mode === 'ytd' ? date.slice(0, 7) : mode === 'wtw' ? mondayOf(date) : date;
       let bucket = buckets.get(key);
-      if (!bucket) bucket = { key, sum: 0, count: 0, total: 0, people: new Set() };
+      if (!bucket) bucket = { key, rows: [], count: 0, total: 0, people: new Set() };
       const average = M.number(r[31]);
-      if (average > 0) { bucket.sum += average; bucket.count += 1; bucket.people.add(p.id); }
+      bucket.rows.push(r);
+      if (average > 0) { bucket.count += 1; bucket.people.add(p.id); }
       bucket.total += M.number(r[4]);
       buckets.set(key, bucket);
     }));
     return {
       ...period,
       items: period.keys.map((key) => {
-        const bucket = buckets.get(key) || { key, sum: 0, count: 0, total: 0, people: new Set() };
-        return { ...bucket, average: bucket.count ? bucket.sum / bucket.count : null, peopleCount: bucket.people.size };
+        const bucket = buckets.get(key) || { key, rows: [], count: 0, total: 0, people: new Set() };
+        const summary = aggregateForMode(bucket.rows);
+        return { ...bucket, sum: summary.sum, count: summary.count, average: summary.average, peopleCount: bucket.people.size };
       })
     };
   }
@@ -257,7 +260,7 @@
     });
 
     const people = [...byId.values()].map((p) => {
-      const stats = M.aggregate(p.rows);
+      const stats = aggregateForMode(p.rows);
       const start = M.tenureStart(p.id, startMap, seenMap);
       const firstSeen = seenMap.get(p.id) || '';
       const hasRosterStart = startMap.has(p.id);
@@ -267,18 +270,19 @@
       const days = M.daysBetween(start, anchor);
       const group = start && cutoff ? (start > cutoff ? 'new' : 'old') : 'old';
       const dates = [...new Set(p.rows.map((r) => M.date(r[2])))].sort();
-      // ผลงานรายเดือน ใช้ sum/count ของ AF ตามสูตร V1 ไม่เฉลี่ยค่าเฉลี่ยรายเดือนซ้ำ
+      // ผลงานรายเดือนรวมแถวดิบชุดเดียวกับโหมดที่เลือก ไม่เฉลี่ยค่าเฉลี่ยซ้ำ
       const monthly = new Map();
       p.rows.forEach((r) => {
         const key = M.date(r[2]).slice(0, 7);
         let m = monthly.get(key);
-        if (!m) { m = { key, sum: 0, count: 0, total: 0 }; monthly.set(key, m); }
+        if (!m) { m = { key, rows: [], sum: 0, count: 0, total: 0 }; monthly.set(key, m); }
+        m.rows.push(r);
         const a = M.number(r[31]);
         if (a > 0) { m.sum += a; m.count += 1; }
         m.total += M.number(r[4]);
       });
       const months = [...monthly.values()].sort((a, b) => a.key.localeCompare(b.key))
-        .map((m) => ({ ...m, average: m.count ? m.sum / m.count : null }));
+        .map((m) => { const summary = aggregateForMode(m.rows); return { ...m, sum: summary.sum, count: summary.count, average: summary.average }; });
       const withAvg = months.filter((m) => m.average !== null);
       const lastMonth = withAvg[withAvg.length - 1] || null;
       const prevMonth = withAvg[withAvg.length - 2] || null;
@@ -293,22 +297,23 @@
           if (gap === null || gap < 0) return;
           const w = Math.floor(gap / 7) + 1;
           let bucket = weeks.get(w);
-          if (!bucket) { bucket = { sum: 0, count: 0 }; weeks.set(w, bucket); }
-          bucket.sum += a; bucket.count += 1;
+          if (!bucket) { bucket = { rows: [], sum: 0, count: 0 }; weeks.set(w, bucket); }
+          bucket.rows.push(r); bucket.sum += a; bucket.count += 1;
         });
       }
       const weekKeys = [...weeks.keys()].sort((a, b) => a - b);
+      weekKeys.forEach((key) => { const bucket = weeks.get(key), summary = aggregateForMode(bucket.rows); bucket.sum = summary.sum; bucket.count = summary.count; bucket.average = summary.average; });
       const firstWeek = weekKeys.length ? weeks.get(weekKeys[0]) : null;
       const lastWeek = weekKeys.length ? weeks.get(weekKeys[weekKeys.length - 1]) : null;
       const weekDelta = firstWeek && lastWeek && weekKeys.length > 1
-        ? (lastWeek.sum / lastWeek.count) - (firstWeek.sum / firstWeek.count)
+        ? lastWeek.average - firstWeek.average
         : null;
       return {
         ...p, stats, start, firstSeen, hasRosterStart, resigned: res, days, group, zone: zoneOf(p.rows),
         workDays: dates.length, firstDate: dates[0] || '', lastDate: dates[dates.length - 1] || '',
         months, lastMonth, prevMonth, monthDelta, weeks, weekDelta,
-        firstWeekAvg: firstWeek ? firstWeek.sum / firstWeek.count : null,
-        lastWeekAvg: lastWeek ? lastWeek.sum / lastWeek.count : null
+        firstWeekAvg: firstWeek ? firstWeek.average : null,
+        lastWeekAvg: lastWeek ? lastWeek.average : null
       };
     });
 
@@ -331,9 +336,9 @@
   }
 
   function groupStats(people) {
-    let sum = 0, count = 0, total = 0;
-    people.forEach((p) => { sum += p.stats.sum; count += p.stats.count; total += p.stats.total; });
-    return { people: people.length, total, count, average: count ? sum / count : null };
+    const rows = people.flatMap((p) => p.rows || []);
+    const summary = aggregateForMode(rows);
+    return { people: people.length, total: summary.total, count: summary.count, average: summary.average };
   }
   function renderTenureCohorts(id, people, t) {
     const host = $(id);
@@ -799,14 +804,15 @@
 
     // แนวโน้มรายเดือนของกลุ่มสำหรับการ์ดวิเคราะห์/เปรียบเทียบเดือน
     const monthMap = new Map();
-    shown.forEach((p) => p.months.forEach((m) => {
-      let b = monthMap.get(m.key);
-      if (!b) { b = { key: m.key, sum: 0, count: 0, total: 0, people: new Set() }; monthMap.set(m.key, b); }
-      b.sum += m.sum; b.count += m.count; b.total += m.total;
-      if (m.count) b.people.add(p.id);
+    shown.forEach((p) => p.rows.forEach((r) => {
+      const key = M.date(r[2]).slice(0, 7);
+      let b = monthMap.get(key);
+      if (!b) { b = { key, rows: [], total: 0, people: new Set() }; monthMap.set(key, b); }
+      b.rows.push(r); b.total += M.number(r[4]);
+      if (M.number(r[31]) > 0) b.people.add(p.id);
     }));
     const months = [...monthMap.values()].sort((a, b) => a.key.localeCompare(b.key))
-      .map((m) => ({ ...m, average: m.count ? m.sum / m.count : null, peopleCount: m.people.size }));
+      .map((m) => { const summary = aggregateForMode(m.rows); return { ...m, sum: summary.sum, count: summary.count, average: summary.average, peopleCount: m.people.size }; });
 
     const trend = buildPeriodTrend(shown, ctx.anchor, oldTrendMode);
     const withTrend = trend.items.filter((item) => item.average !== null);

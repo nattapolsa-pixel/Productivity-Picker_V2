@@ -26,6 +26,7 @@
   const M = window.V3Metrics;
   const S = window.V3Shared;
   const $ = (id) => document.getElementById(id);
+  const aggregateForMode = (list) => M.aggregateForMode ? M.aggregateForMode(list) : M.aggregate(list);
   const HOST = 'v3Efficiency';
   const PANEL = 'tab-efficiency';
 
@@ -156,7 +157,7 @@
     for (let d = 1; d <= last; d += 1) {
       const date = monthKey + '-' + String(d).padStart(2, '0');
       const rowsOfDay = byDate.get(date) || [];
-      const st = M.aggregate(rowsOfDay);
+      const st = aggregateForMode(rowsOfDay);
       out.push({
         date,
         s: st,
@@ -176,12 +177,12 @@
     const allRows = rowsAllDates();
     const monthList = monthKeysAvailable(allRows);
     const monthKey = activeMonth(allRows);
-    const all = M.aggregate(data);
+    const all = aggregateForMode(data);
 
     /* รายวัน */
     const days = [...bucket(data, (r) => M.date(r[2])).entries()]
       .map(([date, rows]) => {
-        const s = M.aggregate(rows);
+        const s = aggregateForMode(rows);
         return { date, s, eff: effOf(s.average, target), gap: s.average === null ? null : s.average - target, pass: passed(s.average, target) };
       })
       .sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -191,35 +192,35 @@
     /* รายคน — ใช้ตัดสินการ์ด "พนักงานที่ผ่านเกณฑ์" เทียบ Target รวมเหมือน V2
        คนที่ไม่มีแถวเข้าเฉลี่ยเลย (count = 0) ไม่ตัดสิน จึงไม่เข้าตัวหาร */
     const persons = [...bucket(data, (r) => M.userId(r) || 'Not Found').entries()]
-      .map(([id, rows]) => ({ id, s: M.aggregate(rows) }));
+      .map(([id, rows]) => ({ id, s: aggregateForMode(rows) }));
     const judgedPeople = persons.filter((p) => p.s.count > 0);
     const hitPeople = judgedPeople.filter((p) => passed(p.s.average, target));
 
     /* กะ (AG) */
     const shifts = [...bucket(data, (r) => M.shiftKey(r)).entries()]
-      .map(([key, rows]) => ({ key, label: shiftLabel(key), s: M.aggregate(rows) }))
+      .map(([key, rows]) => ({ key, label: shiftLabel(key), s: aggregateForMode(rows) }))
       .sort((a, b) => shiftRank(a.key) - shiftRank(b.key) || String(a.key).localeCompare(String(b.key), 'th'));
 
     /* ระบบ */
     const systems = [];
     ['PTT', 'BPS'].forEach((sys) => {
       const rows = data.filter((r) => M.matches(r, { system: sys }));
-      if (rows.length) systems.push({ key: sys, label: SYSTEM_LABEL[sys], s: M.aggregate(rows) });
+      if (rows.length) systems.push({ key: sys, label: SYSTEM_LABEL[sys], s: aggregateForMode(rows) });
     });
     const sysUnknown = data.filter((r) => M.system(r) === 'Not Found');
-    if (sysUnknown.length) systems.push({ key: 'Not Found', label: 'ไม่ระบุประเภทงาน', s: M.aggregate(sysUnknown) });
+    if (sysUnknown.length) systems.push({ key: 'Not Found', label: 'ไม่ระบุประเภทงาน', s: aggregateForMode(sysUnknown) });
     /* แถว Pick to Sort ก่อน 08/06/2026 ไม่เข้าถังระบบใดตามกฎ V1 — บอกจำนวนไว้ในโน้ต */
     const bpsEarly = data.filter((r) => M.system(r) === 'BPS' && !M.matches(r, { system: 'BPS' })).length;
 
     /* ประเภทการจ้าง (AQ) — มิติที่ V2 ไม่มี */
     const payTypes = [...bucket(data, payKey).entries()]
       .map(([key, rows]) => {
-        const people = [...bucket(rows, (r) => M.userId(r) || 'Not Found').values()].map((list) => M.aggregate(list));
+        const people = [...bucket(rows, (r) => M.userId(r) || 'Not Found').values()].map((list) => aggregateForMode(list));
         const judged = people.filter((p) => p.count > 0);
         /* passPeople = จำนวนคนในประเภทนี้ที่ค่าเฉลี่ยของตัวเองถึง Target
            ตั้งชื่อแยกจาก pass (สถานะของกลุ่มทั้งก้อน) ไม่ให้ทับกันตอนประกอบตาราง */
         return {
-          key, s: M.aggregate(rows), people: people.length,
+          key, s: aggregateForMode(rows), people: people.length,
           judged: judged.length, passPeople: judged.filter((p) => passed(p.average, target)).length
         };
       })
@@ -233,8 +234,8 @@
       (z ? zoneBuckets.get(z.key) : zoneUnknown).push(r);
     });
     const zones = S.zones
-      .map((z) => ({ zone: z, s: M.aggregate(zoneBuckets.get(z.key)) }))
-      .concat(zoneUnknown.length ? [{ zone: { key: 'unknown', label: 'Not Found', group: '' }, s: M.aggregate(zoneUnknown) }] : [])
+      .map((z) => ({ zone: z, s: aggregateForMode(zoneBuckets.get(z.key)) }))
+      .concat(zoneUnknown.length ? [{ zone: { key: 'unknown', label: 'Not Found', group: '' }, s: aggregateForMode(zoneUnknown) }] : [])
       .filter((x) => x.s.rows > 0)
       .map((x) => {
         const t = S.zoneTargetOf(x.zone);
@@ -289,7 +290,7 @@
       + ' width:30px; height:30px; border-radius:9px; line-height:1; cursor:' + (disabled ? 'not-allowed' : 'pointer') + ';">' + label + '</button>';
     const monthEff = (() => {
       const rows = (model.allRows || []).filter((r) => M.date(r[2]).slice(0, 7) === model.monthKey);
-      const st = M.aggregate(rows);
+      const st = aggregateForMode(rows);
       return effOf(st.average, model.target);
     })();
     return '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">'

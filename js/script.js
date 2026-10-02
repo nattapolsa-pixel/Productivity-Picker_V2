@@ -932,7 +932,10 @@ function weightedAggregateRows(rows) {
   });
   const weighted = weightedFromZoneCollections({ fullRack: byType("fullRack"), halfRack: byType("halfRack"), ea: byType("ea") });
   const normal = metrics.aggregate(list);
-  return { ...normal, average: weighted.overall.average, weighted };
+  const weightedSum = Number.isFinite(Number(weighted.overall.average))
+    ? Number(weighted.overall.average) * Number(normal.count || 0)
+    : 0;
+  return { ...normal, sum: weightedSum, average: weighted.overall.average, weighted };
 }
 
 const V3Weighting = {

@@ -102,6 +102,15 @@
     return (!filters.system||filters.system==='ALL'||(system(row)===filters.system&&(filters.system!=='BPS'||date(row[2])>='2026-06-08'))) && (!filters.shift||filters.shift==='ALL'||shiftKey(row)===filters.shift) && ownerOk;
   }
   function aggregate(rows){let total=0,sum=0,count=0,hours=0;const ids=new Set();for(const r of rows){total+=number(r[4]);hours+=number(r[6]);const a=number(r[31]);if(a>0&&isValidZoneRow(r)){sum+=a;count++;}if(r[3])ids.add(String(r[3]).trim());}return {total,sum,count,average:count?sum/count:null,rows:rows.length,hours,people:ids.size,excluded:rows.length-count};}
+  /* Productivity summaries must follow the global calculation switch.
+     Total Pick, hours, people and row counts remain source facts; only the
+     productivity average is replaced by the configured Type/Zone weighting. */
+  function aggregateForMode(rows){
+    const weighted=String(root.V3Data?.filters?.calculationMode||'normal')==='weighted';
+    return weighted&&root.V3Weighting&&typeof root.V3Weighting.rows==='function'
+      ? root.V3Weighting.rows(rows)
+      : aggregate(rows);
+  }
 
   /* ── ช่วงเวลา: คอลัมน์ H–AE (ดัชนี 7–30) เป็นยอดหยิบต่อชั่วโมง 24 ช่อง
         หัวตารางจริงใน Sheet เริ่ม "7:00 - 8:00" ไปจนถึง "6:00 - 7:00"
@@ -186,7 +195,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,timeSlotSnapshot,type,system,ownerKey,ownerLabel,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,
+  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,timeSlotSnapshot,type,system,ownerKey,ownerLabel,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,aggregateForMode,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

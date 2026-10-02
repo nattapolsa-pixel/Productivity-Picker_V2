@@ -24,9 +24,9 @@
      ปัดตอนแสดงผลเท่านั้น เกณฑ์สีและการตัดสินผ่าน/ไม่ผ่านยังคิดจากค่าไม่ปัดตามกฎเดิม
      fmt1 คงไว้สำหรับ % และชั่วโมงที่ยังต้องการทสนิยม */
   const prod = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
-  const aggregateForMode = (list) => window.V3Data?.filters?.calculationMode === 'weighted' && window.V3Weighting
+  const aggregateForMode = (list) => M.aggregateForMode ? M.aggregateForMode(list) : (window.V3Data?.filters?.calculationMode === 'weighted' && window.V3Weighting
     ? window.V3Weighting.rows(list)
-    : M.aggregate(list);
+    : M.aggregate(list));
 
   const TYPE_LABEL = { fullRack: 'Full Rack', halfRack: 'Half Rack', ea: 'Micro Rack', pickToSort: 'Pick to Sort', mezzanine: 'Mezzanine' };
   const TYPE_COLOR = { fullRack: '#6366f1', halfRack: '#8b5cf6', ea: '#14b8a6', pickToSort: '#f59e0b', mezzanine: '#0ea5e9', '': '#94a3b8' };
@@ -233,7 +233,7 @@
       return trendPeriodMode === 'week' ? weekStartKey(d) : d.slice(0, 7);
     });
     const periods = [...byPeriod.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([key, rowsOf]) => {
-      const s = M.aggregate(rowsOf);               // สูตรที่ใช้ ทั้งก้อน
+      const s = aggregateForMode(rowsOf);          // สูตรที่เลือก ทั้งก้อน
       const dayMap = new Map();
       rowsOf.forEach((r) => {
         const d = M.date(r[2]);
@@ -751,7 +751,7 @@
       else if (sys === 'PTT') ptt.push(r);
       else other.push(r);
     });
-    const a = M.aggregate(ptt), b = M.aggregate(bps), c = M.aggregate(other);
+    const a = aggregateForMode(ptt), b = aggregateForMode(bps), c = aggregateForMode(other);
     const data = [a.total, b.total, c.total];
     const total = data.reduce((x, y) => x + y, 0) || 1;
     const pct = (v) => (Number(v) || 0) / total * 100;
@@ -807,7 +807,7 @@
       buckets.get(key).push(r);
     });
     const entries = [...buckets.entries()]
-      .map(([k, v]) => ({ key: k, label: TYPE_LABEL[k] || 'ไม่พบ Type Pick', stats: M.aggregate(v) }))
+      .map(([k, v]) => ({ key: k, label: TYPE_LABEL[k] || 'ไม่พบ Type Pick', stats: aggregateForMode(v) }))
       .sort((x, y) => y.stats.total - x.stats.total);
 
     draw('storageTypeChart', {
@@ -850,7 +850,7 @@
   function renderBuShare(list) {
     const buckets = groupBy(list, (r) => String(r[35] || '').trim() || 'Not Found Data');
     const entries = [...buckets.entries()]
-      .map(([k, v]) => ({ label: k, stats: M.aggregate(v) }))
+      .map(([k, v]) => ({ label: k, stats: aggregateForMode(v) }))
       .sort((x, y) => y.stats.total - x.stats.total);
     const total = entries.reduce((sum, e) => sum + e.stats.total, 0) || 1;
 
@@ -889,7 +889,7 @@
   function renderAffiliation(list) {
     const buckets = groupBy(list, (r) => String(r[34] || '').trim() || 'Not Found Data');
     const entries = [...buckets.entries()]
-      .map(([k, v]) => ({ label: k, stats: M.aggregate(v) }))
+      .map(([k, v]) => ({ label: k, stats: aggregateForMode(v) }))
       .sort((x, y) => y.stats.total - x.stats.total);
 
     draw('macroAffiliationChart', {
@@ -929,7 +929,7 @@
   function renderShiftCompare(list) {
     const buckets = groupBy(list, (r) => M.shiftKey(r));
     const entries = [...buckets.entries()]
-      .map(([k, v]) => ({ label: k, stats: M.aggregate(v) }))
+      .map(([k, v]) => ({ label: k, stats: aggregateForMode(v) }))
       .sort((x, y) => (x.label === 'Not Found' ? 1 : y.label === 'Not Found' ? -1 : x.label.localeCompare(y.label)));
     const target = (window.TARGETS && window.TARGETS.overall) || 170;
 
@@ -1013,7 +1013,7 @@
     });
     const target = (window.TARGETS && window.TARGETS.overall) || 170;
     const items = [...buckets.entries()]
-      .map(([id, rs]) => ({ id, name: names.get(id) || id, stats: M.aggregate(rs) }))
+      .map(([id, rs]) => ({ id, name: names.get(id) || id, stats: aggregateForMode(rs) }))
       .filter((x) => x.stats.average !== null)
       .sort((a, b) => b.stats.average - a.stats.average)
       .slice(0, pickerTop);

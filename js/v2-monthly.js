@@ -26,6 +26,68 @@
      ปัดตอนแสดงผลเท่านั้น เกณฑ์สีและการตัดสินผ่าน/ไม่ผ่านยังคิดจากค่าไม่ปัดตามกฎเดิม
      fmt1 คงไว้สำหรับ % และชั่วโมงที่ยังต้องการทสนิยม */
   const prod = (v) => (v === null || v === undefined ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 }));
+  const M = window.V3Metrics;
+  const aggregateForMode = (list) => M && M.aggregateForMode ? M.aggregateForMode(list) : (M ? M.aggregate(list) : { total: 0, sum: 0, count: 0, average: null, rows: 0 });
+
+  /* Weight mode must use the same history-aware source rows as the other pages.
+     The daily index is ideal for normal display, but it cannot recompute a
+     Type/Zone weighted average after the user changes the weight settings. */
+  function sourceRowsForCalculation() {
+    const source = window.V3Data?.current?.source?.sheets?.['Results Master']?.rows || [];
+    const filters = window.V3Data?.filters || {};
+    const filtered = source.filter((row) => M && M.date(row[2]) && M.matches(row, filters));
+    return window.V3Shared?.historyAwareRows ? window.V3Shared.historyAwareRows(filtered) : filtered;
+  }
+
+  function weightedPeriodAggregates(granularity) {
+    const groups = new Map();
+    const rows = sourceRowsForCalculation();
+    rows.forEach((row) => {
+      const date = M.date(row[2]);
+      if (!date) return;
+      const key = granularity === 'month' ? date.slice(0, 7) : weekStartKey(date);
+      if (!key) return;
+      let item = groups.get(key);
+      if (!item) item = { key, rows: [], totalPick: 0, days: new Set(), affiliations: new Map(), categories: new Map(), bu: new Map() };
+      item.rows.push(row);
+      item.totalPick += M.number(row[4]);
+      if (M.number(row[31]) > 0) item.days.add(date);
+      const add = (map, name) => { const bucket = map.get(name || 'ไม่ระบุ'); if (bucket) bucket.push(row); else map.set(name || 'ไม่ระบุ', [row]); };
+      add(item.affiliations, String(row[34] || '').trim() || 'ไม่ระบุสังกัด');
+      add(item.categories, M.type(row[36]) || '');
+      add(item.bu, String(row[35] || '').trim() || 'ไม่ระบุ BU');
+      groups.set(key, item);
+    });
+    const list = (map) => [...map.entries()].map(([name, bucket]) => {
+      const summary = aggregateForMode(bucket);
+      return { name, average: summary.average === null ? 0 : Math.round(summary.average * 10) / 10, rawAverage: summary.average || 0, count: summary.count };
+    });
+    return [...groups.values()].sort((a, b) => a.key.localeCompare(b.key)).map((item) => {
+      const summary = aggregateForMode(item.rows);
+      const average = summary.average === null ? 0 : summary.average;
+      const start = granularity === 'month' ? `${item.key}-01` : item.key;
+      const end = granularity === 'month' ? addDaysKey(new Date(Date.UTC(Number(item.key.slice(0, 4)), Number(item.key.slice(5, 7)), 0)).toISOString().slice(0, 10), 0) : addDaysKey(item.key, 6);
+      const date = new Date(`${start}T00:00:00Z`);
+      const monthKey = item.key.slice(0, 7);
+      const monthLabel = new Intl.DateTimeFormat('th-TH', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
+      const monthShort = new Intl.DateTimeFormat('th-TH', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
+      return {
+        weekKey: granularity === 'week' ? item.key : undefined,
+        monthKey,
+        year: date.getUTCFullYear(),
+        average: Math.round(average * 10) / 10,
+        rawAverage: average,
+        totalPick: Math.round(item.totalPick),
+        activeDays: item.days.size,
+        transactions: summary.count,
+        labelThai: granularity === 'month' ? monthLabel : `สัปดาห์ ${shortDate(item.key)} – ${shortDate(end)}`,
+        labelThaiShort: granularity === 'month' ? monthShort : shortDate(item.key).slice(0, 5) + '–' + shortDate(end).slice(0, 5),
+        affiliations: list(item.affiliations),
+        categories: list(item.categories).map((entry) => ({ ...entry, name: entry.name === 'fullRack' ? 'Full Rack' : entry.name === 'halfRack' ? 'Half Rack' : entry.name === 'ea' ? 'Micro Rack' : entry.name === 'pickToSort' ? 'Pick to Sort' : entry.name === 'mezzanine' ? 'Mezzanine' : entry.name })),
+        bu: list(item.bu).map((entry) => ({ ...entry, key: entry.name }))
+      };
+    });
+  }
 
   // พาเลตเดียวกับหน้าอื่นของ V3
   const SERIES = ['#6366f1', '#14b8a6', '#8b5cf6', '#f59e0b', '#f43f5e', '#0ea5e9', '#10b981', '#ec4899', '#a855f7', '#0891b2'];
@@ -151,6 +213,7 @@
   }
 
   function getWeeklyAggregates() {
+    if (window.V3Data?.filters?.calculationMode === 'weighted') return weightedPeriodAggregates('week');
     if (typeof dailyIndexPayload === 'undefined' || !dailyIndexPayload || !dailyIndexPayload.dates) return [];
     const dateKeys = dailyIndexPayload.dateKeys || Object.keys(dailyIndexPayload.dates).sort();
     const weeks = {};
@@ -604,7 +667,10 @@
     const host = $('v3Monthly');
     if (!host) return;
     if (typeof getMonthlyAggregates !== 'function') return;
-    const months = periodMode === 'week' ? getWeeklyAggregates() : getMonthlyAggregates();
+    const weighted = window.V3Data?.filters?.calculationMode === 'weighted';
+    const months = weighted
+      ? weightedPeriodAggregates(periodMode === 'week' ? 'week' : 'month')
+      : (periodMode === 'week' ? getWeeklyAggregates() : getMonthlyAggregates());
     if (!months || !months.length) {
       destroyAll();
       host.innerHTML = '<div class="card v3-card"><div class="staff-miss-ok">ยังไม่มีข้อมูล' + periodUnit() + '</div></div>';

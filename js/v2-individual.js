@@ -39,6 +39,7 @@
   'use strict';
 
   const M = window.V3Metrics;
+  const aggregateForMode = (list) => M.aggregateForMode ? M.aggregateForMode(list) : M.aggregate(list);
   const $ = (id) => document.getElementById(id);
   const HOST = 'v3Individual';
   const PANEL = 'tab-individual';
@@ -254,14 +255,15 @@
       const main = mainZoneStat(p.zoneStat);     // โซนหลัก = กฎเดียวกับหน้า "ไม่ถึงเป้า"
       const zone = main.zone || UNKNOWN_ZONE;
       const target = S().zoneTargetOf(zone);
-      const average = p.count ? p.sum / p.count : null;
+      const modeStats = aggregateForMode(p.rows);
+      const average = modeStats.average;
       const shift = [...p.shifts.entries()].sort((a, b) => b[1] - a[1])[0];
       const startDate = M.tenureStart(p.id, startMap, seenMap);
       list.push({
         ...p,
         zone, zoneRowCount: main.count, zoneCount: p.zoneStat.size,
         target, average,
-        counted: p.count > 0,
+        counted: modeStats.count > 0,
         gap: average === null ? null : average - target,
         eff: average === null ? null : (target > 0 ? average / target * 100 : 0),
         below: average !== null && average < target,          // เท่ากับเป้านับว่าผ่าน
@@ -280,7 +282,7 @@
     counted.forEach((x, i) => { x.rank = i + 1; });
     list.filter((x) => !x.counted).forEach((x) => { x.rank = null; });
 
-    const group = M.aggregate(data);                  // ค่าเฉลี่ยกลุ่มครั้งเดียว
+    const group = aggregateForMode(data);             // ค่าเฉลี่ยกลุ่มตามโหมดเดียวกับทั้งระบบ
     return { data, list, counted, group, anchor, hourLabels, roster };
   }
 

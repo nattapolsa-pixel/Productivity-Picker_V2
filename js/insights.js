@@ -1,6 +1,7 @@
 /* Source-backed drilldowns. Main V1 KPI calculations remain in script.js/v1-engine.js. */
 (() => {
   const $=id=>document.getElementById(id), M=V3Metrics;
+  const aggregateForMode=(list)=>M.aggregateForMode?M.aggregateForMode(list):M.aggregate(list);
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const fmt=(v,d=0)=>v===null||v===undefined?'—':Number(v).toLocaleString('th-TH',{maximumFractionDigits:d,minimumFractionDigits:d});
   const dmy=iso=>/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))?String(iso).split('-').reverse().join('/'):'—';
@@ -392,9 +393,9 @@
   function percentile(values,ratio){const list=values.filter(v=>Number.isFinite(Number(v))).map(Number).sort((a,b)=>a-b);if(!list.length)return null;const index=(list.length-1)*ratio,low=Math.floor(index),high=Math.ceil(index);return list[low]+(list[high]-list[low])*(index-low);}
   function zonePeopleWindow(list,target){
     const byId=new Map();
-    list.forEach(r=>{const id=M.userId(r);if(!id||!M.isValidZoneRow(r))return;let p=byId.get(id);if(!p){p={id,sum:0,count:0};byId.set(id,p);}const value=M.number(r[31]);if(value>0){p.sum+=value;p.count+=1;}});
-    const values=[...byId.values()].filter(p=>p.count).map(p=>p.sum/p.count);
-    const stats=M.aggregate(list);
+    list.forEach(r=>{const id=M.userId(r);if(!id||!M.isValidZoneRow(r))return;let p=byId.get(id);if(!p){p={id,rows:[]};byId.set(id,p);}p.rows.push(r);});
+    const values=[...byId.values()].map(p=>aggregateForMode(p.rows).average).filter(v=>Number.isFinite(v));
+    const stats=aggregateForMode(list);
     return {stats,people:values.length,pass:values.filter(v=>v>=target).length,below:values.filter(v=>v<target).length,values};
   }
   function zoneControlTower(host,shown,baseRows){
@@ -429,7 +430,7 @@
     const data=visible(),buckets=new Map(zones.map(z=>[z.key,[]])),unknown=[];
     data.forEach(r=>{const z=zone(r);(z?buckets.get(z.key):unknown).push(r);});
     const groups=zones.map(z=>({...z,stats:zoneAggregate(z.key,buckets.get(z.key))}));
-    if(unknown.length)groups.push({key:'unknown',label:'ข้อมูล Zone ไม่ครบ',group:'',stats:M.aggregate(unknown)});
+    if(unknown.length)groups.push({key:'unknown',label:'ข้อมูล Zone ไม่ครบ',group:'',stats:aggregateForMode(unknown)});
     const ownerFilter=String(V3Data.filters.owner||'ALL');
     // GFA owns Zone AG even when the selected date has no AG rows yet; keep the zone visible so the map remains a stable operating view.
     const keepEmptyAg=ownerFilter==='GFA';
@@ -715,7 +716,7 @@
   }
 
   function staffPage(){if(!$('v3Staff'))return;const data=visible(),activity=new Map();data.forEach(r=>{const id=String(r[3]||'Not Found').trim();if(!activity.has(id))activity.set(id,[]);activity.get(id).push(r);});
-    const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=M.aggregate(work);return {id,master,work,s,startDate:employeeStartDate(id),name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
+    const keys=new Set([...roster.keys(),...activity.keys()]);let items=[...keys].map(id=>{const master=roster.get(id),work=activity.get(id)||[],s=aggregateForMode(work);return {id,master,work,s,startDate:employeeStartDate(id),name:master?.[2]||work[0]?.[1]||'Not Found',shift:master?.[12]||'Not Found',aff:master?.[4]||'Not Found',status:master?.[7]||'Not Found'};});
     if(V3Data.filters.shift!=='ALL')items=items.filter(i=>i.work.length||i.shift===V3Data.filters.shift);
     if(V3Data.filters.system!=='ALL')items=items.filter(i=>i.work.length||(i.master&&M.system({36:i.master[10]})===V3Data.filters.system));
     items.sort((a,b)=>b.s.total-a.s.total);
@@ -739,7 +740,7 @@
      ชื่อพนักงานยึดทะเบียนพนักงาน */
   function hoursPage(){
     if(!$('v3Hours'))return;
-    const data=visible(),total=M.aggregate(data);
+    const data=visible(),total=aggregateForMode(data);
     const headers=source.sheets['Results Master'].headers;
     const labels=M.hourLabels(headers);
     const totals=M.hourTotals(data);
@@ -765,7 +766,7 @@
     const peakIndex=totals.indexOf(Math.max(...totals));
     const activeHours=totals.filter(v=>v>0).length;
     const people=[...perPerson.values()].map(p=>{
-      const s=M.aggregate(p.rows);
+      const s=aggregateForMode(p.rows);
       const active=p.hours.map((v,i)=>({v,i})).filter(x=>x.v>0);
       return {...p,stats:s,hourCount:active.length,
         firstHour:active.length?labels[active[0].i]:'',
