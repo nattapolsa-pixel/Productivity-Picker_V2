@@ -1,7 +1,7 @@
 /* One source snapshot for every page; calculations run off the UI thread. */
 window.V3Data = (() => {
   let current = null, pending = null, lastAttempt = 0, sequence = 0, historyWritePromise = null;
-  let filters = {system:'ALL',shift:'ALL',owner:'ALL'}, filterRevision=0;
+  let filters = {system:'ALL',shift:'ALL',owner:'ALL',calculationMode:'normal'}, filterRevision=0;
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
@@ -82,7 +82,7 @@ window.V3Data = (() => {
     return pending;
   }
   async function setFilters(next){
-    filters={system:'ALL',shift:'ALL',owner:'ALL',...next}; const revision=++filterRevision;
+    filters={system:'ALL',shift:'ALL',owner:'ALL',calculationMode:'normal',...next}; const revision=++filterRevision;
     if(!current)return;
     const source=current.source;
     let value=await process(source);

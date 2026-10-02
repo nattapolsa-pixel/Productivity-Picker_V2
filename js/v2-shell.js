@@ -39,6 +39,8 @@
   const endDate = document.getElementById('endDate');
   const systemSelect = document.getElementById('v3System');
   const systemTog = document.getElementById('v3SystemTog');
+  const calculationModeSelect = document.getElementById('v3CalculationMode');
+  const calculationModeTog = document.getElementById('v3CalculationModeTog');
   const ownerSelect = document.getElementById('v3Owner');
   const ownerTog = document.getElementById('v3OwnerTog');
   const shiftSelect = document.getElementById('v3Shift');
@@ -76,6 +78,8 @@
     if (owner && owner !== 'ALL') text += ` · Owner ${OWNER_LABEL[owner] || owner}`;
     const shift = shiftSelect ? shiftSelect.value : 'ALL';
     if (shift && shift !== 'ALL') text += ` · กะ ${shift}`;
+    const calculationMode = calculationModeSelect ? calculationModeSelect.value : 'normal';
+    if (calculationMode === 'weighted') text += ' · Weight% (รอระบุค่าน้ำหนัก)';
     daterange.innerHTML = text;
   }
 
@@ -151,6 +155,31 @@
     });
     syncButtons();
     ownerSelect.addEventListener('change', syncButtons);
+  }
+
+  if (calculationModeTog && calculationModeSelect) {
+    const buttons = Array.from(calculationModeTog.querySelectorAll('button[data-calc]'));
+    const syncButtons = () => {
+      buttons.forEach((b) => {
+        const active = b.dataset.calc === calculationModeSelect.value;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    };
+    buttons.forEach((b) => {
+      b.addEventListener('click', () => {
+        if (b.dataset.calc === calculationModeSelect.value) return;
+        calculationModeSelect.value = b.dataset.calc;
+        syncButtons();
+        calculationModeSelect.dispatchEvent(new Event('change'));
+        updateDateHeader();
+      });
+    });
+    calculationModeSelect.addEventListener('change', () => {
+      syncButtons();
+      updateDateHeader();
+    });
+    syncButtons();
   }
 
   /* ── ปุ่มกะแบบ .systog.shiftog ของ V2 ──

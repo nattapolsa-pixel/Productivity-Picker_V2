@@ -886,7 +886,7 @@
   // หน่วงเล็กน้อยให้ v2-shell.js ใส่คลาส active ก่อน ไม่งั้นกราฟถูกวาดตอน .tab-panel ยัง display:none
   // แล้วได้ canvas สูง 0 ซึ่ง Chart.js ไม่วัดใหม่ให้เอง (insights.js ผูก listener ก่อน v2-shell.js ตามลำดับ script)
   document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{destroyZoneCharts();active=btn.dataset.tab;setTimeout(render,60);window.scrollTo({top:0,behavior:'instant'});}));
-  async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value,owner=$('v3Owner').value;$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift,owner});const ownerText=owner==='ALL'?'ทุก Owner':M.ownerLabel(owner);$('v3FilterStatus').textContent=(system==='BPS'?'BPS เริ่มนับ 08/06/2026 ':'กรองแล้ว')+` • Owner: ${ownerText} • ทุกหน้าใช้ข้อมูลชุดเดียวกัน`;}catch(e){$('v3FilterStatus').textContent=e.message;}}
+  async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value,owner=$('v3Owner').value,calculationMode=$('v3CalculationMode')?.value||'normal';$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift,owner,calculationMode});const ownerText=owner==='ALL'?'ทุก Owner':M.ownerLabel(owner),modeText=calculationMode==='weighted'?'โหมด Weight% · รอระบุ Weight ของแต่ละ Type/Zone · ตอนนี้ยังแสดงสูตรปกติ':'โหมดคำนวณปกติ';$('v3FilterStatus').textContent=(system==='BPS'?'BPS เริ่มนับ 08/06/2026 ':'กรองแล้ว')+` • Owner: ${ownerText} • ${modeText} • ทุกหน้าใช้ข้อมูลชุดเดียวกัน`;}catch(e){$('v3FilterStatus').textContent=e.message;}}
   // เปิด table(), cards() และตัวช่วยจัดรูปแบบให้ v2-staff.js ใช้ร่วมกัน ไม่ต้องเขียนตารางซ้ำ
   root_V3Shared();
   function root_V3Shared(){
@@ -901,5 +901,6 @@
   if($('v3System'))$('v3System').onchange=applyFilter;
   if($('v3Shift'))$('v3Shift').onchange=applyFilter;
   if($('v3Owner'))$('v3Owner').onchange=applyFilter;
+  if($('v3CalculationMode'))$('v3CalculationMode').onchange=applyFilter;
   if($('v3Print'))$('v3Print').onclick=()=>window.print();
 })();
