@@ -2991,7 +2991,7 @@ th.num {
 .sysbar .systog { gap: 3px; padding: 3px; border: 1px solid #d5deeb; border-radius: 11px; background: #f1f5f9; }
 .sysbar .systog button { min-height: 31px; padding: 6px 11px; border-radius: 8px; font-weight: 700; }
 .sysbar .systog button:focus-visible, .sysbar .chip:focus-visible, .date-filter-controls input:focus-visible { outline: 3px solid rgba(79, 70, 229, .3); outline-offset: 2px; }
-.date-filter-group { display: flex; flex: 1 1 760px; align-items: center; gap: 12px; min-width: 0; padding: 8px 10px; border: 1px solid #c7d2fe; border-radius: 13px; background: linear-gradient(110deg, #f5f7ff, #fff 65%, #f1fbff); box-shadow: 0 3px 10px rgba(30, 64, 175, .045); }
+.date-filter-group { display: flex; flex: 1 1 100%; width: 100%; align-items: center; gap: 12px; min-width: 0; padding: 8px 10px; border: 1px solid #c7d2fe; border-radius: 13px; background: linear-gradient(110deg, #f5f7ff, #fff 65%, #f1fbff); box-shadow: 0 3px 10px rgba(30, 64, 175, .045); }
 .date-filter-heading { display: flex; flex: 0 0 auto; flex-direction: column; gap: 2px; min-width: 142px; }
 .date-filter-heading span { color: #1e3a8a; font-size: 12px; font-weight: 800; }
 .date-filter-heading small { color: #64748b; font-size: 9px; line-height: 1.35; }
