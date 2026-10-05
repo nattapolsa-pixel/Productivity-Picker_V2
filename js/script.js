@@ -1099,6 +1099,7 @@ const presentRisks = document.querySelector("#presentRisks");
 const presentActions = document.querySelector("#presentActions");
 
 let selectedRange = "latest";
+let autoWorkdayTargetDate = "";
 let selectedTrainingRange = "threeMonths";
 let selectedTenuredRange = "threeMonths";
 let lastRenderedPayload = null;
@@ -3954,6 +3955,7 @@ function getPresentRangeLabel() {
   if (selectedRange === "week") return "Weekly Summary";
   if (selectedRange === "month") return "Monthly Summary";
   if (selectedRange === "today") return "Today Summary";
+  if (selectedRange === "autoWorkday") return "Previous Day Summary";
   if (selectedRange === "latest" || selectedRange === "autoLatest") return "Latest Day Summary";
   if (selectedRange === "custom" && (start || end)) return `${start || "เริ่มต้น"} ถึง ${end || "ล่าสุด"}`;
   return "All Data Summary";
@@ -6859,6 +6861,29 @@ function getRelativeDateInputValue(dayOffset = 0) {
   return toDateInputValue(date);
 }
 
+function getPreviousNonSundayDateInputValue(referenceDate = new Date()) {
+  const date = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+  date.setDate(date.getDate() - 1);
+  if (date.getDay() === 0) date.setDate(date.getDate() - 1);
+  return toDateInputValue(date);
+}
+
+function getLatestAvailableNonSundayDateKey(indexPayload, targetDateKey) {
+  return (Array.isArray(indexPayload?.dateKeys) ? indexPayload.dateKeys : [])
+    .filter((dateKey) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || dateKey > targetDateKey) return false;
+      const [year, month, day] = dateKey.split("-").map(Number);
+      return new Date(year, month - 1, day).getDay() !== 0
+        && Number(indexPayload.dates?.[dateKey]?.overall?.count || 0) > 0;
+    })
+    .sort()
+    .pop() || "";
+}
+
+function resolvePreviousWorkdayDate(indexPayload, targetDateKey = getPreviousNonSundayDateInputValue()) {
+  return getLatestAvailableNonSundayDateKey(indexPayload, targetDateKey) || targetDateKey;
+}
+
 function formatThaiLongDateFromInput(dateKey) {
   const match = String(dateKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
@@ -7092,28 +7117,32 @@ function updateActiveDateBanner(payload = {}, options = {}) {
     activeDateHint.textContent = `${"วันนี้ยังไม่มีข้อมูล ระบบจึงแสดงข้อมูลของเมื่อวานแทน"} · ${getComparisonMeta(payload).label || "เทียบกับวันก่อนหน้า"}`;
   } else if (selectedRange === "autoLatest") {
     activeDateHint.textContent = "วันนี้และเมื่อวานยังไม่มีข้อมูล ระบบจึงแสดงวันที่ล่าสุดที่มีข้อมูลแทน";
+  } else if (selectedRange === "autoWorkday") {
+    const targetDate = autoWorkdayTargetDate || getPreviousNonSundayDateInputValue();
+    if (start && start === end && start !== targetDate) {
+      activeDateHint.textContent = `วันก่อนหน้า (${formatThaiLongDateFromInput(targetDate)}) ยังไม่มีข้อมูล จึงแสดงวันล่าสุดก่อนหน้าที่มีข้อมูล (${formatThaiLongDateFromInput(start)})`;
+    } else {
+      activeDateHint.textContent = "ระบบเลือกข้อมูลของเมื่อวานให้อัตโนมัติ · ถ้าเมื่อวานเป็นวันอาทิตย์จะเลือกวันเสาร์";
+    }
   } else if (selectedRange === "custom") {
     activeDateHint.textContent = "ช่วงวันที่ที่เลือกเอง";
   } else {
     activeDateHint.textContent = options.sourceLabel || "ช่วงข้อมูลที่กำลังแสดงอยู่";
   }
 
-  activeDateBanner.classList.toggle("is-fallback", selectedRange === "autoYesterday" || selectedRange === "autoLatest");
+  const autoWorkdayFallback = selectedRange === "autoWorkday"
+    && startDateInput?.value
+    && startDateInput.value !== (autoWorkdayTargetDate || getPreviousNonSundayDateInputValue());
+  activeDateBanner.classList.toggle("is-fallback", selectedRange === "autoYesterday" || selectedRange === "autoLatest" || autoWorkdayFallback);
 }
 
 function initializeDefaultDateFilter() {
-  selectedRange = "latest";
-  const cachedLatestDate = getCachedLatestDateInput();
-
-  if (cachedLatestDate) {
-    setDateFilterToSingleDay(cachedLatestDate);
-    selectedRange = "latest";
-  } else {
-    clearDateFilter();
-  }
+  selectedRange = "autoWorkday";
+  autoWorkdayTargetDate = getPreviousNonSundayDateInputValue();
+  setDateFilterToSingleDay(resolvePreviousWorkdayDate(dailyIndexPayload, autoWorkdayTargetDate));
 
   syncQuickFilterActiveState();
-  updateActiveDateBanner({}, { sourceLabel: "กำลังค้นหาวันล่าสุดที่มีข้อมูล..." });
+  updateActiveDateBanner({}, { sourceLabel: "กำลังเลือกข้อมูลของเมื่อวานที่มีข้อมูล..." });
 }
 
 function normalizeDateFilterOrder() {
@@ -7138,6 +7167,12 @@ function setQuickRange(range) {
   const now = new Date();
   let start = "";
   let end = "";
+
+  if (range === "autoWorkday") {
+    autoWorkdayTargetDate = getPreviousNonSundayDateInputValue();
+    start = resolvePreviousWorkdayDate(dailyIndexPayload, autoWorkdayTargetDate);
+    end = start;
+  }
 
   if (range === "today") {
     start = toDateInputValue(now);
@@ -7165,9 +7200,11 @@ function setQuickRange(range) {
 
   syncQuickFilterActiveState();
   updateActiveDateBanner({}, {
-    sourceLabel: range === "latest"
-      ? "กำลังค้นหาวันล่าสุดที่มีข้อมูล..."
-      : "กำลังโหลดข้อมูลตามวันที่ที่เลือก...",
+    sourceLabel: range === "autoWorkday"
+      ? "กำลังเลือกข้อมูลของเมื่อวานที่มีข้อมูล..."
+      : range === "latest"
+        ? "กำลังค้นหาวันล่าสุดที่มีข้อมูล..."
+        : "กำลังโหลดข้อมูลตามวันที่ที่เลือก...",
   });
 
   loadSelectedRange();
@@ -7371,6 +7408,11 @@ initializeTargetSettings();
 initializeDefaultDateFilter();
 V3Data.request().then(index => {
   dailyIndexPayload = index;
+  if (selectedRange === "autoWorkday") {
+    setDateFilterToSingleDay(resolvePreviousWorkdayDate(index, autoWorkdayTargetDate));
+    syncQuickFilterActiveState();
+    updateActiveDateBanner({}, { sourceLabel: "กำลังสรุปข้อมูลของเมื่อวาน..." });
+  }
   // เปิดหน้าครั้งแรกที่ยังไม่มีแคช ช่องวันที่จะว่าง ซึ่งหมายถึงทั้งชุดข้อมูล
   // ถ้าเรนเดอร์เลย การ์ด KPI จะโชว์ยอดรวมทุกวันแวบหนึ่งก่อนหดมาเป็นวันล่าสุด
   // จึงตั้งวันล่าสุดจาก index ที่เพิ่งได้มาก่อนเรนเดอร์ครั้งแรก

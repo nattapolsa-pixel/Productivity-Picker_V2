@@ -12,7 +12,7 @@
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
   <link rel="stylesheet" href="css/styles.css?v=20261002-weight-mode-1">
   <link rel="stylesheet" href="css/v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="css/v2-theme.css?v=20261002-weight-mode-1">
+  <link rel="stylesheet" href="css/v2-theme.css?v=20261005-filter-ux-1">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -210,20 +210,28 @@
              ถ้าไม่บอก สองคนเห็นเลขต่างกันแล้วไม่มีทางรู้ว่าเพราะอะไร -->
         <span class="teamtarget" id="teamTargetChip" data-state="team" hidden></span>
 
-        <span class="lab">วันที่:</span>
-        <div class="datebar">
-          <input type="date" id="startDate" aria-label="วันเริ่มต้น">
-          <span class="sep">→</span>
-          <input type="date" id="endDate" aria-label="วันสิ้นสุด">
-        </div>
-        <!-- ปุ่มยืนยันวันที่ของ V3 ถูกซ่อนไว้ เพราะ V2 ใช้วิธีเปลี่ยนวันแล้วโหลดทันที
-             v2-shell.js จะกดปุ่มนี้ให้เองเมื่อช่องวันที่เปลี่ยน -->
-        <button class="btn-apply" id="applyDateButton" type="button" hidden tabindex="-1">ใช้</button>
-        <div class="datepreset">
-          <div class="preset-range-group">
-            <button class="chip" type="button" data-range="all">ทั้งหมด</button>
-            <button class="chip" type="button" data-range="week">Weekly</button>
-            <button class="chip" type="button" data-range="month">Monthly</button>
+        <div class="date-filter-group" aria-label="ตัวกรองวันที่">
+          <div class="date-filter-heading">
+            <span>📅 วันที่</span>
+            <small>ค่าเริ่มต้น: เมื่อวาน · ถ้าเป็นวันอาทิตย์จะเลือกวันเสาร์</small>
+          </div>
+          <div class="date-filter-controls">
+            <div class="datebar">
+              <input type="date" id="startDate" aria-label="วันเริ่มต้น">
+              <span class="sep">→</span>
+              <input type="date" id="endDate" aria-label="วันสิ้นสุด">
+            </div>
+            <!-- ปุ่มยืนยันวันที่ของ V3 ถูกซ่อนไว้ เพราะ V2 ใช้วิธีเปลี่ยนวันแล้วโหลดทันที
+                 v2-shell.js จะกดปุ่มนี้ให้เองเมื่อช่องวันที่เปลี่ยน -->
+            <button class="btn-apply" id="applyDateButton" type="button" hidden tabindex="-1">ใช้</button>
+            <div class="datepreset">
+              <div class="preset-range-group">
+                <button class="chip" type="button" data-range="autoWorkday" title="เลือกข้อมูลของเมื่อวาน โดยข้ามวันอาทิตย์">เมื่อวาน (ข้ามอาทิตย์)</button>
+                <button class="chip" type="button" data-range="all">ทั้งหมด</button>
+                <button class="chip" type="button" data-range="week">Weekly</button>
+                <button class="chip" type="button" data-range="month">Monthly</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -231,8 +239,6 @@
         <span class="freshtxt"><span id="v3SourceStatus" role="status">กำลังเปิดข้อมูล Google Sheets…</span>
           <b id="v3FilterStatus"></b></span>
       </div>
-
-      <section id="v3PeriodCompare" class="v3-period-compare" aria-label="เปรียบเทียบ Productivity" aria-live="polite"></section>
 
             <!-- TAB: เทรน สัปดาห์ / เดือน — ลอกองค์ประกอบจากหน้า trend ของ V2 แต่คิดเลขด้วยสูตร V1 -->
       <section class="page tab-panel" id="tab-trend" data-page="trend">
@@ -306,7 +312,7 @@
               <strong id="activeDateLabel">กำลังตรวจสอบวันที่ล่าสุด...</strong>
             </div>
           </div>
-          <span id="activeDateHint" class="active-date-hint">เปิดเว็บแล้วระบบจะแสดงวันที่ล่าสุดที่มีข้อมูลให้อัตโนมัติ</span>
+          <span id="activeDateHint" class="active-date-hint">เปิดเว็บแล้วระบบจะเลือกข้อมูลของเมื่อวานให้อัตโนมัติ (ข้ามวันอาทิตย์)</span>
         </div>
 
         <!-- 📊 แถว KPI แบบ .kpis > .kpi ของ V2 -->
@@ -355,6 +361,8 @@
             <div class="v3-kpi-period-mini" id="overviewPickToSortCompare"></div>
           </div>
         </div>
+
+        <section id="v3PeriodCompare" class="v3-period-compare" aria-label="เปรียบเทียบ Productivity" aria-live="polite"></section>
 
         <div class="grid">
           <!-- 📈 กราฟ 1: แนวโน้ม (แท่ง = Total Pick, เส้น = Productivity) -->
@@ -1035,7 +1043,7 @@
 
   <script src="js/data-client.js?v=20261002-calculation-mode-1"></script>
   <script src="js/metrics.js?v=20261002-weight-global-1"></script>
-  <script src="js/script.js?v=20261002-weight-global-2"></script>
+  <script src="js/script.js?v=20261005-auto-workday-1"></script>
   <script src="js/insights.js?v=20261002-weight-global-2"></script>
   <script src="js/v2-shell.js?v=20261002-weight-mode-1"></script>
   <script src="js/v2-views.js?v=20261002-weight-global-2"></script>
