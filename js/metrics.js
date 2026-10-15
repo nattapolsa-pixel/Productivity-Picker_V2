@@ -30,24 +30,37 @@
   }
   function historyDate(value){return sortDate(value)||dashboardDate(value);}
   function sortDateTimeAt(date,hour,minute,offset){const [y,m,d]=date.split('-').map(Number);const out=new Date(y,m-1,d,hour,minute||0);out.setDate(out.getDate()+Number(offset||0));return out;}
+  function normalizeShift(value){
+    const text=String(value??'').trim(),key=text.toUpperCase().replace(/[\s_-]+/g,'');
+    if(!text||/^NOTFOUND(?:DATA)?$/.test(key)||key==='#N/A'||key==='-')return 'Not Found';
+    if(key==='A'||key==='SHIFTA'||key==='MORNING'||key==='MORNINGSHIFT')return 'A';
+    if(key==='B'||key==='SHIFTB'||key==='NIGHT'||key==='NIGHTSHIFT')return 'B';
+    return text;
+  }
   function sortHours(person){
-    const night=String(person.shift??'').toLowerCase().includes('night'),ranges=night?[[sortDateTimeAt(person.date,19,0),sortDateTimeAt(person.date,22,50)],[sortDateTimeAt(person.date,0,0,1),sortDateTimeAt(person.date,4,0,1)],[sortDateTimeAt(person.date,4,30,1),sortDateTimeAt(person.date,7,0,1)]]:[[sortDateTimeAt(person.date,7,0),sortDateTimeAt(person.date,10,50)],[sortDateTimeAt(person.date,12,0),sortDateTimeAt(person.date,16,0)],[sortDateTimeAt(person.date,16,30),sortDateTimeAt(person.date,19,0)]];
+    const night=normalizeShift(person.shift)==='B',ranges=night?[[sortDateTimeAt(person.date,19,0),sortDateTimeAt(person.date,22,50)],[sortDateTimeAt(person.date,0,0,1),sortDateTimeAt(person.date,4,0,1)],[sortDateTimeAt(person.date,4,30,1),sortDateTimeAt(person.date,7,0,1)]]:[[sortDateTimeAt(person.date,7,0),sortDateTimeAt(person.date,10,50)],[sortDateTimeAt(person.date,12,0),sortDateTimeAt(person.date,16,0)],[sortDateTimeAt(person.date,16,30),sortDateTimeAt(person.date,19,0)]];
     return ranges.reduce((sum,[start,end])=>sum+Math.max(0,(Math.min(person.last,end)-Math.max(person.first,start))/3600000),0);
+  }
+  function sortShiftHours(date,shift,first,last){
+    const start=first instanceof Date?first:new Date(first),end=last instanceof Date?last:new Date(last);
+    if(!date||Number.isNaN(start.getTime())||Number.isNaN(end.getTime()))return 0;
+    return sortHours({date,shift,first:start,last:end});
   }
   function sortPeopleSummary(sheets){
     const sheet=sheets&&sheets.Sort_Data;if(!sheet||!sheet.rows||!sheet.rows.length)return {};
-    const headers=sheet.headers||[],c={uom:sortColumn(headers,['UOM Qty','UOM']),dateTime:sortColumn(headers,['Sort DateTime','DateTime']),shift:sortColumn(headers,['Shift']),shiftDate:sortColumn(headers,['Shift Date']),id:sortColumn(headers,['Sorter ID','User ID'])};
-    if(Object.values(c).some(i=>i<0))return {};
-    /* Sort_Data ไม่มีคอลัมน์ Owner จึงผูก Owner จาก Results Master ด้วย Date + User ID
-       เพื่อให้การกรอง Mart / Punthai / GFA ไม่เอายอด BE ของทุก Owner มาปนกัน */
-    const ownerByPersonDate=new Map();
-    for(const row of (sheets['Results Master']?.rows||[])){
-      const rowDate=date(row[2])||sortDate(row[2])||dashboardDate(row[2]),id=String(row[3]??'').trim();
-      if(rowDate&&id)ownerByPersonDate.set(`${rowDate}|${id}`,ownerKey(row[35]));
-    }
+    const headers=sheet.headers||[],c={uom:sortColumn(headers,['UOM Qty','UOM']),dateTime:sortColumn(headers,['Sort DateTime','DateTime']),shift:sortColumn(headers,['Shift']),shiftDate:sortColumn(headers,['Shift Date']),id:sortColumn(headers,['Sorter ID','User ID']),slot:sortColumn(headers,['Time Slot'])};
+    if([c.uom,c.dateTime,c.shift,c.shiftDate,c.id].some(i=>i<0))return {};
+    const roster=sheets['2ND']||{},rosterHeaders=roster.headers||[],idColumn=sortColumn(rosterHeaders,['รหัสพนักงาน','User ID']),ownerColumn=sortColumn(rosterHeaders,['BU','Owner']),nameColumn=sortColumn(rosterHeaders,['ชื่อ-นามสกุล (ไทย)','Name']),nickColumn=sortColumn(rosterHeaders,['ชื่อเล่น','Nickname']);
+    const rosterById=new Map();
+    if(idColumn>=0)for(const row of roster.rows||[]){const id=String(row[idColumn]??'').trim();if(id)rosterById.set(id,{owner:ownerColumn>=0?ownerKey(row[ownerColumn]):'UNKNOWN',name:nameColumn>=0?String(row[nameColumn]??'').trim():'',nickname:nickColumn>=0?String(row[nickColumn]??'').trim():''});}
     const groups={};
-    for(const row of sheet.rows){const date=sortDate(row[c.shiftDate]),dt=sortDateTime(row[c.dateTime]),id=String(row[c.id]??'').trim();if(!date||!dt||!id)continue;if(!groups[date])groups[date]={date,peopleById:{}};const p=groups[date].peopleById[id]||(groups[date].peopleById[id]={userId:id,shift:row[c.shift],total:0,first:dt,last:dt});p.total+=number(row[c.uom]);if(dt<p.first)p.first=dt;if(dt>p.last)p.last=dt;}
-    for(const group of Object.values(groups)){const entries=Object.values(group.peopleById).map(p=>{p.owner=ownerByPersonDate.get(`${group.date}|${p.userId}`)||'UNKNOWN';p.hours=sortHours({...p,date:group.date});p.productivity=p.hours>0?p.total/p.hours:0;p.valid=p.hours>3&&p.productivity>0&&p.productivity<1000;return p;});const valid=entries.filter(p=>p.valid);group.people=entries;group.total=entries.reduce((sum,p)=>sum+p.total,0);group.sum=valid.reduce((sum,p)=>sum+p.productivity,0);group.count=valid.length;group.average=group.count?group.sum/group.count:null;group.excluded=entries.length-group.count;delete group.peopleById;}
+    for(const row of sheet.rows){const date=sortDate(row[c.shiftDate]),dt=sortDateTime(row[c.dateTime]),id=String(row[c.id]??'').trim(),shift=normalizeShift(row[c.shift]);if(!date||!dt||!id)continue;if(!groups[date])groups[date]={date,peopleByKey:{}};const key=`${shift}|${id}`,p=groups[date].peopleByKey[key]||(groups[date].peopleByKey[key]={userId:id,shift:row[c.shift],shiftKey:shift,total:0,lines:0,first:dt,last:dt,timeSlots:{}});p.total+=number(row[c.uom]);p.lines+=1;if(dt<p.first)p.first=dt;if(dt>p.last)p.last=dt;if(c.slot>=0){const slotMatch=String(row[c.slot]??'').trim().match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);if(slotMatch){const slot=`${slotMatch[1].padStart(2,'0')}:${slotMatch[2]}-${slotMatch[3].padStart(2,'0')}:${slotMatch[4]}`,bucket=p.timeSlots[slot]||(p.timeSlots[slot]={total:0,lines:0});bucket.total+=number(row[c.uom]);bucket.lines+=1;}}}
+    for(const group of Object.values(groups)){
+      const entries=Object.values(group.peopleByKey).map(p=>{const employee=rosterById.get(p.userId)||{};p.owner=employee.owner||'UNKNOWN';p.name=employee.name||'';p.nickname=employee.nickname||'';p.hours=sortHours({...p,date:group.date});p.productivity=p.hours>0?p.total/p.hours:0;p.valid=p.hours>3&&p.productivity>0&&p.productivity<1000;return p;});
+      const shifts={};for(const p of entries){const bucket=shifts[p.shiftKey]||(shifts[p.shiftKey]={key:p.shiftKey,label:`SHIFT ${p.shiftKey}`,people:[],total:0,activeHours:0,lines:0,count:0,validPeople:0,excluded:0,first:p.first,last:p.last,timeSlots:{}});bucket.people.push(p);bucket.total+=p.total;bucket.lines+=p.lines;if(p.first<bucket.first)bucket.first=p.first;if(p.last>bucket.last)bucket.last=p.last;if(p.valid)bucket.validPeople+=1;Object.entries(p.timeSlots||{}).forEach(([slot,item])=>{const slotBucket=bucket.timeSlots[slot]||(bucket.timeSlots[slot]={total:0,lines:0,people:0});slotBucket.total+=item.total;slotBucket.lines+=item.lines;slotBucket.people+=1;});}
+      Object.values(shifts).forEach(bucket=>{bucket.headcount=bucket.people.length;bucket.activeHours=sortHours({date:group.date,shift:bucket.key,first:bucket.first,last:bucket.last});bucket.average=bucket.activeHours>0?bucket.total/bucket.activeHours:null;bucket.productivity=bucket.average;bucket.count=bucket.activeHours>0?1:0;bucket.excluded=bucket.headcount-bucket.validPeople;});
+      const valid=entries.filter(p=>p.valid);group.people=entries;group.shifts=shifts;group.total=entries.reduce((sum,p)=>sum+p.total,0);group.activeHours=Object.values(shifts).reduce((sum,item)=>sum+item.activeHours,0);group.lines=entries.reduce((sum,p)=>sum+p.lines,0);group.sum=group.total;group.count=Object.values(shifts).filter(item=>item.count>0).length;group.average=group.activeHours>0?group.total/group.activeHours:null;group.validPeople=valid.length;group.excluded=entries.length-valid.length;delete group.peopleByKey;
+    }
     return groups;
   }
   function sortTimeSummary(sheets){
@@ -90,7 +103,7 @@
        - ข้อความ Not Found / Not Found Data ที่ Sheet เขียนไว้เอง
        - #N/A จากสูตรที่หาไม่เจอ และขีด -
      ค่าดิบยังแสดงตามต้นทางในตารางรายการ จึงตรวจย้อนได้ว่าแถวนั้นว่างหรือเป็นข้อความแบบใด */
-  function shiftKey(row){const text=String((row&&row[32])??'').trim();if(!text)return 'Not Found';if(/^not\s?found(\s*data)?$/i.test(text))return 'Not Found';if(/^#n\/a$/i.test(text)||text==='-')return 'Not Found';return text;}
+  function shiftKey(row){return normalizeShift((row&&row[32])??'');}
   /* Position ที่ใช้คำนวณต้องเป็น Zone จริงของระบบ V3 เท่านั้น
      ค่าอย่าง Not Found Data, YA, สื่อ/สินค้าพรีเมี่ยม, ALL ZONE และค่าว่างยังคงอยู่ในรายการตรวจสอบได้ แต่ไม่เข้า Average */
   const VALID_ZONE_CODES=['AA','AB','AC','AD','AE','AF','AG','AH','AI','AJ','AK','AL','AM','AN','BE','BG','BH','BI','BJ','BK','BL','BM','BN','CA','CB','CC','CD','CE','CF','DA','DB','DC','DD','DE','DF','EA','FA','HB'];
@@ -99,7 +112,8 @@
   function matches(row,filters={}){
     const filterOwner=String(filters.owner??'').trim();
     const ownerOk=!filterOwner||filterOwner==='ALL'||ownerKey(row&&row[35])===ownerKey(filterOwner);
-    return (!filters.system||filters.system==='ALL'||(system(row)===filters.system&&(filters.system!=='BPS'||date(row[2])>='2026-06-08'))) && (!filters.shift||filters.shift==='ALL'||shiftKey(row)===filters.shift) && ownerOk;
+    const shiftFilter=normalizeShift(filters.shift||'ALL');
+    return (!filters.system||filters.system==='ALL'||(system(row)===filters.system&&(filters.system!=='BPS'||date(row[2])>='2026-06-08'))) && (shiftFilter==='ALL'||shiftKey(row)===shiftFilter) && ownerOk;
   }
   function aggregate(rows){let total=0,sum=0,count=0,hours=0;const ids=new Set();for(const r of rows){total+=number(r[4]);hours+=number(r[6]);const a=number(r[31]);if(a>0&&isValidZoneRow(r)){sum+=a;count++;}if(r[3])ids.add(String(r[3]).trim());}return {total,sum,count,average:count?sum/count:null,rows:rows.length,hours,people:ids.size,excluded:rows.length-count};}
   /* Productivity summaries must follow the global calculation switch.
@@ -195,7 +209,7 @@
     return map;
   }
 
-  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortTimeSummary,timeSlotSnapshot,type,system,ownerKey,ownerLabel,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,aggregateForMode,
+  root.V3Metrics={number,date,dashboardDate,sortDate,historyDate,sortDashboardSummary,sortPeopleSummary,sortShiftHours,sortTimeSummary,timeSlotSnapshot,type,system,ownerKey,ownerLabel,normalizeShift,shiftKey,isValidZoneValue,isValidZoneRow,matches,aggregate,aggregateForMode,
     TENURE_DAYS,addDays,tenureCutoff,daysBetween,startDateMap,firstSeenMap,tenureStart,tenureGroup,resignedMap,
     HOUR_FIRST,HOUR_COUNT,hourIndexes,hourLabels,hourValues,hourTotals,
     rosterMap,userId,personName,personNickname,inRoster,isPlaceholder};

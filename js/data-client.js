@@ -5,7 +5,7 @@ window.V3Data = (() => {
   const listeners = new Set();
   function process(source) {
     return new Promise((resolve,reject) => {
-      const worker = new Worker('js/data-worker.js?v=20261002-be-team-aggregate-1');
+      const worker = new Worker('js/data-worker.js?v=20261015-be-shift-source-1');
       const timer = setTimeout(() => {worker.terminate(); reject(new Error('Google Sheet ตอบกลับช้า กรุณาลองรีเฟรชอีกครั้ง'));}, 150000);
       const finish = () => {clearTimeout(timer); worker.terminate();};
       worker.onerror = e => {finish();reject(new Error(e.message));};
@@ -22,7 +22,13 @@ window.V3Data = (() => {
   function historyEntries(source){
     const sheets=source?.sheets||{},dash=globalThis.V3Metrics?.sortDashboardSummary?.(sheets),time=globalThis.V3Metrics?.timeSlotSnapshot?.(sheets),out=[];
     if(dash?.date&&dash.date>='2026-09-29'&&Number(dash.productivity)>0){
-      out.push({date:dash.date,zone:'BE',totalPick:Number(dash.total)||0,productivity:Number(dash.productivity),people:Number(dash.people)||0,source:time?'Dashboard + Time_Slot':'Dashboard',rows:time?.lines||0,timeJson:time?.slots||{},sortLines:time?.lines||0});
+      const shifts=globalThis.V3Metrics?.sortPeopleSummary?.(sheets)?.[dash.date]?.shifts||{},shiftBreakdown={};
+      Object.entries(shifts).forEach(([key,item])=>{
+        if(!(Number(item?.average)>0)||!(Number(item?.activeHours)>0))return;
+        shiftBreakdown[globalThis.V3Metrics.normalizeShift(key)]={totalPick:Number(item.total)||0,productivity:Number(item.average),activeHours:Number(item.activeHours)||0,people:Number(item.headcount)||0,count:Number(item.count)||1,validPeople:Number(item.validPeople)||0,excluded:Number(item.excluded)||0,rows:Number(item.headcount)||Number(item.people?.length)||0,sortLines:Number(item.lines)||0,timeSlots:item.timeSlots||{},source:'Sort_Data'};
+      });
+      const timeJson={...(time?.slots||{}),...(Object.keys(shiftBreakdown).length?{_shiftBreakdown:shiftBreakdown}:{})};
+      out.push({date:dash.date,zone:'BE',totalPick:Number(dash.total)||0,productivity:Number(dash.productivity),people:Number(dash.people)||0,source:time?'Dashboard + Time_Slot':'Dashboard',rows:time?.lines||0,timeJson,sortLines:time?.lines||0});
     }
     return out;
   }

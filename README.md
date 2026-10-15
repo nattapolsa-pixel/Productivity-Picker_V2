@@ -2,6 +2,8 @@
 
 หน้าตา/โครง HTML-CSS-คอมโพเนนต์ของ V2 + ข้อมูลและสูตรจาก Google Sheets ตาม V1 (แยกจากสองโฟลเดอร์เดิม ไม่แก้ต้นฉบับ)
 
+> เอกสารสรุปพฤติกรรมและกติกาคำนวณจากโค้ดปัจจุบัน: [docs/PROJECT_BEHAVIOR_TH.md](docs/PROJECT_BEHAVIOR_TH.md) — ใช้เอกสารนี้ตรวจสอบเมื่อรายละเอียดด้านล่างขัดกับโค้ดหรือเปลี่ยนไปแล้ว
+
 ## เปิดดู
 
 ดับเบิลคลิก `START.cmd` (ต้องมี Node.js) หรือรัน `node tools/serve.cjs` แล้วเปิด http://127.0.0.1:8093
@@ -231,43 +233,36 @@ Scorecard มี: การ์ด 5 ใบ · กราฟเทรนราย�
 ปรับเป้าในหน้าเว็บ → กด **💾 บันทึกเป็นค่าของทีม** (มีทั้งในหน้าต่าง ⚙️ ตั้งค่า Target
 และบนชิปตอนที่ค่ายังไม่ตรงกับทีม) → คนอื่นรีเฟรชก็เห็นตาม
 
-ปุ่มนี้ยิงไปที่ [`apps-script-target-write.gs`](apps-script-target-write.gs) ซึ่งเขียนลงแท็บ
-**`V3 Target`** ในสเปรดชีตเดียวกับ Results Master แล้วหน้าเว็บอ่านแท็บนั้นกลับมาแบบอ่านอย่างเดียว
+ปุ่มนี้ส่ง `POST` ไปยัง Web App URL ใน `data/targets.json` แล้วอ่านแท็บ **`V3 Target`** กลับมาแบบอ่านอย่างเดียว
+โค้ดปลายทางอยู่ใน [`apps-script-write.gs`](apps-script-write.gs) ของโปรเจกต์ Apps Script ที่ผูกกับชีตเดียวกับ Results Master
 
 ลำดับการอ่านค่า Target (ใน `loadTeamTargets()`)
 
 1. **แท็บ `V3 Target`** ในสเปรดชีต — ค่าสด อ่านผ่าน gviz โดยระบุ **ชื่อแท็บ** จึงไม่ต้องรู้ `gid`
    (เหตุที่ `source.js` เลี่ยง gviz — ตัดแถวตาม filter และทำรหัสผสมตัวอักษรหาย — ไม่กระทบที่นี่
-   เพราะแท็บนี้มีแค่ชื่อคีย์กับจำนวนเต็ม 24 แถว ไม่มี filter ไม่มีรหัสพนักงาน)
-   · ยอมรับเฉพาะตอนอ่านได้ **ครบทั้ง 24 คีย์** เพราะ Target ครึ่ง ๆ กลาง ๆ อ่านผิดยิ่งกว่าไม่ใช้เลย
-2. **`data/targets.json`** — ค่าสำรอง และเป็นที่เก็บ config ปลายทางเขียน (`write.url` / `write.token` / `sheetTab` / `sheetId`)
+   เพราะแท็บนี้มีเฉพาะชื่อคีย์กับจำนวนเต็ม ไม่มีข้อมูลพนักงาน)
+   · ยอมรับเฉพาะตอนอ่านได้ **ครบทั้ง 21 คีย์** เพราะ Target ไม่ครบทั้งชุดอาจทำให้ตัวเลขผิด
+2. **`data/targets.json`** — ค่าสำรองและที่เก็บปลายทางเขียน (`write.url` / `sheetTab` / `sheetId`)
 3. **IndexedDB** ตามพฤติกรรมเดิม (กันหน้าไม่มี Target ใช้)
 
-จะยิงไปอ่านแท็บก็ต่อเมื่อตั้ง `write.url` ไว้แล้ว — ถ้ายังไม่ตั้ง แท็บนั้นยังไม่มี
-การยิงไปก็ได้ error เปล่า ๆ ทุกครั้งที่เปิดหน้า · และ **ถ้าสคริปต์พังหรือถูกลบ
-หน้าเว็บยังอ่าน Target ได้ตามปกติ** แค่บันทึกใหม่ไม่ได้
+ถ้าแท็บ `V3 Target` ไม่มีหรืออ่านไม่ครบ เว็บใช้ Target ใน JSON ต่อได้; หาก Apps Script ใช้งานไม่ได้
+หน้าเว็บยังอ่าน Target ได้ แต่จะบันทึกค่าทีมและประวัติ BE ใหม่ไม่ได้
 
-#### ติดตั้งครั้งเดียว
+#### อัปเดต Apps Script
 
-1. เปิด Google Sheet ของ Results Master → **ส่วนขยาย (Extensions) → Apps Script**
-   (สร้างเป็นโปรเจกต์แยกจาก `apps-script-roster-write.gs` เพื่อลบของเดิมได้อิสระ)
-2. วาง [`apps-script-target-write.gs`](apps-script-target-write.gs) ทั้งไฟล์ แล้วแก้ `WRITE_TOKEN` เป็นข้อความสุ่มของตัวเอง
-3. **Deploy → New deployment → Web app** · Execute as: **Me** · Who has access: **Anyone**
-4. เอา URL (`.../exec`) กับโทเคน ใส่ใน `data/targets.json` ช่อง `write.url` / `write.token` แล้ว push
+1. เปิด Google Sheet → **ส่วนขยาย (Extensions) → Apps Script** แล้วแก้ source ให้ตรงกับ `apps-script-write.gs`
+2. บันทึกโครงการ แล้วเปิด **Deploy → Manage deployments → Edit** สำหรับ Web App ที่ใช้อยู่
+3. เลือก **New version** แล้ว Deploy เพื่อคง URL เดิมที่ `data/targets.json` ใช้
 
-แท็บ `V3 Target` กับแท็บ log `V3 Target Log` สคริปต์สร้างให้เองตอนบันทึกครั้งแรก ไม่ต้องสร้างมือ
+แท็บ `V3 Target`, `V3 Weight`, `V3 History` และ `V3 Write Log` สร้างให้อัตโนมัติเมื่อมีการเขียนครั้งแรก
 
 #### ขอบเขตและความเสี่ยงที่รู้ตัว
 
-- สคริปต์เขียนได้**เฉพาะแท็บ `V3 Target` และ `V3 Target Log`** ไม่แตะ Results Master / 2ND / Update name / Zone_V2
-- รับเฉพาะ **24 คีย์ที่กำหนดไว้** และค่าต้องเป็นจำนวนเต็ม **1–1000**
+- สคริปต์เขียนเฉพาะชุดข้อมูลที่กำหนด: Target/Weight, roster, BE History และ log; BE History เขียนในแท็บ `V3 History` ไม่เขียนลง Results Master
+- รับเฉพาะ **21 คีย์ Target** และค่าต้องเป็นจำนวนเต็ม **1–1000**
   · คีย์แปลกปลอมหรือค่านอกช่วง **ปฏิเสธทั้งคำขอ ไม่เขียนบางส่วน**
 - ทุกช่องที่ค่าเปลี่ยนถูก log ไว้พร้อมเวลาและผู้บันทึก
-- **URL กับโทเคนถูก commit ลง repo** เพื่อให้ทุกคนกดบันทึกได้โดยไม่ต้องตั้งค่าเอง
-  ใครเปิดเว็บหรือเปิด repo ได้จึงเปลี่ยน Target ได้ด้วย
-  ตัวกันความเสียหายคือขอบเขตที่แคบ + log + version history ของ Sheet ซึ่งย้อนได้
-  ถ้าไม่ยอมรับความเสี่ยงนี้ ให้ย้าย `write` ไปเก็บใน `localStorage` ของแต่ละเครื่องแทน
-  (แลกกับที่คนอื่นจะกดบันทึกไม่ได้)
+- Web App ปัจจุบันเปิดให้ทุกคนที่มี URL เรียกได้และไม่ตรวจ token; จำกัดไว้ที่ชนิดข้อมูลและคีย์ที่กำหนด พร้อมบันทึกการเปลี่ยนในชีต log
 - POST ส่งเป็น `text/plain` เพื่อให้เป็น simple request ไม่มี preflight
   เพราะ Apps Script ตอบ 302 ไป `googleusercontent` ซึ่ง preflight ผ่านไม่ได้ — **อย่าเปลี่ยนเป็น `application/json`**
 
@@ -477,33 +472,32 @@ node tools/refresh-snapshot.cjs
 
 ก่อนเผยแพร่ตรวจวันเวลา snapshot และพิจารณาว่า repository/เว็บไซต์ต้องเปิดให้ใครเห็น เพราะชุดข้อมูลมีชื่อและรหัสพนักงาน ไม่ใส่รหัสผ่านหรือ API key ในไฟล์
 
-## สถานะ V1 / V2 และ Apps Script เดิม (ข้อตกลง 17/09/2569)
+## สถานะ V1 / V2 และ Apps Script
 
 **ยังไม่ลบอะไรทั้งนั้น** แผนคือทำ V3 ให้สมบูรณ์ก่อน แล้วจึงเลิกใช้และลบ V1 ทีหลัง
 
 สิ่งที่ตรวจไว้แล้ว เพื่อให้ตอนลบไม่ต้องไล่ใหม่
 
-- **V3 อ่านข้อมูลผ่าน CSV export ตรง ๆ ไม่ผ่าน Apps Script**
+- **V3 อ่านข้อมูลผ่าน CSV export โดยตรง ไม่เรียก Apps Script `doGet()`**
   (บรรทัด `preconnect` ไป `script.google.com` ที่ค้างมาจาก V1 ถูกลบออกจาก `index.html` แล้ว)
-  · ข้อยกเว้นเดียวที่เพิ่มเข้ามา 21/09/2569 คือ **ปุ่มบันทึก Target ของทีม** ที่ยิงไป
-  `apps-script-target-write.gs` ซึ่งเป็นโปรเจกต์ Apps Script **แยกจากของ V1/V2** จึงลบของเดิมได้อิสระเหมือนเดิม
-  · การ *อ่าน* ข้อมูลทุกอย่างรวมถึง Target ยังไม่ผ่าน Apps Script เลย
+  · การเขียน Target/Weight/ทะเบียน และ BE History ส่ง `POST` ไป Web App ใน `data/targets.json`
+  · Apps Script ที่ผูกกับชีตมีทั้งเส้นทางอ่านเดิมของ V1/V2 และเส้นทางเขียนของ V3; อย่าถอด deployment นี้ขณะเว็บยังใช้ endpoint
 - **V1 และ V2 ยังเรียกอยู่** — V1 `script.js` เรียก `AKfycbyby7nOGMZe-w8p…`
   ส่วน V2 `app.js` เรียกตัวเดียวกันบวก `AKfycbyM0IVjD6Eo867r…` ลบแล้วสองหน้านั้นพังทันที
-- **สคริปต์เดิมไม่เขียนลงชีต** ตรวจ `apps-script-api.gs` (V1/V2) และ `bigquery_to_json.gs` (V2)
-  ไม่พบ `setValue` / `setValues` / `appendRow` / `clearContent` / `deleteRow` เลย เป็น API อ่านอย่างเดียว (`doGet`)
-  → **ข้อมูลใน Results Master ไม่ได้มาจากสคริปต์** ลบแล้วข้อมูลในชีตไม่หาย
+- เส้นทาง `doGet()` เดิมของ V1/V2 เป็น API อ่านข้อมูล; เส้นทาง `doPost()` ที่ V3 ใช้เขียนเฉพาะข้อมูลตามกติกาใน `apps-script-write.gs`
+  · Results Master เป็นแหล่งข้อมูลต้นทางของงานหยิบ ไม่ใช่ปลายทางที่สคริปต์ BE History เขียนทับ
 - ของที่จะหายเมื่อลบ: trigger `syncPickMastersDaily` และ `warmDashboardCache`
   (sync ลง CacheService/PropertiesService ไม่ใช่ลงชีต) และ **shared targets / excluded zones ของ V2**
   ที่เก็บใน `PropertiesService` ซึ่งกู้ไม่ได้
 - ยังไม่ได้ยืนยัน: โปรเจกต์ที่ deploy อยู่จริงอาจมีโค้ด/trigger ไม่ตรงกับไฟล์ในเครื่อง
   ก่อนลบให้เปิด Apps Script ของชีตดู **Triggers** และ **Manage deployments** อีกครั้ง
 - แนะนำลำดับตอนจะลบ: ลบ trigger → Archive deployment (URL ตายแต่โค้ดอยู่) → รอสองสามสัปดาห์ → ลบจริง
-- `apps-script-roster-write.gs` ของ V3 ควร Deploy เป็น **โปรเจกต์แยก** ไม่วางทับของเดิม
-  เพื่อให้ลบของเดิมได้อิสระ
+- `apps-script-write.gs` เป็นสำเนา source ที่ดูแลร่วมกันกับโปรเจกต์ Apps Script ที่ผูกกับชีต; หลังแก้ให้บันทึก source และอัปเดต deployment เดิมเพื่อคง URL ที่ `data/targets.json` ใช้อยู่
 
-## Deploy ภายหลัง
+## Deploy
 
-ยังไม่ได้สร้าง Git repository หรือ push V3 ตามที่ผู้ใช้จะสร้างปลายทางใหม่หลังทดลองผ่าน สามารถใช้ static hosting เช่น GitHub Pages; วางไฟล์ให้ครบรวม data/snapshot.json ไม่มีขั้นตอน Deploy Apps Script และไม่ต้อง Run SQL ให้ Google Sheets แชร์แบบที่ผู้ชมมีสิทธิ์อ่าน export ได้ หากอ่านสดไม่ได้เว็บจะแสดง snapshot พร้อมสถานะอัปเดตไม่สำเร็จ
+Repository: [Productivity-Picker_V2](https://github.com/nattapolsa-pixel/Productivity-Picker_V2) · เว็บ: [Pick Productivity Dashboard V3](https://nattapolsa-pixel.github.io/Productivity-Picker_V2/)
+
+เมื่อ push ไป `main` ให้ตรวจหน้า GitHub Pages หลัง deploy เสร็จ และคง `data/snapshot.json` ไว้เป็นข้อมูลสำรอง หากอ่าน Google Sheets สดไม่ได้เว็บจะแสดง snapshot พร้อมสถานะอัปเดตไม่สำเร็จ การอ่าน CSV ต้องใช้สิทธิ์ชีตที่ผู้ใช้เว็บเข้าถึงได้ ส่วนการเปลี่ยน Apps Script ให้ deploy version ใหม่ของ Web App เดิม โดยรักษา URL ที่ตั้งใน `data/targets.json`
 
 V1 และ V2 เดิม รวมทั้งข้อมูล BigQuery ไม่ได้ถูกแก้ไขหรือลบจากงานนี้

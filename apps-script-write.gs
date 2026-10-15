@@ -4,7 +4,7 @@ const UPDATE_NAME_SHEET_NAME = "Update name";
 const V3_HISTORY_SHEET_NAME = "V3 History";
 
 const CACHE_SECONDS = 300;
-const CACHE_VERSION = "v50-zone-valid-average";
+const CACHE_VERSION = "v52-be-shift-source-of-truth";
 const PICK_TO_SORT_START_DATE_KEY = "2026-06-08";
 
 const SHEET_COLUMN = {
@@ -2517,7 +2517,21 @@ function writeHistoryV3_(entries) {
   old.forEach((r,i)=>{if(r[0]&&r[1])index[String(r[0]).trim()+'|'+String(r[1]).trim().toUpperCase()]=i+2;});
   const clean=entries.map(e=>({date:String(e.date||'').trim(),zone:String(e.zone||'').trim().toUpperCase(),total:Number(e.totalPick),productivity:Number(e.productivity),people:Number(e.people),source:String(e.source||'V3'),capturedAt:String(e.capturedAt||new Date().toISOString()),rows:Number(e.rows||e.people),sortLines:Number(e.sortLines||e.rows||0),timeJson:e.timeJson||{}})).filter(e=>/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&e.zone&&isFinite(e.total)&&isFinite(e.productivity)&&e.people>0);
   const latest=clean.reduce((max,e)=>e.date>max?e.date:max,'');let added=0,updated=0,skipped=0;
-  clean.forEach(e=>{const key=e.date+'|'+e.zone,row=[e.date,e.zone,e.total,e.productivity,e.people,e.source,e.capturedAt,e.rows,e.sortLines,JSON.stringify(e.timeJson)],at=index[key];if(!at){sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([row]);index[key]=sheet.getLastRow();added++;}else if(e.date===latest){sheet.getRange(at,1,1,headers.length).setValues([row]);updated++;}else skipped++;});
+  clean.forEach(e=>{
+    const key=e.date+'|'+e.zone,at=index[key];
+    let timeJson=e.timeJson||{};
+    // Keep a saved Sort_Data shift split if an older page version sends only whole-day slots.
+    if(at&&!timeJson._shiftBreakdown){
+      try{
+        const existing=JSON.parse(String(sheet.getRange(at,10).getDisplayValue()||'{}'));
+        if(existing&&existing._shiftBreakdown)timeJson={...timeJson,_shiftBreakdown:existing._shiftBreakdown};
+      }catch(error){}
+    }
+    const row=[e.date,e.zone,e.total,e.productivity,e.people,e.source,e.capturedAt,e.rows,e.sortLines,JSON.stringify(timeJson)];
+    if(!at){sheet.getRange(sheet.getLastRow()+1,1,1,headers.length).setValues([row]);index[key]=sheet.getLastRow();added++;}
+    else if(e.date===latest){sheet.getRange(at,1,1,headers.length).setValues([row]);updated++;}
+    else skipped++;
+  });
   SpreadsheetApp.flush();return jsonOutput_({ok:true,added,updated,skipped});
 }
 

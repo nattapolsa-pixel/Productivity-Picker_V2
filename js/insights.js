@@ -15,83 +15,88 @@
     zoneCache.set(text,found);return found;
   }
   function effectiveRows(list){
-    return (list||[]).map(row=>{
-      const date=M.date(row[2]),match=zone(row),group=sortPeopleByDate[date];
-      if(!group||match?.key!=='pickToSortBe')return row;
-      const person=group.people.find(item=>String(item.userId)===String(M.userId(row)));if(!person)return row;
-      const ownerFilter=String(V3Data.filters.owner||'ALL');
-      if(ownerFilter!=='ALL'&&M.ownerKey(person.owner)!==M.ownerKey(ownerFilter))return row;
-      const copy=[...row];copy[4]=person.total;copy[6]=person.hours;copy[31]=person.valid?person.productivity:'Not Count';copy[32]=person.shift||copy[32];copy[33]='BE';copy[36]='Pick to Sort';copy._sortData=true;return copy;
-    });
+    // BE is rebuilt only from Sort_Data or a saved Sort_Data shift split.
+    return (list||[]).filter(row=>row?._beHistory||row?._sortData||zone(row)?.key!=='pickToSortBe');
   }
   const BE_HISTORY_CUTOFF='2026-09-29';
   function canUseBeHistory(){
     const filters=V3Data.filters||{},system=String(filters.system||'ALL').trim().toUpperCase(),owner=String(filters.owner||'ALL').trim().toUpperCase(),shift=String(filters.shift||'ALL').trim().toUpperCase();
-    return (system==='ALL'||system==='BPS')&&(owner==='ALL'||owner==='PUNTHAI')&&shift==='ALL';
+    return (system==='ALL'||system==='BPS')&&owner==='ALL'&&M.normalizeShift(shift)==='ALL';
   }
-  function beHistoryEntry(date){
+  function canUseShiftBeHistory(){
+    const filters=V3Data.filters||{},system=String(filters.system||'ALL').trim().toUpperCase(),owner=String(filters.owner||'ALL').trim().toUpperCase();
+    return (system==='ALL'||system==='BPS')&&owner==='ALL';
+  }
+  function beHistoryEntry(date,shift='ALL'){
     if(!date||date<BE_HISTORY_CUTOFF)return null;
+    const selectedShift=M.normalizeShift(shift);
+    if(selectedShift!=='ALL'){
+      const saved=historyByDate.get(date),entry=saved?.shiftBreakdown?.[selectedShift];
+      if(!entry||Number(entry.productivity)<=0)return null;
+      return {date,totalPick:Number(entry.totalPick)||0,productivity:Number(entry.productivity),activeHours:Number(entry.activeHours)||(Number(entry.totalPick)||0)/(Number(entry.productivity)||1),people:Math.max(0,Number(entry.people)||0),count:1,validPeople:Math.max(0,Number(entry.validPeople)||0),excluded:Math.max(0,Number(entry.excluded)||0),rows:Number(entry.rows)||Number(entry.people)||0,timeSlots:entry.timeSlots||null,source:'V3 History · Sort_Data'};
+    }
     if(sortDashboard&&sortDashboard.date===date&&Number(sortDashboard.productivity)>0){
       const saved=historyByDate.get(date)||{};
-      return {date,totalPick:Number(sortDashboard.total)||0,productivity:Number(sortDashboard.productivity),people:Math.max(1,Number(sortDashboard.people)||Number(saved.people)||1),timeSlots:saved.timeSlots||null};
+      const totalPick=Number(sortDashboard.total)||0,productivity=Number(sortDashboard.productivity);
+      return {date,totalPick,productivity,activeHours:Number(saved.activeHours)||(productivity>0?totalPick/productivity:0),metricCount:1,people:Math.max(1,Number(sortDashboard.people)||Number(saved.people)||1),rows:Number(saved.rows)||Number(saved.people)||1,timeSlots:saved.timeSlots||null,source:'V3 History · Dashboard'};
     }
     const saved=historyByDate.get(date);
-    return saved&&Number(saved.productivity)>0?{...saved,totalPick:Number(saved.totalPick)||0,productivity:Number(saved.productivity),people:Math.max(1,Number(saved.people)||1)}:null;
+    return saved&&Number(saved.productivity)>0?{...saved,totalPick:Number(saved.totalPick)||0,productivity:Number(saved.productivity),activeHours:Number(saved.activeHours)||(Number(saved.productivity)>0?(Number(saved.totalPick)||0)/Number(saved.productivity):0),metricCount:1,people:Math.max(1,Number(saved.people)||1)}:null;
+  }
+  function beTimeSlots(date,shift='ALL'){
+    const selectedShift=M.normalizeShift(shift),saved=historyByDate.get(date);
+    if(selectedShift!=='ALL')return sortPeopleByDate[date]?.shifts?.[selectedShift]?.timeSlots||saved?.shiftBreakdown?.[selectedShift]?.timeSlots||null;
+    return saved?.timeSlots||M.sortTimeSummary(source?.sheets||{})[date]?.slots||null;
+  }
+  function beSortLines(date,shift='ALL'){
+    const selectedShift=M.normalizeShift(shift),saved=historyByDate.get(date);
+    return selectedShift==='ALL'?Number(saved?.sortLines)||Number(sortPeopleByDate[date]?.lines)||0:Number(sortPeopleByDate[date]?.shifts?.[selectedShift]?.lines)||Number(saved?.shiftBreakdown?.[selectedShift]?.sortLines)||0;
   }
   function syntheticBeRows(date,entry){
     const [year,month,day]=String(date).split('-').map(Number),row=new Array(43).fill('');
-    row[2]=`Date(${year},${month-1},${day})`;row[3]=`__BE_TEAM_${date}`;row[4]=Number(entry?.totalPick)||0;row[31]=Number(entry?.productivity)||0;row[33]='BE';row[34]='PTG';row[35]='Punthai';row[36]='Pick to Sort';row._beHistory=true;row._bePeople=Math.max(0,Number(entry?.people)||0);
+    row[2]=`Date(${year},${month-1},${day})`;row[3]=`__BE_TEAM_${date}_${M.normalizeShift(entry?.shift||'ALL')}`;row[4]=Number(entry?.totalPick)||0;row[31]=Number(entry?.productivity)||0;row[32]=entry?.shift||'';row[33]='BE';row[34]='';row[35]=entry?.owner||'UNKNOWN';row[36]='Pick to Sort';row._beHistory=true;row._bePeople=Math.max(0,Number(entry?.metricCount)||Number(entry?.count)||1);row._beHeadcount=Math.max(0,Number(entry?.people)||0);row._beRows=Math.max(0,Number(entry?.rows)||Number(entry?.people)||0);row._beHours=Number(entry?.activeHours)||(Number(entry?.totalPick)||0)/(Number(entry?.productivity)||1);row._beSource=String(entry?.source||'V3 History');
     if(entry?.timeSlots){for(let hour=0;hour<24;hour+=1){const from=String((7+hour)%24).padStart(2,'0'),to=String((8+hour)%24).padStart(2,'0');row[7+hour]=Number(entry.timeSlots[`${from}:00-${to}:00`]?.total)||0;}}
     return [row];
   }
   function syntheticSortRow(date,person){
     const [year,month,day]=String(date).split('-').map(Number),row=new Array(43).fill('');
-    row[2]=`Date(${year},${month-1},${day})`;row[3]=String(person?.userId||'').trim();row[4]=Number(person?.total)||0;row[6]=Number(person?.hours)||0;row[31]=person?.valid?Number(person.productivity)||0:'Not Count';row[32]=person?.shift||'';row[33]='BE';row[34]=person?.affiliation||'Pick to Sort';row[35]=person?.owner||'Punthai';row[36]='Pick to Sort';row._sortData=true;return row;
+    row[2]=`Date(${year},${month-1},${day})`;row[3]=String(person?.userId||'').trim();row[4]=Number(person?.total)||0;row[6]=Number(person?.hours)||0;row[31]=person?.valid?Number(person.productivity)||0:'Not Count';row[32]=person?.shift||'';row[33]='BE';row[34]=person?.affiliation||'Pick to Sort';row[35]=person?.owner||'UNKNOWN';row[36]='Pick to Sort';row._sortData=true;row._sortDataFirst=person?.first instanceof Date?person.first.getTime():Number(person?.first)||0;row._sortDataLast=person?.last instanceof Date?person.last.getTime():Number(person?.last)||0;row._sortDataLines=Number(person?.lines)||0;row._sortDataValid=Boolean(person?.valid);return row;
   }
-  function historyAwareRows(list){
-    const effective=effectiveRows(list||[]),dates=new Set(effective.map(r=>M.date(r[2])).filter(Boolean)),replacedSortDates=new Set(),out=[];
-    effective.forEach(row=>{
-      const date=M.date(row[2]),isBe=zone(row)?.key==='pickToSortBe';
-      if(isBe&&date<BE_HISTORY_CUTOFF&&sortPeopleByDate[date]){replacedSortDates.add(date);return;}
-      if(isBe&&date>=BE_HISTORY_CUTOFF){return;}
-      out.push(row);
-    });
-    replacedSortDates.forEach(date=>{
-      (sortPeopleByDate[date]?.people||[]).forEach(person=>{
-        const row=syntheticSortRow(date,person);
-        if(M.matches(row,V3Data.filters))out.push(row);
-      });
-    });
-    if(!canUseBeHistory())return out;
-    dates.forEach(date=>{const entry=beHistoryEntry(date);if(entry)out.push(...syntheticBeRows(date,entry));});
+  function historyAwareRows(list,dateHints=[]){
+    const effective=effectiveRows(list||[]),sourceDates=new Set(effective.map(r=>M.date(r[2])).filter(Boolean)),dates=new Set([...sourceDates,...(dateHints||[]).filter(Boolean)]),out=[];
+    effective.forEach(row=>{if(zone(row)?.key!=='pickToSortBe')out.push(row);});
+    const start=$('startDate')?.value||'',end=$('endDate')?.value||'';
+    if(!(dateHints||[]).length)[...Object.keys(sortPeopleByDate),...historyByDate.keys()].forEach(date=>{if((!start||date>=start)&&(!end||date<=end))dates.add(date);});
+    const filters=V3Data.filters||{},system=String(filters.system||'ALL').trim().toUpperCase(),selectedShift=M.normalizeShift(filters.shift||'ALL'),canUseSort=(system==='ALL'||system==='BPS');
+    if(!canUseSort)return out;
+    for(const date of [...dates].sort()){
+      if(selectedShift==='ALL'&&canUseBeHistory()){
+        const entry=beHistoryEntry(date);if(entry){out.push(...syntheticBeRows(date,entry));continue;}
+      }
+      const group=sortPeopleByDate[date],sortRows=canUseSort&&group?(group.people||[]).filter(person=>(selectedShift==='ALL'||M.normalizeShift(person.shift)===selectedShift)).map(person=>syntheticSortRow(date,person)).filter(row=>M.matches(row,filters)):[];
+      if(sortRows.length){out.push(...sortRows);continue;}
+      if(selectedShift!=='ALL'&&canUseShiftBeHistory()){
+        const entry=beHistoryEntry(date,selectedShift);if(entry)out.push(...syntheticBeRows(date,{...entry,shift:`SHIFT ${selectedShift}`}));
+      }
+    }
     return out;
   }
-  function visible(){const start=$('startDate').value,end=$('endDate').value;return effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&(!start||d>=start)&&(!end||d<=end)&&M.matches(r,V3Data.filters);}));}
+  function visible(){const start=$('startDate').value,end=$('endDate').value,filtered=rows.filter(r=>{const d=M.date(r[2]);if(!d||(start&&d<start)||(end&&d>end))return false;return zone(r)?.key==='pickToSortBe'||M.matches(r,V3Data.filters);});return historyAwareRows(filtered);}
   function zoneAggregate(key,records,dateHints){
-    const rowsForZone=records||[],base=M.aggregate(rowsForZone),useHistory=key==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL'&&V3Data.filters.owner==='ALL';
-    if(!useHistory)return base;
-    const dates=new Set(rowsForZone.map(r=>M.date(r[2])).filter(Boolean));(dateHints||[]).forEach(date=>{if(date)dates.add(date);});
-    if(!dates.size)return base;
-    const ids=new Set(),combined={total:0,sum:0,count:0,rows:0,excluded:0},usedSortData=[],usedHistory=[];let historyPeople=0;
-    for(const date of [...dates].sort()){
-      const historical=historyByDate.get(date),hasHistorical=Boolean(historical&&(Number(historical.totalPick)>0||historical.timeSlots)),historicalPeople=Math.max(0,Number(historical?.people)||0),historicalProductivity=Number(historical?.productivity),isNewBeDate=date>='2026-09-29';
-      if(isNewBeDate){
-        const dashboard=sortDashboard&&sortDashboard.date===date&&Number(sortDashboard.productivity)>0?sortDashboard:null;
-        if(dashboard){const total=Number(dashboard.total)||0,people=Math.max(0,Number(dashboard.people)||0);combined.total+=total;combined.rows+=Number(historical?.rows)||people;historyPeople+=people;combined.sum+=Number(dashboard.productivity)*people;combined.count+=people;usedHistory.push(date);continue;}
-        if(hasHistorical){combined.total+=Number(historical.totalPick)||0;combined.rows+=Number(historical.rows)||historicalPeople;historyPeople+=historicalPeople;if(Number.isFinite(historicalProductivity)&&historicalProductivity>0&&historicalPeople>0){combined.sum+=historicalProductivity*historicalPeople;combined.count+=historicalPeople;}else{combined.excluded+=historicalPeople;}usedHistory.push(date);continue;}
-        continue;
-      }
-      const fallback=M.aggregate(rowsForZone.filter(r=>M.date(r[2])===date));combined.total+=fallback.total;combined.sum+=fallback.sum;combined.count+=fallback.count;combined.rows+=fallback.rows;combined.excluded+=fallback.excluded;rowsForZone.filter(r=>M.date(r[2])===date&&r[3]).forEach(r=>ids.add(String(r[3]).trim()));usedSortData.push(date);
-    }
-    if(usedHistory.length||usedSortData.length)return {...combined,average:combined.count?combined.sum/combined.count:null,people:historyPeople+ids.size,source:usedHistory.length&&usedSortData.length?'History + Sort_Data':usedHistory.length?'History':'Sort_Data'};
-    if(sortDashboard&&dates.size===1&&[...dates][0]===sortDashboard.date)return {...base,total:sortDashboard.total,average:sortDashboard.productivity,sum:sortDashboard.productivity*sortDashboard.people,count:sortDashboard.people,people:sortDashboard.people,excluded:0,source:'Dashboard'};
-    return base;
+    const rowsForZone=records||[],base=M.aggregate(rowsForZone);if(key!=='pickToSortBe')return base;
+    const historyRows=rowsForZone.filter(row=>row._beHistory),sortRows=rowsForZone.filter(row=>row._sortData),groups=new Map();
+    sortRows.forEach(row=>{const date=M.date(row[2]),shift=M.normalizeShift(row[32]),key=`${date}|${shift}`;let group=groups.get(key);if(!group){group={date,shift,total:0,first:Infinity,last:-Infinity,lines:0,people:0,excluded:0};groups.set(key,group);}group.total+=M.number(row[4]);group.first=Math.min(group.first,Number(row._sortDataFirst)||Infinity);group.last=Math.max(group.last,Number(row._sortDataLast)||-Infinity);group.lines+=Number(row._sortDataLines)||0;group.people+=1;if(!row._sortDataValid)group.excluded+=1;});
+    const raw={total:0,hours:0,count:0,rows:0,excluded:0,people:0};
+    groups.forEach(group=>{const hours=M.sortShiftHours?.(group.date,group.shift,group.first,group.last)||0;raw.total+=group.total;raw.hours+=hours;raw.count+=hours>0?1:0;raw.rows+=group.lines;raw.excluded+=group.excluded;raw.people+=group.people;});
+    const combined={...raw,sum:raw.total};
+    historyRows.forEach(row=>{const average=Number(row[31])||0,total=Number(row[4])||0,hours=Number(row._beHours)||(average>0?total/average:0),headcount=Math.max(0,Number(row._beHeadcount)||0);combined.total+=total;combined.sum+=total;combined.hours+=hours;combined.count+=Number(row._bePeople)||1;combined.rows+=Number(row._beRows)||headcount;combined.people+=headcount;});
+    return {...combined,average:combined.hours?combined.total/combined.hours:null,source:sortRows.length?(historyRows.length?'History + Sort_Data':'Sort_Data'):(historyRows[0]?historyRows[0]._beSource||'V3 History':'Sort_Data')};
   }
   function employeeStartDate(id){return M.tenureStart(String(id||'').trim(),startDateById,firstSeenById);}
   function employeeTenureContext(){const dates=rows.filter(r=>M.date(r[2])&&M.matches(r,V3Data.filters)).map(r=>M.date(r[2])).sort();const anchor=dates[dates.length-1]||'';return {anchor,cutoff:anchor?M.tenureCutoff(anchor):''};}
   function employeeTenure(id,context){const start=employeeStartDate(id),isNew=Boolean(start&&context?.cutoff&&start>context.cutoff);return {key:isNew?'new':'old',label:isNew?'พนักงานใหม่':'พนักงานเก่า',startDate:start};}
   function cards(list){return `<div class="kpis v3-kpis">${list.map(([title,value,note])=>`<article class="kpi v3-kpi"><span>${esc(title)}</span><strong>${value}</strong><small>${esc(note||'')}</small></article>`).join('')}</div>`;}
-  function stats(records,zoneKey){const prepared=historyAwareRows(records),s=zoneKey?zoneAggregate(zoneKey,prepared):(globalThis.V3Weighting&&V3Data.filters.calculationMode==='weighted'?globalThis.V3Weighting.rows(prepared):M.aggregate(prepared)),totalLabel=zoneKey==='pickToSortBe'?'Total Sort UOM':'Total Pick',modeNote=V3Data.filters.calculationMode==='weighted'&&!zoneKey?' · Weight% ตาม Type/Zone':'';return cards([[totalLabel,fmt(s.total),'รวมยอดจากข้อมูลต้นทางในช่วงที่เลือก'],['Productivity',fmt(s.average,0),s.source==='Sort_Data'?'Sort_Data · เฉลี่ยรายคน':s.source?.startsWith('History')?'V3 History/Sort_Data · ใช้ยอดเก็บย้อนหลังร่วมกับรายบุคคล':s.source==='Dashboard'?'Team Productivity จาก Dashboard':'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'+modeNote],['แถวที่นำไปเฉลี่ย',fmt(s.count),`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} แถวต้นทาง`]]);}
+  function stats(records,zoneKey,dateHints=[]){const prepared=historyAwareRows(records,dateHints),s=zoneKey?zoneAggregate(zoneKey,prepared,dateHints):(globalThis.V3Weighting&&V3Data.filters.calculationMode==='weighted'?globalThis.V3Weighting.rows(prepared):M.aggregate(prepared)),isBe=zoneKey==='pickToSortBe',totalLabel=isBe?'Total Sort UOM':'Total Pick',modeNote=V3Data.filters.calculationMode==='weighted'&&!zoneKey?' · Weight% ตาม Type/Zone':'',metricNote=isBe?(s.source==='Sort_Data'?'Sort_Data · Total Sort UOM ÷ Active Hours ของกะ':s.source?.startsWith('History')?'Sort_Data/V3 History · Total Sort UOM ÷ Active Hours ของกะ':'Total Sort UOM ÷ Active Hours ของกะ'):'Pick/ชม. · เฉลี่ยจากแถวที่นับได้'+modeNote;return cards([[totalLabel,fmt(s.total),'รวมยอดจากข้อมูลต้นทางในช่วงที่เลือก'],['Productivity',fmt(s.average,0),metricNote],[isBe?'กะ/วันเข้าเฉลี่ย':'แถวที่นำไปเฉลี่ย',fmt(s.count),isBe?`${fmt(s.excluded)} พนักงานไม่เข้าเกณฑ์รายบุคคล`:`${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย`],['พนักงานที่มีรายการ',fmt(s.people),`${fmt(s.rows)} ${isBe?'บรรทัดต้นทาง':'แถวต้นทาง'}`]]);}
   function addDays(iso,days){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);}
   function addMonthKey(month,months){const d=new Date(`${String(month||'')}-01T00:00:00Z`);if(Number.isNaN(d.getTime()))return '';d.setUTCMonth(d.getUTCMonth()+months);return d.toISOString().slice(0,7);}
   function weekStart(iso){const d=new Date(String(iso||'')+'T00:00:00Z');if(Number.isNaN(d.getTime()))return '';const day=d.getUTCDay();d.setUTCDate(d.getUTCDate()-(day===0?6:day-1));return d.toISOString().slice(0,10);}
@@ -106,7 +111,7 @@
     return {className:delta>0?'up':'down',label:`${delta>0?'↑':'↓'} ${sign}${fmt(delta,1)} Pick/ชม. · ${sign}${fmt(pct,1)}%`};
   }
   function dateRange(start,end){const out=[];for(let d=start;d&&end&&d<=end;d=addDays(d,1))out.push(d);return out;}
-  function periodStatsFor(list,periods,zoneKey){const calc=(start,end)=>{const prepared=historyAwareRows(rangeRows(list,start,end));return zoneKey?zoneAggregate(zoneKey,prepared,dateRange(start,end)):(V3Data.filters.calculationMode==='weighted'&&globalThis.V3Weighting?globalThis.V3Weighting.rows(prepared):M.aggregate(prepared));};return periods.map(p=>({...p,current:calc(p.currentStart,p.currentEnd),previous:calc(p.previousStart,p.previousEnd)}));}
+  function periodStatsFor(list,periods,zoneKey){const calc=(start,end)=>{const hints=dateRange(start,end),prepared=historyAwareRows(rangeRows(list,start,end),hints);return zoneKey?zoneAggregate(zoneKey,prepared,hints):(V3Data.filters.calculationMode==='weighted'&&globalThis.V3Weighting?globalThis.V3Weighting.rows(prepared):M.aggregate(prepared));};return periods.map(p=>({...p,current:calc(p.currentStart,p.currentEnd),previous:calc(p.previousStart,p.previousEnd)}));}
   function miniComparisonHtml(stats,key,label){
     const items=stats.map(item=>{
       const current=item.current[key],previous=item.previous[key],code=item.key==='day'?'1D':item.key==='week'?'7D':'30D';
@@ -242,12 +247,12 @@
   function destroyZoneCharts(){destroyZoneMtdChart();destroyZoneWeeklyChart();destroyZoneMonthlyChart();}
   function zoneMonthLabel(month){if(!month)return '—';const d=new Date(`${month}-01T00:00:00Z`);return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('th-TH',{month:'long',year:'numeric',timeZone:'UTC'});}
   function zoneMtdModel(selectedKey,target){
-    const filtered=effectiveRows(rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);}));
-    const historyDates=selectedKey==='pickToSortBe'&&V3Data.filters.system==='ALL'&&V3Data.filters.shift==='ALL'&&V3Data.filters.owner==='ALL'?[...historyByDate.keys()]:[];
-    const anchor=[...new Set(filtered.map(r=>M.date(r[2])).filter(Boolean).concat(historyDates))].sort().pop()||'';
+    const selectedShift=M.normalizeShift(V3Data.filters.shift),historyDates=selectedKey==='pickToSortBe'?[...historyByDate.entries()].filter(([,item])=>selectedShift==='ALL'?(Number(item.totalPick)>0||Number(item.productivity)>0):Number(item.shiftBreakdown?.[selectedShift]?.productivity)>0).map(([date])=>date):[],sortDates=selectedKey==='pickToSortBe'?Object.keys(sortPeopleByDate).filter(date=>(sortPeopleByDate[date].people||[]).some(person=>(selectedShift==='ALL'||M.normalizeShift(person.shift)===selectedShift)&&M.matches(syntheticSortRow(date,person),V3Data.filters))):[],dateHints=[...new Set([...historyDates,...sortDates])];
+    const filtered=historyAwareRows(rows.filter(r=>{const d=M.date(r[2]);return d&&M.matches(r,V3Data.filters);}),dateHints);
+    const anchor=[...new Set(filtered.map(r=>M.date(r[2])).filter(Boolean).concat(historyDates,sortDates))].sort().pop()||'';
     if(!anchor)return null;
     const month=anchor.slice(0,7),start=`${month}-01`,zoneRows=filtered.filter(r=>(zone(r)?.key||'unknown')===selectedKey),monthRows=zoneRows.filter(r=>{const d=M.date(r[2]);return d>=start&&d<=anchor;});
-    const days=[];for(let d=start;d<=anchor;d=addDays(d,1)){const dayRows=monthRows.filter(r=>M.date(r[2])===d),s=zoneAggregate(selectedKey,dayRows,[d]),history=historyByDate.get(d);days.push({date:d,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people,timeSlots:history?.timeSlots||null,sortLines:Number(history?.sortLines)||0});}
+    const days=[];for(let d=start;d<=anchor;d=addDays(d,1)){const dayRows=monthRows.filter(r=>M.date(r[2])===d),s=zoneAggregate(selectedKey,dayRows,[d]);days.push({date:d,total:s.total,average:s.average,count:s.count,rows:s.rows,people:s.people,timeSlots:selectedKey==='pickToSortBe'?beTimeSlots(d,selectedShift):null,sortLines:selectedKey==='pickToSortBe'?beSortLines(d,selectedShift):0});}
     const summary=zoneAggregate(selectedKey,monthRows,dateRange(start,anchor));
     const zoneDates=[...new Set(zoneRows.map(r=>M.date(r[2])).concat(historyDates))].filter(Boolean).sort();
     const firstZoneMonth=zoneDates[0]?.slice(0,7)||month,monthlyStart=firstZoneMonth>addMonthKey(month,-11)?firstZoneMonth:addMonthKey(month,-11),monthlyKeys=[];
@@ -890,8 +895,9 @@
   }
 
   function render(){if(!source)return;try{renderPeriodComparison();updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
-  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);sortPeopleByDate=M.sortPeopleSummary(source.sheets);historyByDate=new Map(((source.sheets['V3 History']&&source.sheets['V3 History'].rows)||[]).map(r=>{const date=M.historyDate(r[0]);let timeSlots={};try{timeSlots=r[9]?JSON.parse(String(r[9])):null;}catch(e){timeSlots=null;}return [date,{totalPick:M.number(r[2]),productivity:M.number(r[3]),people:M.number(r[4]),rows:M.number(r[7])||M.number(r[4]),sortLines:M.number(r[8]),timeSlots}]}).filter(([date,item])=>date&&(Number(item.totalPick)>0||Number(item.productivity)>0||item.timeSlots)));rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
-    const shifts=[...new Set(rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)))].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');$('v3Shift').value=V3Data.filters.shift;
+  function historyTimeData(raw){let parsed={};try{parsed=raw&&typeof raw==='object'?{...raw}:raw?JSON.parse(String(raw)):{ };}catch(e){parsed={};}const shiftBreakdown={};Object.entries(parsed._shiftBreakdown||{}).forEach(([key,item])=>{const shift=M.normalizeShift(key);if(shift==='A'||shift==='B')shiftBreakdown[shift]=item;});delete parsed._shiftBreakdown;return {timeSlots:Object.keys(parsed).length?parsed:null,shiftBreakdown};}
+  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);sortPeopleByDate=M.sortPeopleSummary(source.sheets);historyByDate=new Map(((source.sheets['V3 History']&&source.sheets['V3 History'].rows)||[]).map(r=>{const date=M.historyDate(r[0]),parsed=historyTimeData(r[9]);return [date,{totalPick:M.number(r[2]),productivity:M.number(r[3]),people:M.number(r[4]),rows:M.number(r[7])||M.number(r[4]),sortLines:M.number(r[8]),timeSlots:parsed.timeSlots,shiftBreakdown:parsed.shiftBreakdown,source:String(r[5]||'V3 History')}]}).filter(([date,item])=>date&&(Number(item.totalPick)>0||Number(item.productivity)>0||item.timeSlots||Object.keys(item.shiftBreakdown).length)));rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
+    const rawShiftKeys=Object.values(sortPeopleByDate).flatMap(group=>(group.people||[]).map(person=>M.normalizeShift(person.shift))),savedShiftKeys=[...historyByDate.values()].flatMap(item=>Object.keys(item.shiftBreakdown||{}).map(M.normalizeShift)),resultShiftKeys=rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)),shifts=[...new Set([...resultShiftKeys,...rawShiftKeys,...savedShiftKeys])].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s==='A'?'SHIFT A':s==='B'?'SHIFT B':s)}</option>`).join('');$('v3Shift').value=M.normalizeShift(V3Data.filters.shift);
     const ownerOptions=['ALL','Mart','Punthai','GFA'];
     $('v3Owner').innerHTML=ownerOptions.map(key=>`<option value="${esc(key)}">${esc(key==='ALL'?'ทุก Owner':M.ownerLabel(key))}</option>`).join('');$('v3Owner').value=V3Data.filters.owner;
     const warn=(source.warnings||[]);
