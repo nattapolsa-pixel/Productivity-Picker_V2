@@ -20,7 +20,7 @@
     shift: 'กะ & BU',
     hours: 'ช่วงเวลา (Hourly)',
     efficiency: 'Efficiency (เทียบเป้าเป็น %)',
-    individual: 'เจาะลึกรายบุคคล',
+    individual: 'พนักงานทั้งหมด',
     incentive: 'Incentive (ประมาณการเบี้ยขยัน)',
     records: 'รายการต้นทาง',
     training: 'Training',
@@ -55,6 +55,13 @@
     'Not Found': 'ไม่ระบุประเภทงาน'
   };
   const OWNER_LABEL = { ALL: 'ทุก Owner', Mart: 'Mart', Punthai: 'Punthai', GFA: 'GFA' };
+  const VIEW_GROUPS = {
+    reports: { default: 'trend', views: ['trend', 'monthly', 'present'] },
+    analysis: { default: 'hours', views: ['hours', 'efficiency'] },
+    employees: { default: 'individual', views: ['individual', 'newstaff', 'oldstaff'] }
+  };
+  const VIEW_TO_GROUP = Object.fromEntries(Object.entries(VIEW_GROUPS)
+    .flatMap(([group, value]) => value.views.map((view) => [view, group])));
 
   function dmy(value) {
     if (!value) return '';
@@ -90,6 +97,33 @@
     ptitle.textContent = TITLES[tab] || (own ? own.textContent.trim() : 'ภาพรวม');
   }
 
+  function activate(routeOrView) {
+    const route = VIEW_GROUPS[routeOrView] ? routeOrView : (VIEW_TO_GROUP[routeOrView] || routeOrView);
+    const group = VIEW_GROUPS[route];
+    const view = group
+      ? (group.views.includes(routeOrView) ? routeOrView : group.default)
+      : routeOrView;
+
+    navButtons.forEach((b) => b.classList.toggle('active', b.dataset.tab === route));
+    panels.forEach((p) => p.classList.toggle('active', p.id === 'tab-' + view));
+    const subnav = document.getElementById('v3Subnav');
+    if (subnav) {
+      subnav.hidden = !group;
+      subnav.querySelectorAll('[data-subnav-group]').forEach((el) => {
+        el.hidden = el.dataset.subnavGroup !== route;
+        el.querySelectorAll('[data-subview]').forEach((button) => {
+          const active = button.dataset.subview === view;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+      });
+    }
+    setPageTitle(view);
+    updateDateHeader();
+    resizeChartsIn(view);
+    document.dispatchEvent(new CustomEvent('v3-page-view', { detail: { route, view } }));
+  }
+
   /* กราฟที่ Chart.js วาดตอนแท็บยังซ่อนอยู่ (.tab-panel เป็น display:none) จะได้ canvas สูง 0
      และไม่วัดใหม่เองเมื่อแท็บถูกเปิด ทำให้เห็นกราฟแบนราบ เจอจริงที่หน้าแผนผังโซน/ช่วงเวลา/ไม่ถึงเป้า
      ตอนสลับมาจากหน้าอื่นหลังเปลี่ยนตัวกรอง จึงสั่งวัดใหม่ทุกครั้งที่เปิดหน้า (เป็นการแสดงผล ไม่ได้คิดเลขใหม่) */
@@ -105,17 +139,15 @@
     });
   }
 
-  function activate(tab) {
-    navButtons.forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-    panels.forEach((p) => p.classList.toggle('active', p.id === 'tab-' + tab));
-    setPageTitle(tab);
-    updateDateHeader();
-    resizeChartsIn(tab);
-  }
-
   navButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       activate(btn.dataset.tab);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+  });
+  document.querySelectorAll('[data-subview]').forEach((button) => {
+    button.addEventListener('click', () => {
+      activate(button.dataset.subview);
       window.scrollTo({ top: 0, behavior: 'instant' });
     });
   });

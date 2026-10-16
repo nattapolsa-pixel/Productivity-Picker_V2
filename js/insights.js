@@ -82,6 +82,12 @@
     return out;
   }
   function visible(){const start=$('startDate').value,end=$('endDate').value,filtered=rows.filter(r=>{const d=M.date(r[2]);if(!d||(start&&d<start)||(end&&d>end))return false;return zone(r)?.key==='pickToSortBe'||M.matches(r,V3Data.filters);});return historyAwareRows(filtered);}
+  function visibleAllDates(){
+    const filters=V3Data.filters||{};
+    const filtered=rows.filter(r=>M.date(r[2])&&(zone(r)?.key==='pickToSortBe'||M.matches(r,filters)));
+    const dateHints=[...new Set([...filtered.map(r=>M.date(r[2])),...Object.keys(sortPeopleByDate),...historyByDate.keys()])].filter(Boolean).sort();
+    return historyAwareRows(filtered,dateHints);
+  }
   function zoneAggregate(key,records,dateHints){
     const rowsForZone=records||[],base=M.aggregate(rowsForZone);if(key!=='pickToSortBe')return base;
     const historyRows=rowsForZone.filter(row=>row._beHistory),sortRows=rowsForZone.filter(row=>row._sortData),groups=new Map();
@@ -486,7 +492,7 @@
       {title:'สถานะ',value:z=>zoneStatus(z).label,html:z=>`<span class="v3-pill ${zoneStatus(z).className==='good'?'good':'warn'}">${esc(zoneStatus(z).label)}</span>`},
       {title:'Total Pick / Sort UOM',value:z=>z.stats.total,num:true,html:z=>fmt(z.stats.total)},
       {title:'Productivity',value:z=>z.stats.average===null?'':z.stats.average,num:true,html:z=>fmt(z.stats.average,0)},
-      {title:'Target',value:z=>zoneTarget(z),num:true},
+      {title:'Target',value:z=>zoneTarget(z),num:true,html:z=>fmt(zoneTarget(z),1)},
       {title:'Gap',value:z=>gap(z)===null?'':gap(z),num:true,html:z=>gap(z)===null?'—':`<span class="${gap(z)>=0?'staff-up':'staff-down'}">${gap(z)>=0?'+':''}${fmt(gap(z),0)}</span>`},
       {title:'% Efficiency',value:z=>efficiency(z)===null?'':efficiency(z),num:true,html:z=>efficiency(z)===null?'—':fmt(efficiency(z),1)+'%'},
       {title:'แถวเข้าเฉลี่ย',value:z=>z.stats.count,num:true},
@@ -676,7 +682,7 @@
       ['โซนที่มีคนไม่ถึงเป้า',fmt(withMiss.length),`/ ${fmt(groups.length)} โซน`,'นับจากโซนหลักที่ทำงานจริง','#7c3aed']
     ])
     +`<div class="card wide"><h3>⚠️ พนักงานที่ยังไม่ถึง Target ของโซน</h3>
-      <div class="sub">เทียบ Productivity รายคนกับ Target ของโซนหลักที่ทำแถวมากที่สุด · โซนไหนตั้ง Target เองไว้จะใช้ค่านั้นก่อน Target ตามประเภทงาน</div>
+      <div class="sub">เทียบ Productivity รายคนกับ Target เฉลี่ยของเดือนก่อนหน้าในโซนหลักที่ทำแถวมากที่สุด · ถ้าโซนไม่มีข้อมูลเดือนก่อนจึงใช้ค่า fallback</div>
       <div class="v3-type-zone-heading"><span>ภาพรวมตามประเภทงาน</span><small>ดูว่ากลุ่มงานใดมีคนต่ำกว่าเป้ามากที่สุด</small></div>${typeCards}
       <div class="chartbox tall"><canvas id="v3BelowTargetChart"></canvas></div>
       <div class="note v3-notice">นับเฉพาะคนที่มีแถวเข้าเฉลี่ย · ค่าเฉลี่ยรายคนคือผลรวมค่าเฉลี่ยต่อชั่วโมงของแถวที่นับได้ ÷ จำนวนแถวนั้น ไม่ได้เฉลี่ยค่าเฉลี่ยซ้ำ · เท่ากับเป้านับว่าผ่าน · คนหนึ่งคนนับครั้งเดียวที่โซนหลัก
@@ -698,7 +704,7 @@
       {title:'สัดส่วนที่ไม่ถึงเป้า',value:z=>z.all.length?z.below.length/z.all.length*100:0,num:true,
         html:z=>fmt(z.all.length?z.below.length/z.all.length*100:0,1)+'%'},
       {title:'ค่าเฉลี่ยโซน',value:z=>z.average,num:true,html:z=>fmt(z.average,0)},
-      {title:'Target โซน',value:z=>z.target,num:true},
+      {title:'Target โซน',value:z=>z.target,num:true,html:z=>fmt(z.target,1)},
       {title:'ช่องว่างเฉลี่ยของคนที่ตกเป้า',value:z=>z.avgGap,num:true,sortValue:z=>z.below.length?z.avgGap:null,
         html:z=>z.below.length?`<span class="staff-down">-${fmt(z.avgGap,0)}</span>`:'—'},
       {title:'Total Pick',value:z=>z.total,num:true,html:z=>fmt(z.total)}
@@ -712,7 +718,7 @@
       {title:'วันเริ่มงาน',value:x=>x.startDate||'',html:x=>dmy(x.startDate)},
       {title:'โซนหลัก',value:x=>x.zone.label,html:x=>`${esc(x.zone.label)}<span class="sub">${fmt(x.zoneRowCount)} แถวในโซนนี้</span>`},
       {title:'Productivity',value:x=>x.average,num:true,html:x=>`<b style="color:#b91c1c">${fmt(x.average,0)}</b><span class="sub">${fmt(x.count)} แถวเข้าเฉลี่ย</span>`},
-      {title:'Target โซน',value:x=>x.target,num:true},
+      {title:'Target โซน',value:x=>x.target,num:true,html:x=>fmt(x.target,1)},
       {title:'Gap',value:x=>x.gap,num:true,html:x=>`<span class="staff-down">${fmt(x.gap,0)}</span>`},
       {title:'% Efficiency',value:x=>x.eff,num:true,html:x=>fmt(x.eff,1)+'%'},
       {title:'ชั่วโมงทำงาน',value:x=>x.hours,num:true,html:x=>fmt(x.hours,1)},
@@ -894,9 +900,63 @@
     }catch(e){badge.hidden=true;}
   }
 
+  function previousCalendarMonth(){
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit'}).formatToParts(new Date());
+    const year=Number(parts.find(part=>part.type==='year')?.value),month=Number(parts.find(part=>part.type==='month')?.value);
+    const currentMonthStart=new Date(Date.UTC(year,month-1,1));
+    const previousMonthStart=new Date(currentMonthStart);previousMonthStart.setUTCMonth(previousMonthStart.getUTCMonth()-1);
+    const sourceMonth=previousMonthStart.toISOString().slice(0,7);
+    return {sourceMonth,start:sourceMonth+'-01',end:currentMonthStart.toISOString().slice(0,10),monthLabel:new Intl.DateTimeFormat('th-TH',{timeZone:'UTC',month:'long',year:'numeric'}).format(previousMonthStart)};
+  }
+  function rowDate(row){return M.date(row?.[2])||M.historyDate(row?.[2]);}
+  function addMonthlyTargetValue(buckets,key,value){
+    const number=Number(value),bucket=buckets.get(key);
+    if(!bucket||!Number.isFinite(number)||number<=0)return;
+    bucket.sum+=number;bucket.count+=1;
+  }
+  function computeMonthlyZoneTargets(){
+    const period=previousCalendarMonth(),buckets=new Map(zones.map(item=>[item.key,{sum:0,count:0}]));
+    rows.forEach(row=>{
+      const date=rowDate(row);if(!date||date<period.start||date>=period.end)return;
+      const matched=zone(row);if(!matched||matched.key==='pickToSortBe')return;
+      if(!M.isValidZoneRow(row))return;
+      addMonthlyTargetValue(buckets,matched.key,M.number(row[31]));
+    });
+
+    // BE ห้ามใช้ Results Master: ใช้ค่าเฉลี่ยรายคนจาก Sort_Data ก่อน
+    // และใช้สรุป V3 History เฉพาะวันที่ไม่มี Sort_Data ให้ดูย้อนหลัง
+    const dates=new Set([...Object.keys(sortPeopleByDate),...historyByDate.keys()]);
+    dates.forEach(date=>{
+      if(date<period.start||date>=period.end||date<BE_HISTORY_CUTOFF)return;
+      const sortGroup=sortPeopleByDate[date];
+      if(sortGroup){
+        (sortGroup.people||[]).forEach(person=>{
+          if(person.valid&&Number(person.productivity)>0&&Number(person.productivity)<1000)
+            addMonthlyTargetValue(buckets,'pickToSortBe',person.productivity);
+        });
+        return;
+      }
+      const saved=historyByDate.get(date);if(!saved)return;
+      const shifts=Object.values(saved.shiftBreakdown||{}).filter(item=>Number(item.productivity)>0);
+      if(shifts.length)shifts.forEach(item=>addMonthlyTargetValue(buckets,'pickToSortBe',item.productivity));
+      else addMonthlyTargetValue(buckets,'pickToSortBe',saved.productivity);
+    });
+
+    const targets={},counts={};
+    buckets.forEach((bucket,key)=>{
+      counts[key]=bucket.count;
+      if(bucket.count)targets[key]=bucket.sum/bucket.count;
+    });
+    return {targets,metadata:{sourceMonth:period.sourceMonth,monthLabel:period.monthLabel,counts}};
+  }
+  function refreshMonthlyZoneTargets(){
+    const computed=computeMonthlyZoneTargets();
+    if(typeof window.setMonthlyZoneTargets==='function')window.setMonthlyZoneTargets(computed.targets,computed.metadata);
+  }
+
   function render(){if(!source)return;try{renderPeriodComparison();updateBelowTargetBadge();if(active==='zone-map')zonePage();if(active==='records')recordsPage();if(active==='staff')staffPage();if(active==='hours')hoursPage();if(active==='quality')qualityPage();if(active==='below-target')belowTargetPage();}catch(e){console.error('V3 insights:',e);}}
   function historyTimeData(raw){let parsed={};try{parsed=raw&&typeof raw==='object'?{...raw}:raw?JSON.parse(String(raw)):{ };}catch(e){parsed={};}const shiftBreakdown={};Object.entries(parsed._shiftBreakdown||{}).forEach(([key,item])=>{const shift=M.normalizeShift(key);if(shift==='A'||shift==='B')shiftBreakdown[shift]=item;});delete parsed._shiftBreakdown;return {timeSlots:Object.keys(parsed).length?parsed:null,shiftBreakdown};}
-  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);sortPeopleByDate=M.sortPeopleSummary(source.sheets);historyByDate=new Map(((source.sheets['V3 History']&&source.sheets['V3 History'].rows)||[]).map(r=>{const date=M.historyDate(r[0]),parsed=historyTimeData(r[9]);return [date,{totalPick:M.number(r[2]),productivity:M.number(r[3]),people:M.number(r[4]),rows:M.number(r[7])||M.number(r[4]),sortLines:M.number(r[8]),timeSlots:parsed.timeSlots,shiftBreakdown:parsed.shiftBreakdown,source:String(r[5]||'V3 History')}]}).filter(([date,item])=>date&&(Number(item.totalPick)>0||Number(item.productivity)>0||item.timeSlots||Object.keys(item.shiftBreakdown).length)));rows=source.sheets['Results Master'].rows.map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map(source.sheets['2ND'].rows.filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);
+  V3Data.subscribe(value=>{source=value.source;sortDashboard=M.sortDashboardSummary(source.sheets);sortPeopleByDate=M.sortPeopleSummary(source.sheets);historyByDate=new Map(((source.sheets['V3 History']&&source.sheets['V3 History'].rows)||[]).map(r=>{const date=M.historyDate(r[0]),parsed=historyTimeData(r[9]);return [date,{totalPick:M.number(r[2]),productivity:M.number(r[3]),people:M.number(r[4]),rows:M.number(r[7])||M.number(r[4]),sortLines:M.number(r[8]),timeSlots:parsed.timeSlots,shiftBreakdown:parsed.shiftBreakdown,source:String(r[5]||'V3 History')}]}).filter(([date,item])=>date&&(Number(item.totalPick)>0||Number(item.productivity)>0||item.timeSlots||Object.keys(item.shiftBreakdown).length)));rows=(source.sheets['Results Master']?.rows||[]).map((row,i)=>Object.assign([...row],{_row:i+2}));roster=new Map((source.sheets['2ND']?.rows||[]).filter(r=>r[1]).map(r=>[String(r[1]).trim(),r]));startDateById=M.startDateMap(source.sheets);firstSeenById=M.firstSeenMap(rows);refreshMonthlyZoneTargets();
     const rawShiftKeys=Object.values(sortPeopleByDate).flatMap(group=>(group.people||[]).map(person=>M.normalizeShift(person.shift))),savedShiftKeys=[...historyByDate.values()].flatMap(item=>Object.keys(item.shiftBreakdown||{}).map(M.normalizeShift)),resultShiftKeys=rows.filter(r=>M.date(r[2])).map(r=>M.shiftKey(r)),shifts=[...new Set([...resultShiftKeys,...rawShiftKeys,...savedShiftKeys])].sort();$('v3Shift').innerHTML='<option value="ALL">ทุกกะ</option>'+shifts.map(s=>`<option value="${esc(s)}">${esc(s==='A'?'SHIFT A':s==='B'?'SHIFT B':s)}</option>`).join('');$('v3Shift').value=M.normalizeShift(V3Data.filters.shift);
     const ownerOptions=['ALL','Mart','Punthai','GFA'];
     $('v3Owner').innerHTML=ownerOptions.map(key=>`<option value="${esc(key)}">${esc(key==='ALL'?'ทุก Owner':M.ownerLabel(key))}</option>`).join('');$('v3Owner').value=V3Data.filters.owner;
@@ -909,13 +969,14 @@
   // หน่วงเล็กน้อยให้ v2-shell.js ใส่คลาส active ก่อน ไม่งั้นกราฟถูกวาดตอน .tab-panel ยัง display:none
   // แล้วได้ canvas สูง 0 ซึ่ง Chart.js ไม่วัดใหม่ให้เอง (insights.js ผูก listener ก่อน v2-shell.js ตามลำดับ script)
   document.querySelectorAll('.nav-item').forEach(btn=>btn.addEventListener('click',()=>{destroyZoneCharts();active=btn.dataset.tab;setTimeout(render,60);window.scrollTo({top:0,behavior:'instant'});}));
+  document.addEventListener('v3-page-view',e=>{const view=e&&e.detail?String(e.detail.view||''):'';if(!view)return;destroyZoneCharts();active=view;setTimeout(render,60);});
   async function applyFilter(){const system=$('v3System').value,shift=$('v3Shift').value,owner=$('v3Owner').value,calculationMode=$('v3CalculationMode')?.value||'normal';$('v3FilterStatus').textContent='กำลังรวมยอดจากข้อมูลในเครื่อง…';try{await V3Data.setFilters({system,shift,owner,calculationMode});const ownerText=owner==='ALL'?'ทุก Owner':M.ownerLabel(owner),modeText=calculationMode==='weighted'?'โหมด Weight% · ใช้ค่าน้ำหนักตามที่ตั้งค่าไว้':'โหมดคำนวณปกติ';$('v3FilterStatus').textContent=(system==='BPS'?'BPS เริ่มนับ 08/06/2026 ':'กรองแล้ว')+` • Owner: ${ownerText} • ${modeText} • ทุกหน้าใช้ข้อมูลชุดเดียวกัน`;}catch(e){$('v3FilterStatus').textContent=e.message;}}
   // เปิด table(), cards() และตัวช่วยจัดรูปแบบให้ v2-staff.js ใช้ร่วมกัน ไม่ต้องเขียนตารางซ้ำ
   root_V3Shared();
   function root_V3Shared(){
     globalThis.V3Shared={table,cards,esc,fmt,csvExport,
       // เปิดกฎโซนและตัวกรองร่วมให้หน้าที่แยกไฟล์ใช้ ไม่ต้องคัดลอกกฎ V1 ไปเขียนซ้ำ
-      zone,zones,zoneLabels:labels,visible,effectiveRows,historyAwareRows,statCards,zoneTargetOf,
+      zone,zones,zoneLabels:labels,visible,visibleAllDates,effectiveRows,historyAwareRows,statCards,zoneTargetOf,
       get roster(){return roster;},
       get rows(){return rows;},
       get source(){return source;}};

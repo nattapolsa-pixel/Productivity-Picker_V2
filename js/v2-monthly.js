@@ -831,7 +831,7 @@
   if (window.V3Data && window.V3Data.subscribe) window.V3Data.subscribe(schedule);
   document.addEventListener('v3-render', schedule);
   // หน่วงให้ v2-shell.js ใส่คลาส active ก่อน ไม่งั้นกราฟถูกวาดตอนแท็บซ่อนแล้วได้ canvas สูง 0
-  document.querySelectorAll('.nav-item[data-tab="monthly"]').forEach((b) => {
-    b.addEventListener('click', () => setTimeout(renderIfVisible, 70));
+  document.addEventListener('v3-page-view', (event) => {
+    if (event.detail && event.detail.view === 'monthly') setTimeout(renderIfVisible, 70);
   });
 })();

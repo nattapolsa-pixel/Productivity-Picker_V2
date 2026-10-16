@@ -985,8 +985,9 @@
     schedule();
   });
   document.addEventListener('v3-render', schedule);
-  document.querySelectorAll('.nav-item[data-tab="newstaff"], .nav-item[data-tab="oldstaff"]')
-    .forEach((b) => b.addEventListener('click', schedule));
+  document.addEventListener('v3-page-view', (event) => {
+    if (event.detail && ['newstaff', 'oldstaff'].includes(event.detail.view)) schedule();
+  });
   document.querySelectorAll('[data-old-trend]').forEach((button) => {
     button.addEventListener('click', () => {
       oldTrendMode = button.dataset.oldTrend || 'mtd';

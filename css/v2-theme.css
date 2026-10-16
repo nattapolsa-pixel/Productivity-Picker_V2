@@ -71,6 +71,37 @@ body {
   white-space: nowrap;
 }
 
+/* Keep the three everyday destinations visible and fold less-used pages under one disclosure. */
+.nav-more-toggle {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.nav-more-toggle::-webkit-details-marker { display: none; }
+.nav-more-toggle::after { content: '⌄'; margin-left: auto; color: #64748b; font-size: 15px; transition: transform .15s ease; }
+.nav-group-more[open] > .nav-more-toggle::after { transform: rotate(180deg); }
+.nav-group-more:not([open]) > .nav-more-content { display: none; }
+.nav-more-content { display: grid; gap: 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 13px; background: #f8fafc; }
+.nav-subgroup { min-width: 0; }
+.nav-subgroup-title { margin: 0 6px 4px; color: #94a3b8; font-size: 10px; font-weight: 800; letter-spacing: .4px; }
+.nav-subgroup .nav { width: 100%; }
+.nav-more-content[hidden], .v3-subnav[hidden], .v3-subnav-group[hidden] { display: none !important; }
+.v3-subnav { display: flex; align-items: center; min-width: 0; margin: -8px 0 18px; padding: 8px 10px; border: 1px solid #dbe4ef; border-radius: 13px; background: rgba(255,255,255,.88); box-shadow: 0 3px 10px rgba(15,23,42,.035); }
+.v3-subnav-group { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.v3-subnav-label { margin-right: 4px; color: #64748b; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.v3-subnav-tab { min-height: 32px; padding: 6px 11px; border: 1px solid #dbe4ef; border-radius: 9px; background: #f8fafc; color: #475569; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; transition: .15s ease; }
+.v3-subnav-tab:hover { border-color: #c7d2fe; background: #eef2ff; color: #4338ca; }
+.v3-subnav-tab.active { border-color: transparent; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; box-shadow: 0 3px 8px rgba(99,102,241,.2); }
+
 .sidebadge {
   max-height: 96px;
   overflow: auto;
@@ -3033,6 +3064,16 @@ th.num {
 .v3-period-range { margin-top: 5px; font-size: 9px; }
 .v3-period-meta { margin-top: 2px; font-size: 8px; line-height: 1.35; }
 @media (max-width: 900px) {
+  .nav-group-more { position: relative; flex: 0 0 auto; }
+  .nav-group-more > .nav-more-toggle { display: flex; flex: 0 0 auto; min-height: 42px; width: auto; white-space: nowrap; margin: 0; padding: 10px 12px; border: 0; border-radius: 10px; background: #f1f5f9; font-size: 13px; }
+  .nav-more-content { display: flex; align-items: stretch; gap: 4px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+  .nav-subgroup { display: flex; align-items: stretch; gap: 4px; padding-left: 6px; border-left: 1px solid #e2e8f0; }
+  .nav-subgroup-title { display: none; }
+  .nav-subgroup .nav { width: auto; }
+  .v3-subnav { margin: 0 0 14px; overflow-x: auto; scrollbar-width: thin; }
+  .v3-subnav-group { flex-wrap: nowrap; min-width: max-content; }
+  .v3-subnav-label { display: none; }
+  .v3-subnav-tab { flex: 0 0 auto; white-space: nowrap; }
   .date-filter-group { flex: 1 1 100%; align-items: stretch; flex-direction: column; gap: 6px; }
   .date-filter-heading { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
   .date-filter-controls { width: 100%; }

@@ -1176,8 +1176,8 @@
   });
   document.addEventListener('v3-render', schedule);
 
-  document.querySelectorAll('.nav-item[data-tab="trend"]').forEach((b) => {
-    b.addEventListener('click', () => setTimeout(renderTrendPage, 60));
+  document.addEventListener('v3-page-view', (event) => {
+    if (event.detail && event.detail.view === 'trend') setTimeout(renderAll, 70);
   });
 
   // กลับเข้าหน้าภาพรวมแล้วต้องวาดกราฟใหม่ ถ้ามีการเปลี่ยนตัวกรองตอนอยู่หน้าอื่น

@@ -226,7 +226,7 @@
       })
       .sort((a, b) => b.s.rows - a.s.rows);
 
-    /* โซน — Target ต่อโซนมาจาก V3Shared.zoneTargetOf() (โซนที่ตั้งเองไว้ใช้ค่านั้นก่อน Target ตามประเภทงาน) */
+    /* โซน — ใช้ค่าเฉลี่ย Target รายเดือนก่อน; ค่าในชีต/ตั้งค่าเป็น fallback เมื่อไม่มีข้อมูลเดือนก่อน */
     const zoneBuckets = new Map(S.zones.map((z) => [z.key, []]));
     const zoneUnknown = [];
     data.forEach((r) => {
@@ -553,7 +553,7 @@
       { title: 'Total Pick', value: (z) => z.s.total, num: true, html: (z) => fmt(z.s.total) },
       { title: 'ชั่วโมงทำงาน', value: (z) => z.s.hours, num: true, html: (z) => fmt(z.s.hours, 1) },
       { title: 'Productivity (หยิบ/ชม.)', value: (z) => z.s.average, num: true, html: (z) => '<b>' + fmt(z.s.average, 0) + '</b>' },
-      { title: 'Target ของโซน', value: (z) => z.target, num: true },
+      { title: 'Target ของโซน', value: (z) => z.target, num: true, html: (z) => fmt(z.target, 1) },
       {
         title: '% Efficiency', value: (z) => (z.eff === null ? '—' : z.eff), num: true, sortValue: (z) => z.eff,
         html: (z) => '<b style="color:' + effColor(z.eff) + '">' + pct(z.eff) + '</b>'
@@ -693,7 +693,7 @@
       + '<div id="v3EffDailyTable"></div>'
 
       + '<h2 class="staff-table-title">อันดับ % Efficiency รายโซน</h2>'
-      + '<p class="panel-desc">เทียบ Target ของแต่ละโซน (โซนไหนตั้งเองไว้ใช้ค่านั้นก่อน Target ตามประเภทงาน) · '
+      + '<p class="panel-desc">เทียบ Target ค่าเฉลี่ย Productivity ของเดือนก่อนหน้าแยกแต่ละโซน; หากเดือนไม่มีข้อมูลจะใช้ค่า fallback · '
       + 'ช่วงนี้ถึงเป้า ' + fmt(zonesPass.length) + ' จาก ' + fmt(zonesJudged.length) + ' โซนที่นับได้ · '
       + 'กอง Not Found ไม่ใช่โซนจริง (โซนที่ Sheet บันทึกไว้ไม่ตรงกฎโซนของ V1) จึงเทียบกับ Target รวม ' + fmt(t) + '</p>'
       + '<div id="v3EffZoneTable"></div>'
@@ -775,8 +775,8 @@
   document.addEventListener('v3-render', () => schedule(120));
   /* กดปุ่มเมนู — หน่วงให้ v2-shell.js ใส่คลาส active ให้ panel ก่อน แล้วค่อยวาด
      วาดใหม่ทุกครั้งที่กลับมาหน้านี้ เพราะ canvas ที่เคยวาดตอนซ่อนจะสูง 0 */
-  document.querySelectorAll('.nav-item[data-tab="efficiency"]').forEach((btn) => {
-    btn.addEventListener('click', () => schedule(70));
+  document.addEventListener('v3-page-view', (event) => {
+    if (event.detail && event.detail.view === 'efficiency') schedule(70);
   });
   /* เผื่อ index.html เปิดหน้านี้เป็นหน้าแรก (panel active อยู่แล้วตอนโหลด) */
   if (isActive()) schedule(200);

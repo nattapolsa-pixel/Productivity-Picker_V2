@@ -173,6 +173,8 @@ function readStoredTargets() {
 }
 
 const TARGETS = readStoredTargets();
+let monthlyZoneTargets = {};
+let monthlyZoneTargetsMeta = { sourceMonth: "", monthLabel: "", counts: {} };
 let currentMonthlyChartMode = "affiliation";
 
 /* ── Target ของทีม: ทุกคนต้องเห็นเลขชุดเดียวกัน ─────────────────────────────
@@ -964,10 +966,42 @@ function getPickTypeTarget(key) {
 }
 
 function getZoneTarget(zoneKey, groupKey) {
+  const monthlyTarget = Number(monthlyZoneTargets[zoneKey]);
+  if (Number.isFinite(monthlyTarget) && monthlyTarget > 0) return monthlyTarget;
+
   const zoneTarget = Number(TARGETS[zoneKey]);
   return Number.isFinite(zoneTarget) && zoneTarget > 0
     ? zoneTarget
     : getPickTypeTarget(groupKey);
+}
+
+function setMonthlyZoneTargets(nextTargets, metadata = {}) {
+  const cleanTargets = {};
+  const zoneKeys = new Set(ZONE_GROUPS.flatMap((group) => group.zones.map((zone) => zone.key)));
+  Object.entries(nextTargets || {}).forEach(([key, rawValue]) => {
+    if (!zoneKeys.has(key)) return;
+    const value = Number(rawValue);
+    if (Number.isFinite(value) && value > 0) cleanTargets[key] = value;
+  });
+  const cleanMetadata = {
+    sourceMonth: String(metadata.sourceMonth || ""),
+    monthLabel: String(metadata.monthLabel || metadata.sourceMonth || ""),
+    counts: { ...(metadata.counts || {}) },
+  };
+  const changed = JSON.stringify([monthlyZoneTargets, monthlyZoneTargetsMeta])
+    !== JSON.stringify([cleanTargets, cleanMetadata]);
+  monthlyZoneTargets = cleanTargets;
+  monthlyZoneTargetsMeta = cleanMetadata;
+  if (!changed) return;
+
+  syncTargetReferences();
+  updateStaticTargetLabels();
+  document.dispatchEvent(new CustomEvent("v3-targets", {
+    detail: { ...TARGETS, monthlyZoneTargets: { ...monthlyZoneTargets }, monthlyZoneTargetsMeta: { ...monthlyZoneTargetsMeta } },
+  }));
+  rerenderWithCurrentTargets(cleanMetadata.monthLabel
+    ? `ใช้ Target Zone จากค่าเฉลี่ยเดือน ${cleanMetadata.monthLabel}`
+    : "ใช้ Target Zone จากข้อมูลเดือนก่อนหน้า");
 }
 
 function syncTargetReferences() {
@@ -1792,6 +1826,19 @@ function updateStaticTargetLabels() {
   });
 
   setText(gaugeTargetText, `Target ≥ ${TARGETS.overall}`);
+
+  const hasMonthlyZoneTargets = Object.keys(monthlyZoneTargets).length > 0;
+  document.querySelectorAll(".zoneTargetSourceLabel").forEach((zoneSource) => {
+    zoneSource.textContent = hasMonthlyZoneTargets
+      ? `Target Zone · Avg ${monthlyZoneTargetsMeta.monthLabel}`
+      : "Target Zone · ไม่มีข้อมูลเดือนก่อน";
+  });
+  const zoneExplanation = document.querySelector("#zoneTargetExplanation");
+  if (zoneExplanation) {
+    zoneExplanation.textContent = hasMonthlyZoneTargets
+      ? `Target Zone ใช้ค่าเฉลี่ย Productivity ของเดือน ${monthlyZoneTargetsMeta.monthLabel} แยกแต่ละโซน โดยไม่ขึ้นกับ Filter ที่เลือก; ช่อง Target Zone ด้านบนเป็นค่า fallback สำหรับโซนที่ไม่มีข้อมูลเดือนดังกล่าว`
+      : "ไม่มีข้อมูล Zone ที่ใช้คำนวณจากเดือนก่อนหน้า; ระบบจึงใช้ค่า fallback ที่ตั้งไว้ในชีตหรือไฟล์ตั้งค่าไปก่อน";
+  }
 }
 
 function applyTargetToSummary(summary, target) {
@@ -2040,6 +2087,7 @@ function updateTargets(nextTargets, sourceLabel, options = {}) {
 window.TARGETS = TARGETS;
 window.DEFAULT_TARGETS = DEFAULT_TARGETS;
 window.updateTargets = updateTargets;
+window.setMonthlyZoneTargets = setMonthlyZoneTargets;
 window.WEIGHTS = WEIGHTS;
 window.DEFAULT_WEIGHTS = DEFAULT_WEIGHTS;
 window.updateWeights = updateWeights;
@@ -4752,7 +4800,7 @@ function renderZoneBreakdown(zoneGroups, payload = {}) {
       </div>
       <div class="zone-section-meta">
         <span class="zone-section-pill ${groupStatusClass}">${groupGood}/${zoneRows.length} ผ่าน Target</span>
-        <span class="zone-section-target">Target แยกราย Zone</span>
+        <span class="zone-section-target zoneTargetSourceLabel">${Object.keys(monthlyZoneTargets).length ? `Target Zone · Avg ${monthlyZoneTargetsMeta.monthLabel}` : "Target Zone · ไม่มีข้อมูลเดือนก่อน"}</span>
       </div>
     `;
     section.appendChild(sectionHead);
