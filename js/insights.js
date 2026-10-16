@@ -62,6 +62,16 @@
     const [year,month,day]=String(date).split('-').map(Number),row=new Array(43).fill('');
     row[2]=`Date(${year},${month-1},${day})`;row[3]=String(person?.userId||'').trim();row[4]=Number(person?.total)||0;row[6]=Number(person?.hours)||0;row[31]=person?.valid?Number(person.productivity)||0:'Not Count';row[32]=person?.shift||'';row[33]='BE';row[34]=person?.affiliation||'Pick to Sort';row[35]=person?.owner||'UNKNOWN';row[36]='Pick to Sort';row._sortData=true;row._sortDataFirst=person?.first instanceof Date?person.first.getTime():Number(person?.first)||0;row._sortDataLast=person?.last instanceof Date?person.last.getTime():Number(person?.last)||0;row._sortDataLines=Number(person?.lines)||0;row._sortDataValid=Boolean(person?.valid);return row;
   }
+  function sortDataZoneDetailRows(){
+    const filters=V3Data.filters||{},system=String(filters.system||'ALL').trim().toUpperCase();
+    if(system!=='ALL'&&system!=='BPS')return [];
+    const start=$('startDate')?.value||'',end=$('endDate')?.value||'';
+    return Object.entries(sortPeopleByDate)
+      .filter(([date])=>date&&(!start||date>=start)&&(!end||date<=end))
+      .flatMap(([date,group])=>(group.people||[]).map(person=>syntheticSortRow(date,person)))
+      .filter(row=>M.matches(row,filters))
+      .sort((a,b)=>M.date(b[2]).localeCompare(M.date(a[2]))||String(a[3]||'').localeCompare(String(b[3]||''),'en'));
+  }
   function historyAwareRows(list,dateHints=[]){
     const effective=effectiveRows(list||[]),sourceDates=new Set(effective.map(r=>M.date(r[2])).filter(Boolean)),dates=new Set([...sourceDates,...(dateHints||[]).filter(Boolean)]),out=[];
     effective.forEach(row=>{if(zone(row)?.key!=='pickToSortBe')out.push(row);});
@@ -472,14 +482,17 @@
     $('v3ZoneMap').innerHTML=(realGroups.length?realGroups.map(zoneTile).join(''):'<div class="v3-zone-empty">ยังไม่มีข้อมูล Zone จริงในช่วงที่เลือก</div>')+(unknownGroup?zoneTile(unknownGroup):'');
     $('v3ZoneMap').querySelectorAll('button[data-zone-key]').forEach(btn=>btn.onclick=()=>{
       const selected=shown.find(z=>z.key===btn.dataset.zoneKey);if(!selected)return;
-      const detail=data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
+      const detail=selected.key==='pickToSortBe'?sortDataZoneDetailRows():data.filter(r=>(zone(r)?.key||'unknown')===selected.key);
       let panel=$('v3ZoneDetail');if(!panel){panel=document.createElement('div');panel.id='v3ZoneDetail';$('v3ZoneTable').after(panel);}
       destroyZoneCharts();
       const mtd=zoneMtdModel(selected.key,zoneTarget(selected));
       const mtdTotalLabel=selected.key==='pickToSortBe'?'Total Sort UOM MTD':'Total Pick MTD',mtdTotalUnit=selected.key==='pickToSortBe'?'Sort UOM':'ชิ้น';
       const mtdBlock=mtd&&!mtd.summary.rows&&!mtd.summary.total?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีข้อมูลสะสมของ Zone นี้ในเดือน ${esc(zoneMonthLabel(mtd.month))}</div></section>`:mtd?`<section class="v3-zone-mtd"><div class="v3-zone-mtd-head"><div><span class="v3-zone-mtd-kicker">MONTH TO DATE</span><h3>ยอดสะสม ${esc(zoneMonthLabel(mtd.month))}</h3><p>ตั้งแต่ ${esc(dmy(`${mtd.month}-01`))} ถึง ${esc(dmy(mtd.anchor))} · กรองตามระบบและกะด้านบน</p></div><span class="v3-zone-mtd-date">${fmt(mtd.daysWithData)} วันมีข้อมูล</span></div><div class="v3-zone-mtd-summary"><div><small>${mtdTotalLabel}</small><strong>${fmt(mtd.summary.total)}</strong><span>${mtdTotalUnit}</span></div><div><small>Productivity เฉลี่ย MTD</small><strong>${fmt(mtd.summary.average,0)}</strong><span>หยิบ/ชม. · เป้า ${fmt(mtd.target)}</span></div><div><small>พนักงานใน Zone</small><strong>${fmt(mtd.summary.people)}</strong><span>${fmt(mtd.summary.count)} คนเข้าเฉลี่ย</span></div></div><div class="v3-zone-mtd-chart"><canvas id="v3ZoneMtdChart" aria-label="กราฟ Month to date ของ Zone"></canvas></div>${zoneMtdDailyHtml(mtd)}${zoneSortTimeHtml(mtd)}<p class="v3-zone-mtd-note">แท่ง = ${mtdTotalUnit} รายวัน · เส้นแดง = Productivity · จุดและตัวเลขสีเขียว = ผ่าน Target, สีแดง = ไม่ผ่าน · เส้นเขียว = Target · วางเมาส์บนวันเพื่อดูค่าเทียบ 1D, 7D และ 30D</p></section>${zoneWeeklyHtml(mtd)}${zoneMonthlyHtml(mtd)}`:'<section class="v3-zone-mtd"><div class="v3-zone-mtd-empty">ยังไม่มีวันที่ในข้อมูลผลงานสำหรับคำนวณ MTD</div></section>';
-      panel.innerHTML=`<h2>รายการของ ${esc(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label)}</h2>`+stats(detail,selected.key)+mtdBlock+'<div id="v3ZoneDetailRows"></div>';
-      table($('v3ZoneDetailRows'),'zone-detail',detail,recordColumns,{valid:r=>M.number(r[31])>0});
+      const detailTitle=selected.key==='pickToSortBe'?'รายชื่อคน Sort ใน Zone BE':'รายการของ '+(selected.key==='unknown'?'ข้อมูล Zone ไม่ครบ':'Zone '+selected.label);
+      const detailColumns=selected.key==='pickToSortBe'?recordColumns.map(column=>column.title==='Total Pick'?{...column,title:'Total Sort UOM'}:column):recordColumns;
+      const detailNote=selected.key==='pickToSortBe'?'<p class="note v3-notice">รายชื่อและยอดรายคนจาก Sort_Data · กรองตามช่วงวันและกะที่เลือก</p>':'';
+      panel.innerHTML=`<h2>${esc(detailTitle)}</h2>`+stats(detail,selected.key)+mtdBlock+detailNote+'<div id="v3ZoneDetailRows"></div>';
+      table($('v3ZoneDetailRows'),'zone-detail',detail,detailColumns,{valid:r=>M.number(r[31])>0});
       drawZoneMtdChart(mtd);
       drawZoneWeeklyChart(mtd);
       drawZoneMonthlyChart(mtd);
