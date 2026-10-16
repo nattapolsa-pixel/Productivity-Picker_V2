@@ -3094,3 +3094,91 @@ th.num {
   .v3-period-compare-grid { grid-template-columns: 1fr; }
   .v3-period-card:last-child { grid-column: auto; }
 }
+.target-zone-average-panel,
+.target-zone-fallback-panel {
+  border: 1px solid rgba(148, 163, 184, .24);
+  border-radius: 14px;
+  padding: .85rem;
+}
+
+.target-zone-average-panel {
+  background: linear-gradient(145deg, rgba(16, 185, 129, .10), rgba(15, 23, 42, .24));
+  border-color: rgba(16, 185, 129, .32);
+}
+
+.target-zone-average-panel > summary,
+.target-zone-fallback-panel > summary {
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.zone-target-average-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
+  margin-top: .85rem;
+}
+
+.zone-target-average-card {
+  display: grid;
+  gap: .18rem;
+  min-width: 0;
+  padding: .65rem .75rem;
+  border: 1px solid rgba(148, 163, 184, .22);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, .35);
+}
+
+.zone-target-average-card.has-average {
+  border-color: rgba(16, 185, 129, .4);
+}
+
+.zone-target-average-card.uses-fallback {
+  border-color: rgba(148, 163, 184, .3);
+}
+
+.zone-target-average-name {
+  color: var(--text-secondary);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+.zone-target-average-value {
+  color: var(--text-primary);
+  font-size: 1.08rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.zone-target-average-value small {
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 600;
+}
+
+.zone-target-average-source {
+  color: var(--text-muted);
+  font-size: .68rem;
+  line-height: 1.35;
+}
+
+.zone-target-average-empty {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: .82rem;
+}
+
+:root.light .target-zone-average-panel {
+  background: linear-gradient(145deg, #ecfdf5, #ffffff);
+}
+
+:root.light .zone-target-average-card {
+  background: #ffffff;
+}
+
+@media (max-width: 520px) {
+  .zone-target-average-grid {
+    grid-template-columns: 1fr;
+  }
+}

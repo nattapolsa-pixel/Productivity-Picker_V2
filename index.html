@@ -10,9 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- 1) โครงคอมโพเนนต์เดิมของ V1  2) CSS จริงของ V2  3) สะพานให้คอมโพเนนต์ V1 เข้าชุด V2 -->
-  <link rel="stylesheet" href="css/styles.css?v=20261002-weight-mode-1">
+  <link rel="stylesheet" href="css/styles.css?v=20261016-zone-target-preview-1">
   <link rel="stylesheet" href="css/v2-base.css?v=20260916-v2shell-1">
-  <link rel="stylesheet" href="css/v2-theme.css?v=20261015-menu-merge-1">
+  <link rel="stylesheet" href="css/v2-theme.css?v=20261016-zone-target-preview-1">
   <!-- Chart.js เวอร์ชันเดียวกับ V2 ใช้วาดกราฟชุดเดียวกัน -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script
@@ -941,8 +941,15 @@
           <input type="number" min="1" step="1" data-target-input="training" inputmode="numeric">
         </label>
 
-        <details open style="border:1px solid rgba(148,163,184,.24);border-radius:14px;padding:.85rem;">
-          <summary style="cursor:pointer;font-weight:800;color:var(--text-primary);">Target แต่ละ Zone ย่อย (14 Zone)</summary>
+        <details open class="target-zone-average-panel">
+          <summary>Target ที่ใช้จริง · ค่าเฉลี่ยเดือนก่อนหน้า</summary>
+          <div id="monthlyZoneTargetsPreview" class="zone-target-average-grid">
+            <div class="zone-target-average-empty">กำลังอ่านค่าเฉลี่ยของเดือนก่อนหน้า…</div>
+          </div>
+        </details>
+
+        <details class="target-zone-fallback-panel">
+          <summary>ตั้งค่า Fallback แยก Zone (ใช้เฉพาะโซนที่ไม่มีค่าเฉลี่ยเดือนก่อน)</summary>
           <div style="display:grid;gap:.7rem;margin-top:.85rem;">
             <strong style="color:var(--text-accent);font-size:.82rem;">Full Rack</strong>
             <label class="target-field"><span>Zone AH-AI</span><input type="number" min="1" step="1" data-target-input="fullRackAhAi" inputmode="numeric"></label>
@@ -1035,7 +1042,7 @@
 
   <script src="js/data-client.js?v=20261015-be-shift-source-1"></script>
   <script src="js/metrics.js?v=20261015-be-shift-source-1"></script>
-  <script src="js/script.js?v=20261015-monthly-zone-target-1"></script>
+  <script src="js/script.js?v=20261016-zone-target-preview-1"></script>
   <script src="js/insights.js?v=20261015-monthly-zone-target-1"></script>
   <script src="js/v2-shell.js?v=20261015-menu-merge-1"></script>
   <script src="js/v2-views.js?v=20261015-menu-merge-1"></script>

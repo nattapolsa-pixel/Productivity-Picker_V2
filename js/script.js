@@ -1839,6 +1839,25 @@ function updateStaticTargetLabels() {
       ? `Target Zone ใช้ค่าเฉลี่ย Productivity ของเดือน ${monthlyZoneTargetsMeta.monthLabel} แยกแต่ละโซน โดยไม่ขึ้นกับ Filter ที่เลือก; ช่อง Target Zone ด้านบนเป็นค่า fallback สำหรับโซนที่ไม่มีข้อมูลเดือนดังกล่าว`
       : "ไม่มีข้อมูล Zone ที่ใช้คำนวณจากเดือนก่อนหน้า; ระบบจึงใช้ค่า fallback ที่ตั้งไว้ในชีตหรือไฟล์ตั้งค่าไปก่อน";
   }
+
+  const monthlyTargetPreview = document.querySelector("#monthlyZoneTargetsPreview");
+  if (monthlyTargetPreview) {
+    const monthLabel = monthlyZoneTargetsMeta.monthLabel || "เดือนก่อนหน้า";
+    monthlyTargetPreview.innerHTML = ZONE_GROUPS.flatMap((group) => group.zones.map((zone) => {
+      const average = Number(monthlyZoneTargets[zone.key]);
+      const hasAverage = Number.isFinite(average) && average > 0;
+      const target = getZoneTarget(zone.key, group.key);
+      const count = Number(monthlyZoneTargetsMeta.counts?.[zone.key]) || 0;
+      const source = hasAverage
+        ? `Avg ${monthLabel} · ${formatInteger(count)} จุดข้อมูล`
+        : `ไม่มีค่า Avg ${monthLabel} · ใช้ Fallback`;
+      return `<article class="zone-target-average-card ${hasAverage ? "has-average" : "uses-fallback"}">
+        <span class="zone-target-average-name">Zone ${zone.label}</span>
+        <strong class="zone-target-average-value">${formatShare(target)} <small>หยิบ/ชม.</small></strong>
+        <span class="zone-target-average-source">${source}</span>
+      </article>`;
+    })).join("");
+  }
 }
 
 function applyTargetToSummary(summary, target) {
