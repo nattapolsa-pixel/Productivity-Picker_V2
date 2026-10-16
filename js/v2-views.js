@@ -377,7 +377,7 @@
     const periods = buildTrendPeriods();
     const unit = trendPeriodMode === 'day' ? 'วัน' : (trendPeriodMode === 'week' ? 'สัปดาห์' : 'เดือน');
     const delta = trendPeriodMode === 'day' ? 'DoD' : (trendPeriodMode === 'week' ? 'WoW' : 'MoM');
-    const target = Number(window.TARGETS && window.TARGETS.overall) || 170;
+    const target = Number(window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && window.TARGETS.overall) || 170;
     const toggle = `<div class="seg" id="v3TrendPeriodTog" style="margin-bottom:14px;">
       <button type="button" data-tperiod="day"${trendPeriodMode === 'day' ? ' class="active"' : ''}>📆 รายวัน</button>
       <button type="button" data-tperiod="week"${trendPeriodMode === 'week' ? ' class="active"' : ''}>📅 รายสัปดาห์</button>
@@ -499,7 +499,7 @@
   /* ── 1. แถว KPI ที่ v2-views รับผิดชอบ (ที่เหลือ script.js เติมตามสูตร V1 เดิม) ── */
   function renderKpiExtras(list) {
     const s = aggregateForMode(list);
-    if ($('kpiTarget')) $('kpiTarget').textContent = fmt((window.TARGETS && window.TARGETS.overall) || 170);
+    if ($('kpiTarget')) $('kpiTarget').textContent = fmt((window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && window.TARGETS.overall) || 170);
     if ($('kpiPeople')) $('kpiPeople').textContent = fmt(s.people);
     if ($('kpiPeopleNote')) {
       $('kpiPeopleNote').textContent = `${fmt(s.count)} แถวเข้าเฉลี่ย · ${fmt(s.excluded)} แถวไม่เข้าเฉลี่ย · ${fmt(s.rows)} แถวต้นทาง`;
@@ -539,7 +539,7 @@
     const valid = prods.filter((v) => v > 0);
     const minProd = valid.length ? Math.min(...valid) : 0;
     const maxProd = valid.length ? Math.max(...valid) : 100;
-    const target = (window.TARGETS && window.TARGETS.overall) || 170;
+    const target = (window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && window.TARGETS.overall) || 170;
 
     if ($('trendRangePill')) {
       const unit = trendMode === 'month' ? 'เดือน' : trendMode === 'week' ? 'สัปดาห์' : 'วัน';
@@ -931,7 +931,7 @@
     const entries = [...buckets.entries()]
       .map(([k, v]) => ({ label: k, stats: aggregateForMode(v) }))
       .sort((x, y) => (x.label === 'Not Found' ? 1 : y.label === 'Not Found' ? -1 : x.label.localeCompare(y.label)));
-    const target = (window.TARGETS && window.TARGETS.overall) || 170;
+    const target = (window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && window.TARGETS.overall) || 170;
 
     draw('shiftCompareChart', {
       type: 'bar',
@@ -1011,7 +1011,7 @@
       const id = M.userId(r) || 'Not Found';
       if (!names.has(id)) names.set(id, M.personName(r, roster));
     });
-    const target = (window.TARGETS && window.TARGETS.overall) || 170;
+    const target = (window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && window.TARGETS.overall) || 170;
     const items = [...buckets.entries()]
       .map(([id, rs]) => ({ id, name: names.get(id) || id, stats: aggregateForMode(rs) }))
       .filter((x) => x.stats.average !== null)

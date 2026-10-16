@@ -291,7 +291,7 @@
   };
 
   function target() {
-    return Number(window.TARGETS && window.TARGETS.overall) || 170;
+    return Number(window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && window.TARGETS.overall) || 170;
   }
 
   function destroyAll() {

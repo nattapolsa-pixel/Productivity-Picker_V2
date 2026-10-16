@@ -60,7 +60,7 @@
   }
 
   function overallTarget() {
-    return (window.TARGETS && Number(window.TARGETS.overall)) || 170;
+    return (window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && Number(window.TARGETS.overall)) || 170;
   }
   /* เท่ากับเป้านับว่าผ่าน */
   const passed = (average, target) => average !== null && average >= target;

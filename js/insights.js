@@ -448,7 +448,7 @@
     const shown=groups.filter(z=>z.key==='unknown'||z.stats.rows>0||(keepEmptyAg&&z.key==='fullRackAg'));
     const realGroups=shown.filter(z=>z.key!=='unknown').sort((a,b)=>b.stats.total-a.stats.total);
     const unknownGroup=shown.find(z=>z.key==='unknown');
-    const zoneTarget=z=>z.key==='unknown'?(Number(TARGETS.overall)||170):(Number(getZoneTarget(z.key,z.group))||170);
+    const zoneTarget=z=>z.key==='unknown'?(Number(window.getEffectiveTarget?window.getEffectiveTarget("overall"):TARGETS.overall)||170):(Number(getZoneTarget(z.key,z.group))||170);
     const zoneStatus=z=>{
       if(z.key==='unknown')return {label:'ต้องตรวจข้อมูล',className:'unknown'};
       if(z.stats.average===null)return {label:'ไม่มีแถวเข้าเฉลี่ย',className:'nodata'};
@@ -516,7 +516,7 @@
 
   function zoneTargetOf(z){
     return z.key==='unknown'
-      ? (Number(window.TARGETS&&window.TARGETS.overall)||170)
+      ? (Number(window.getEffectiveTarget?window.getEffectiveTarget("overall"):window.TARGETS&&window.TARGETS.overall)||170)
       : Number(getZoneTarget(z.key,z.group))||170;
   }
 
@@ -915,12 +915,18 @@
     bucket.sum+=number;bucket.count+=1;
   }
   function computeMonthlyZoneTargets(){
-    const period=previousCalendarMonth(),buckets=new Map(zones.map(item=>[item.key,{sum:0,count:0}]));
+    const period=previousCalendarMonth(),categoryKeys=['overall','fullRack','halfRack','ea','pickToSort'];
+    const buckets=new Map([...zones.map(item=>item.key),...categoryKeys].map(key=>[key,{sum:0,count:0}]));
     rows.forEach(row=>{
       const date=rowDate(row);if(!date||date<period.start||date>=period.end)return;
-      const matched=zone(row);if(!matched||matched.key==='pickToSortBe')return;
       if(!M.isValidZoneRow(row))return;
-      addMonthlyTargetValue(buckets,matched.key,M.number(row[31]));
+      const productivity=M.number(row[31]);if(productivity<=0)return;
+      const matched=zone(row),type=M.type(row[36]);
+      // Results Master อาจมี BE ที่ถูกลบ/เขียนทับ จึงข้ามข้อมูล PTS จากชีตนี้ทั้งหมด
+      if(matched?.key==='pickToSortBe'||type==='pickToSort')return;
+      addMonthlyTargetValue(buckets,'overall',productivity);
+      if(['fullRack','halfRack','ea'].includes(type))addMonthlyTargetValue(buckets,type,productivity);
+      if(matched&&matched.group!=='pickToSort')addMonthlyTargetValue(buckets,matched.key,productivity);
     });
 
     // BE ห้ามใช้ Results Master: ใช้ค่าเฉลี่ยรายคนจาก Sort_Data ก่อน
@@ -931,23 +937,33 @@
       const sortGroup=sortPeopleByDate[date];
       if(sortGroup){
         (sortGroup.people||[]).forEach(person=>{
-          if(person.valid&&Number(person.productivity)>0&&Number(person.productivity)<1000)
+          if(person.valid&&Number(person.productivity)>0&&Number(person.productivity)<1000){
             addMonthlyTargetValue(buckets,'pickToSortBe',person.productivity);
+            addMonthlyTargetValue(buckets,'pickToSort',person.productivity);
+            addMonthlyTargetValue(buckets,'overall',person.productivity);
+          }
         });
         return;
       }
       const saved=historyByDate.get(date);if(!saved)return;
       const shifts=Object.values(saved.shiftBreakdown||{}).filter(item=>Number(item.productivity)>0);
-      if(shifts.length)shifts.forEach(item=>addMonthlyTargetValue(buckets,'pickToSortBe',item.productivity));
-      else addMonthlyTargetValue(buckets,'pickToSortBe',saved.productivity);
+      const addBeAverage=value=>{
+        addMonthlyTargetValue(buckets,'pickToSortBe',value);
+        addMonthlyTargetValue(buckets,'pickToSort',value);
+        addMonthlyTargetValue(buckets,'overall',value);
+      };
+      if(shifts.length)shifts.forEach(item=>addBeAverage(item.productivity));
+      else addBeAverage(saved.productivity);
     });
 
-    const targets={},counts={};
+    const targets={},categories={},counts={};
     buckets.forEach((bucket,key)=>{
       counts[key]=bucket.count;
-      if(bucket.count)targets[key]=bucket.sum/bucket.count;
+      if(!bucket.count)return;
+      if(categoryKeys.includes(key))categories[key]=bucket.sum/bucket.count;
+      else targets[key]=bucket.sum/bucket.count;
     });
-    return {targets,metadata:{sourceMonth:period.sourceMonth,monthLabel:period.monthLabel,counts}};
+    return {targets:{zones:targets,categories},metadata:{sourceMonth:period.sourceMonth,monthLabel:period.monthLabel,counts}};
   }
   function refreshMonthlyZoneTargets(){
     const computed=computeMonthlyZoneTargets();

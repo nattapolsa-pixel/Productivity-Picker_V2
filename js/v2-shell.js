@@ -271,7 +271,7 @@
 
   /* ── ช่องกรอกเป้า Target แบบ V2 → ส่งค่าเข้า updateTargets() ของ V1 ── */
   if (targetInput) {
-    const currentTarget = () => (window.TARGETS && Number(window.TARGETS.overall)) || 170;
+    const currentTarget = () => (window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && Number(window.TARGETS.overall)) || 170;
     targetInput.value = currentTarget();
     const commit = () => {
       const value = Number(targetInput.value);

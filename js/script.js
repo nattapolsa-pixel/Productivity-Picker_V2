@@ -174,6 +174,7 @@ function readStoredTargets() {
 
 const TARGETS = readStoredTargets();
 let monthlyZoneTargets = {};
+let monthlyCategoryTargets = {};
 let monthlyZoneTargetsMeta = { sourceMonth: "", monthLabel: "", counts: {} };
 let currentMonthlyChartMode = "affiliation";
 
@@ -644,51 +645,51 @@ const CATEGORY_CONFIG = [
     title: "Picking Productivity - Full Rack (หยิบ)",
     shortTitle: "Full Rack",
     mainKpi: "37%",
-    target: TARGETS.fullRack,
+    target: getPickTypeTarget('fullRack'),
   },
   {
     key: "halfRack",
     title: "Picking Productivity - Half Rack (หยิบ)",
     shortTitle: "Half Rack",
     mainKpi: "48%",
-    target: TARGETS.halfRack,
+    target: getPickTypeTarget('halfRack'),
   },
   {
     key: "ea",
     title: "Picking Productivity - Micro Rack (หยิบ)",
     shortTitle: "Micro Rack",
     mainKpi: "15%",
-    target: TARGETS.ea,
+    target: getPickTypeTarget('ea'),
   },
   {
     key: "pickToSort",
     title: "Picking Productivity - Pick to Sort",
     shortTitle: "Pick to Sort",
     mainKpi: "Focus",
-    target: TARGETS.pickToSort,
+    target: getPickTypeTarget('pickToSort'),
   },
   {
     key: "mezzanine",
     title: "Picking Productivity - Mezzanine",
     shortTitle: "Mezzanine",
     mainKpi: "Focus",
-    target: TARGETS.mezzanine,
+    target: getPickTypeTarget('mezzanine'),
   },
 ];
 
 const PICK_TYPE_DETAILS = [
-  { key: "fullRack", title: "Picking Productivity - Full Rack (หยิบ)", label: "Full Rack", target: TARGETS.fullRack },
-  { key: "halfRack", title: "Picking Productivity - Half Rack (หยิบ)", label: "Half Rack", target: TARGETS.halfRack },
-  { key: "ea", title: "Picking Productivity - Micro Rack (หยิบ)", label: "Micro Rack", target: TARGETS.ea },
-  { key: "pickToSort", title: "Picking Productivity - Pick to Sort", label: "Pick to Sort", target: TARGETS.pickToSort },
-  { key: "mezzanine", title: "Picking Productivity - Mezzanine", label: "Mezzanine", target: TARGETS.mezzanine },
+  { key: "fullRack", title: "Picking Productivity - Full Rack (หยิบ)", label: "Full Rack", target: getPickTypeTarget('fullRack') },
+  { key: "halfRack", title: "Picking Productivity - Half Rack (หยิบ)", label: "Half Rack", target: getPickTypeTarget('halfRack') },
+  { key: "ea", title: "Picking Productivity - Micro Rack (หยิบ)", label: "Micro Rack", target: getPickTypeTarget('ea') },
+  { key: "pickToSort", title: "Picking Productivity - Pick to Sort", label: "Pick to Sort", target: getPickTypeTarget('pickToSort') },
+  { key: "mezzanine", title: "Picking Productivity - Mezzanine", label: "Mezzanine", target: getPickTypeTarget('mezzanine') },
 ];
 
 const ZONE_GROUPS = [
   {
     key: "fullRack",
     title: "Picking Productivity - Full Rack (หยิบ)",
-    target: TARGETS.fullRack,
+    target: getPickTypeTarget('fullRack'),
     zones: [
       /* AA-AF ยังไม่ใช้ แต่ AG กลับมาใช้งานในข้อมูลปัจจุบันของ GFA
          และต้องอยู่ก่อน AH-AI เพื่อให้ Position แบบ AG-AH จัดเข้า AG */
@@ -700,7 +701,7 @@ const ZONE_GROUPS = [
   {
     key: "halfRack",
     title: "Picking Productivity - Half Rack (หยิบ)",
-    target: TARGETS.halfRack,
+    target: getPickTypeTarget('halfRack'),
     zones: [
       { key: "halfRackAf", title: "Picking Productivity - Zone AF", label: "AF" },
       // AJ-AK ย้ายมาจากกลุ่ม Full Rack - legacySource ไว้อ่าน payload จาก Apps Script รุ่นก่อนย้าย (ลบออกได้หลัง deploy .gs ใหม่แล้ว)
@@ -725,7 +726,7 @@ const ZONE_GROUPS = [
   {
     key: "ea",
     title: "Picking Productivity - Micro Rack (หยิบ)",
-    target: TARGETS.ea,
+    target: getPickTypeTarget('ea'),
     zones: [
       { key: "microEa", title: "Picking Productivity - Zone EA", label: "EA" },
       { key: "microFa", title: "Picking Productivity - Zone FA", label: "FA" },
@@ -734,14 +735,14 @@ const ZONE_GROUPS = [
   {
     key: "pickToSort",
     title: "Picking Productivity - Pick to Sort",
-    target: TARGETS.pickToSort,
+    target: getPickTypeTarget('pickToSort'),
     zones: [
       { key: "pickToSortBe", title: "Picking Productivity - Zone BE", label: "BE" },
     ],
   },
   /* กลุ่ม Mezzanine มีโซนเดียวคือ HB ซึ่งเลิกใช้แล้ว (งานสุดท้าย 18/07/2026)
      จึงถอดทั้งกลุ่มออกจากแกนโซน 21/09/2569 — แถวที่เขียน "HB-HA" ไปกอง Not Found
-     TARGETS.mezzanine ยังอยู่ เพราะแกน "ประเภทงาน" (Pick Type คอลัมน์ AK) ใช้ค่านั้น
+     getPickTypeTarget('mezzanine') ยังอยู่ เพราะแกน "ประเภทงาน" (Pick Type คอลัมน์ AK) ใช้ค่านั้น
      ผ่าน getPickTypeTarget() แยกจากแกนโซน (ตรวจแล้วประเภทงาน Mezzanine ไม่มีแถวเลยทั้งชุด
      แต่ไม่ถอดแกนนั้นในรอบนี้ เพราะกระทบโครง payload ของ V1) */
 ];
@@ -957,11 +958,14 @@ const BU_GROUPS = [
 ];
 
 function getPickTypeTarget(key) {
+  const monthlyTarget = Number(monthlyCategoryTargets[key]);
+  if (Number.isFinite(monthlyTarget) && monthlyTarget > 0) return monthlyTarget;
   if (key === "fullRack") return TARGETS.fullRack;
   if (key === "halfRack") return TARGETS.halfRack;
   if (key === "ea") return TARGETS.ea;
   if (key === "pickToSort") return TARGETS.pickToSort;
   if (key === "mezzanine") return TARGETS.mezzanine;
+  if (key === "training") return TARGETS.training;
   return TARGETS.overall;
 }
 
@@ -976,32 +980,45 @@ function getZoneTarget(zoneKey, groupKey) {
 }
 
 function setMonthlyZoneTargets(nextTargets, metadata = {}) {
+  const zoneTargets = nextTargets?.zones || nextTargets || {};
+  const categoryTargets = nextTargets?.categories || {};
   const cleanTargets = {};
+  const cleanCategoryTargets = {};
   const zoneKeys = new Set(ZONE_GROUPS.flatMap((group) => group.zones.map((zone) => zone.key)));
-  Object.entries(nextTargets || {}).forEach(([key, rawValue]) => {
+  Object.entries(zoneTargets).forEach(([key, rawValue]) => {
     if (!zoneKeys.has(key)) return;
     const value = Number(rawValue);
     if (Number.isFinite(value) && value > 0) cleanTargets[key] = value;
+  });
+  ["overall", "fullRack", "halfRack", "ea", "pickToSort"].forEach((key) => {
+    const value = Number(categoryTargets[key]);
+    if (Number.isFinite(value) && value > 0) cleanCategoryTargets[key] = value;
   });
   const cleanMetadata = {
     sourceMonth: String(metadata.sourceMonth || ""),
     monthLabel: String(metadata.monthLabel || metadata.sourceMonth || ""),
     counts: { ...(metadata.counts || {}) },
   };
-  const changed = JSON.stringify([monthlyZoneTargets, monthlyZoneTargetsMeta])
-    !== JSON.stringify([cleanTargets, cleanMetadata]);
+  const changed = JSON.stringify([monthlyZoneTargets, monthlyCategoryTargets, monthlyZoneTargetsMeta])
+    !== JSON.stringify([cleanTargets, cleanCategoryTargets, cleanMetadata]);
   monthlyZoneTargets = cleanTargets;
+  monthlyCategoryTargets = cleanCategoryTargets;
   monthlyZoneTargetsMeta = cleanMetadata;
   if (!changed) return;
 
   syncTargetReferences();
   updateStaticTargetLabels();
   document.dispatchEvent(new CustomEvent("v3-targets", {
-    detail: { ...TARGETS, monthlyZoneTargets: { ...monthlyZoneTargets }, monthlyZoneTargetsMeta: { ...monthlyZoneTargetsMeta } },
+    detail: {
+      ...TARGETS,
+      monthlyZoneTargets: { ...monthlyZoneTargets },
+      monthlyCategoryTargets: { ...monthlyCategoryTargets },
+      monthlyZoneTargetsMeta: { ...monthlyZoneTargetsMeta },
+    },
   }));
   rerenderWithCurrentTargets(cleanMetadata.monthLabel
-    ? `ใช้ Target Zone จากค่าเฉลี่ยเดือน ${cleanMetadata.monthLabel}`
-    : "ใช้ Target Zone จากข้อมูลเดือนก่อนหน้า");
+    ? `ใช้ Target จากค่าเฉลี่ยเดือน ${cleanMetadata.monthLabel}`
+    : "ใช้ Target จากข้อมูลเดือนก่อนหน้า");
 }
 
 function syncTargetReferences() {
@@ -1588,7 +1605,7 @@ function normalizePickerSummary(pickers) {
       average: Number(item.average || 0),
       count: Number(item.count || 0),
       totalPick: Number(item.totalPick || item.pickTotal || item.total || 0),
-      target: Number(item.target || TARGETS.overall),
+      target: Number(item.target || getPickTypeTarget('overall')),
       gap: Number(item.gap || 0),
       status: item.status || "",
       mainShift: item.mainShift || "ไม่ระบุกะ",
@@ -1611,7 +1628,7 @@ function normalizePickerSummary(pickers) {
 
 function createEmptyPickToSortDetails() {
   return {
-    overall: createSummaryFromKpi(null, TARGETS.pickToSort),
+    overall: createSummaryFromKpi(null, getPickTypeTarget('pickToSort')),
     totalPick: 0,
     shifts: [],
     bu: [],
@@ -1630,9 +1647,9 @@ function normalizePickToSortDetails(details, payload = {}) {
     ...fallback,
     ...source,
     overall: {
-      ...createSummaryFromKpi(overall, TARGETS.pickToSort),
+      ...createSummaryFromKpi(overall, getPickTypeTarget('pickToSort')),
       ...overall,
-      target: TARGETS.pickToSort,
+      target: getPickTypeTarget('pickToSort'),
     },
     totalPick: Number(source.totalPick || 0),
     shifts: Array.isArray(source.shifts) ? source.shifts : [],
@@ -1721,13 +1738,13 @@ function normalizeDashboardPayload(payload) {
     generatedAt: payload.generatedAt || new Date().toISOString(),
     elapsedMs: payload.elapsedMs || 0,
     cacheStatus: payload.cached ? "instant-cache" : "fresh",
-    overall: createSummaryFromKpi(kpiMap.overall, TARGETS.overall, validRows),
+    overall: createSummaryFromKpi(kpiMap.overall, getPickTypeTarget('overall'), validRows),
     categories: {
-      fullRack: createSummaryFromKpi(kpiMap.fullRack, TARGETS.fullRack),
-      halfRack: createSummaryFromKpi(kpiMap.halfRack, TARGETS.halfRack),
-      ea: createSummaryFromKpi(kpiMap.ea, TARGETS.ea),
-      pickToSort: createSummaryFromKpi(kpiMap.pickToSort, TARGETS.pickToSort),
-      mezzanine: createSummaryFromKpi(kpiMap.mezzanine, TARGETS.mezzanine),
+      fullRack: createSummaryFromKpi(kpiMap.fullRack, getPickTypeTarget('fullRack')),
+      halfRack: createSummaryFromKpi(kpiMap.halfRack, getPickTypeTarget('halfRack')),
+      ea: createSummaryFromKpi(kpiMap.ea, getPickTypeTarget('ea')),
+      pickToSort: createSummaryFromKpi(kpiMap.pickToSort, getPickTypeTarget('pickToSort')),
+      mezzanine: createSummaryFromKpi(kpiMap.mezzanine, getPickTypeTarget('mezzanine')),
     },
     zones: [],
     bu: [],
@@ -1821,11 +1838,11 @@ async function idbGet(key) {
 function updateStaticTargetLabels() {
   targetLabels.forEach((element) => {
     const key = element.dataset.targetLabel;
-    const value = TARGETS[key] || TARGETS.overall;
+    const value = getPickTypeTarget(key) || getPickTypeTarget("overall");
     element.textContent = `Target ≥ ${value}`;
   });
 
-  setText(gaugeTargetText, `Target ≥ ${TARGETS.overall}`);
+  setText(gaugeTargetText, `Target ≥ ${getPickTypeTarget("overall")}`);
 
   const hasMonthlyZoneTargets = Object.keys(monthlyZoneTargets).length > 0;
   document.querySelectorAll(".zoneTargetSourceLabel").forEach((zoneSource) => {
@@ -1835,9 +1852,33 @@ function updateStaticTargetLabels() {
   });
   const zoneExplanation = document.querySelector("#zoneTargetExplanation");
   if (zoneExplanation) {
-    zoneExplanation.textContent = hasMonthlyZoneTargets
-      ? `Target Zone ใช้ค่าเฉลี่ย Productivity ของเดือน ${monthlyZoneTargetsMeta.monthLabel} แยกแต่ละโซน โดยไม่ขึ้นกับ Filter ที่เลือก; ช่อง Target Zone ด้านบนเป็นค่า fallback สำหรับโซนที่ไม่มีข้อมูลเดือนดังกล่าว`
-      : "ไม่มีข้อมูล Zone ที่ใช้คำนวณจากเดือนก่อนหน้า; ระบบจึงใช้ค่า fallback ที่ตั้งไว้ในชีตหรือไฟล์ตั้งค่าไปก่อน";
+    zoneExplanation.textContent = `Target Overall / Shift / BU และ Full Rack, Half Rack, Micro Rack, Pick to Sort ใช้ค่าเฉลี่ย Productivity เดือน ${monthlyZoneTargetsMeta.monthLabel || "ก่อนหน้า"} ส่วน Training คงค่าตั้งเดิม; Mezzanine ไม่ใช้ Target แล้ว ค่าเฉลี่ยคำนวณจากข้อมูลเดือนก่อนหน้าโดยไม่ขึ้นกับ Filter ที่เลือก และใช้ Fallback เฉพาะเมื่อไม่มีข้อมูล`;
+  }
+
+  const monthlyCategoryPreview = document.querySelector("#monthlyCategoryTargetsPreview");
+  if (monthlyCategoryPreview) {
+    const monthLabel = monthlyZoneTargetsMeta.monthLabel || "เดือนก่อนหน้า";
+    const categoryTargets = [
+      { key: "overall", label: "Overall / Shift / BU" },
+      { key: "fullRack", label: "Full Rack" },
+      { key: "halfRack", label: "Half Rack" },
+      { key: "ea", label: "Micro Rack" },
+      { key: "pickToSort", label: "Pick to Sort" },
+    ];
+    monthlyCategoryPreview.innerHTML = categoryTargets.map(({ key, label }) => {
+      const average = Number(monthlyCategoryTargets[key]);
+      const hasAverage = Number.isFinite(average) && average > 0;
+      const target = getPickTypeTarget(key);
+      const count = Number(monthlyZoneTargetsMeta.counts?.[key]) || 0;
+      const source = hasAverage
+        ? `Avg ${monthLabel} · ${formatInteger(count)} จุดข้อมูล`
+        : `ไม่มีค่า Avg ${monthLabel} · ใช้ Fallback`;
+      return `<article class="zone-target-average-card ${hasAverage ? "has-average" : "uses-fallback"}">
+        <span class="zone-target-average-name">${label}</span>
+        <strong class="zone-target-average-value">${formatShare(target)} <small>หยิบ/ชม.</small></strong>
+        <span class="zone-target-average-source">${source}</span>
+      </article>`;
+    }).join("");
   }
 
   const monthlyTargetPreview = document.querySelector("#monthlyZoneTargetsPreview");
@@ -1878,21 +1919,21 @@ function applyCurrentTargets(payload) {
   }
 
   syncTargetReferences();
-  applyTargetToSummary(payload.overall, TARGETS.overall);
+  applyTargetToSummary(payload.overall, getPickTypeTarget('overall'));
 
   CATEGORY_CONFIG.forEach((config) => {
     applyTargetToSummary(payload.categories?.[config.key], config.target);
   });
 
   (Array.isArray(payload.shifts) ? payload.shifts : []).forEach((shift) => {
-    applyTargetToSummary(shift, TARGETS.overall);
+    applyTargetToSummary(shift, getPickTypeTarget('overall'));
     (Array.isArray(shift.affiliations) ? shift.affiliations : []).forEach((affiliation) => {
-      applyTargetToSummary(affiliation, TARGETS.overall);
+      applyTargetToSummary(affiliation, getPickTypeTarget('overall'));
     });
   });
 
   (Array.isArray(payload.bu) ? payload.bu : []).forEach((bu) => {
-    applyTargetToSummary(bu, TARGETS.overall);
+    applyTargetToSummary(bu, getPickTypeTarget('overall'));
     (Array.isArray(bu.details) ? bu.details : []).forEach((detail) => {
       applyTargetToSummary(detail, getPickTypeTarget(detail.key));
     });
@@ -1909,27 +1950,27 @@ function applyCurrentTargets(payload) {
   });
 
   (Array.isArray(payload.training) ? payload.training : []).forEach((item) => {
-    item.target = TARGETS.training;
+    item.target = getPickTypeTarget('training');
   });
 
   payload.pickers = normalizePickerSummary(payload.pickers);
   ["top", "bottom"].forEach((groupKey) => {
-    payload.pickers[groupKey].forEach((item) => applyTargetToSummary(item, TARGETS.overall));
+    payload.pickers[groupKey].forEach((item) => applyTargetToSummary(item, getPickTypeTarget('overall')));
   });
 
   payload.pickToSortDetails = normalizePickToSortDetails(payload.pickToSortDetails, payload);
-  applyTargetToSummary(payload.pickToSortDetails.overall, TARGETS.pickToSort);
+  applyTargetToSummary(payload.pickToSortDetails.overall, getPickTypeTarget('pickToSort'));
   (Array.isArray(payload.pickToSortDetails.shifts) ? payload.pickToSortDetails.shifts : []).forEach((shift) => {
-    applyTargetToSummary(shift, TARGETS.pickToSort);
+    applyTargetToSummary(shift, getPickTypeTarget('pickToSort'));
     (Array.isArray(shift.affiliations) ? shift.affiliations : []).forEach((affiliation) => {
-      applyTargetToSummary(affiliation, TARGETS.pickToSort);
+      applyTargetToSummary(affiliation, getPickTypeTarget('pickToSort'));
     });
   });
   (Array.isArray(payload.pickToSortDetails.bu) ? payload.pickToSortDetails.bu : []).forEach((bu) => {
-    applyTargetToSummary(bu, TARGETS.pickToSort);
+    applyTargetToSummary(bu, getPickTypeTarget('pickToSort'));
   });
   ["top", "bottom"].forEach((groupKey) => {
-    payload.pickToSortDetails.pickers[groupKey].forEach((item) => applyTargetToSummary(item, TARGETS.pickToSort));
+    payload.pickToSortDetails.pickers[groupKey].forEach((item) => applyTargetToSummary(item, getPickTypeTarget('pickToSort')));
   });
 
   return payload;
@@ -1938,7 +1979,7 @@ function applyCurrentTargets(payload) {
 function setTargetFormValues() {
   targetInputs.forEach((input) => {
     const key = input.dataset.targetInput;
-    input.value = TARGETS[key] || DEFAULT_TARGETS[key] || TARGETS.overall;
+    input.value = TARGETS[key] || DEFAULT_TARGETS[key] || getPickTypeTarget('overall');
   });
 }
 
@@ -2107,6 +2148,7 @@ window.TARGETS = TARGETS;
 window.DEFAULT_TARGETS = DEFAULT_TARGETS;
 window.updateTargets = updateTargets;
 window.setMonthlyZoneTargets = setMonthlyZoneTargets;
+window.getEffectiveTarget = getPickTypeTarget;
 window.WEIGHTS = WEIGHTS;
 window.DEFAULT_WEIGHTS = DEFAULT_WEIGHTS;
 window.updateWeights = updateWeights;
@@ -2116,7 +2158,7 @@ function renderOverallVisual(summary) {
     return;
   }
 
-  const info = getStatusInfo(summary.average, TARGETS.overall);
+  const info = getStatusInfo(summary.average, getPickTypeTarget('overall'));
   const score = Math.min(Math.max(info.progress, 0), 100);
 
   overallGauge.style.setProperty("--score-angle", `${score * 3.6}deg`);
@@ -2125,7 +2167,7 @@ function renderOverallVisual(summary) {
   setText(gaugeValue, formatNumber(summary.average));
   setText(gaugeBadge, info.label);
 
-  setText(gaugeInsight, getSimpleTargetDirection(summary.average, TARGETS.overall));
+  setText(gaugeInsight, getSimpleTargetDirection(summary.average, getPickTypeTarget('overall')));
 
   if (gaugeBadge) {
     gaugeBadge.className = `status-pill ${info.className}`;
@@ -2198,7 +2240,7 @@ function buildMonthlyProductivitySvg(days, metricLabel) {
   const pad = { top: 24, right: 24, bottom: 58, left: 62 };
   const plotWidth = width - pad.left - pad.right;
   const plotHeight = height - pad.top - pad.bottom;
-  const maxValue = Math.max(...values, TARGETS.overall, 1);
+  const maxValue = Math.max(...values, getPickTypeTarget('overall'), 1);
   const scaleMax = Math.ceil((maxValue * 1.12) / 10) * 10;
   const step = safeDays.length > 1 ? plotWidth / (safeDays.length - 1) : plotWidth;
   const barWidth = Math.max(7, Math.min(16, (plotWidth / Math.max(safeDays.length, 1)) * 0.48));
@@ -2211,7 +2253,7 @@ function buildMonthlyProductivitySvg(days, metricLabel) {
     }))
     .filter((point) => point.day.hasData);
   const path = points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
-  const targetY = yOf(TARGETS.overall);
+  const targetY = yOf(getPickTypeTarget('overall'));
 
   // Closed path for area fill under the line
   let areaPath = "";
@@ -2239,7 +2281,7 @@ function buildMonthlyProductivitySvg(days, metricLabel) {
       ? `${formatInteger(day.count)} รายการ · Total pick ${formatInteger(day.totalPick)}`
       : "";
 
-    const isGood = day.hasData && day.productivity >= TARGETS.overall;
+    const isGood = day.hasData && day.productivity >= getPickTypeTarget('overall');
     const barFill = isGood ? "url(#barGoodGradDaily)" : "url(#barWarnGradDaily)";
 
     return `
@@ -2260,7 +2302,7 @@ function buildMonthlyProductivitySvg(days, metricLabel) {
       ? `${formatInteger(day.count)} รายการ · Total pick ${formatInteger(day.totalPick)}`
       : "";
     
-    const isGood = day.productivity >= TARGETS.overall;
+    const isGood = day.productivity >= getPickTypeTarget('overall');
     const color = isGood ? "var(--good)" : "var(--warn)";
 
     return `
@@ -2313,7 +2355,7 @@ function buildMonthlyProductivitySvg(days, metricLabel) {
       
       <!-- Target Reference Line -->
       <line class="monthly-chart-target" x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="6 6" style="opacity: 0.85;"></line>
-      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${TARGETS.overall}</text>
+      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${getPickTypeTarget('overall')}</text>
       
       <!-- Gradient Bars -->
       ${bars}
@@ -2729,7 +2771,7 @@ function buildYearlyProductivitySvg(monthsData, metricLabel, displayMode = "affi
   });
   distinctItems.sort((left, right) => left.localeCompare(right, "th"));
   
-  const maxValue = Math.max(...values, TARGETS.overall, 1);
+  const maxValue = Math.max(...values, getPickTypeTarget('overall'), 1);
   const scaleMax = Math.ceil((maxValue * 1.12) / 10) * 10;
   
   const step = monthsData.length > 1 ? plotWidth / (monthsData.length - 1) : plotWidth;
@@ -2742,7 +2784,7 @@ function buildYearlyProductivitySvg(monthsData, metricLabel, displayMode = "affi
   }));
   
   const path = points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ");
-  const targetY = yOf(TARGETS.overall);
+  const targetY = yOf(getPickTypeTarget('overall'));
 
   // Closed path for area fill under the line
   let areaPath = "";
@@ -2766,7 +2808,7 @@ function buildYearlyProductivitySvg(monthsData, metricLabel, displayMode = "affi
   const m = distinctItems.length;
   
   const monthlyTooltips = monthsData.map((d) => {
-    const isOverallGood = d.average >= TARGETS.overall;
+    const isOverallGood = d.average >= getPickTypeTarget('overall');
     const overallValStr = `${formatProductivityValue(d.average)} ${metricLabel}`;
     const overallTrend = isOverallGood ? "up" : "down";
     
@@ -2866,7 +2908,7 @@ function buildYearlyProductivitySvg(monthsData, metricLabel, displayMode = "affi
   const dots = points.map((point, index) => {
     const d = point.d;
     const tooltip = monthlyTooltips[index];
-    const isGood = d.average >= TARGETS.overall;
+    const isGood = d.average >= getPickTypeTarget('overall');
     const color = isGood ? "var(--good)" : "var(--warn)";
 
     return `
@@ -2938,7 +2980,7 @@ function buildYearlyProductivitySvg(monthsData, metricLabel, displayMode = "affi
       
       <!-- Target Reference Line -->
       <line class="monthly-chart-target" x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="6 6" style="opacity: 0.85;"></line>
-      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${TARGETS.overall}</text>
+      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${getPickTypeTarget('overall')}</text>
       
       <!-- Gradient Bars -->
       ${bars}
@@ -3012,7 +3054,7 @@ function renderMonthlyTab(payload) {
   const totalSum = monthsData.reduce((sum, d) => sum + (d.rawAverage * d.transactions), 0);
   const totalTransactions = monthsData.reduce((sum, d) => sum + d.transactions, 0);
   const ytdAverage = totalTransactions > 0 ? totalSum / totalTransactions : 0;
-  const ytdInfo = getStatusInfo(ytdAverage, TARGETS.overall);
+  const ytdInfo = getStatusInfo(ytdAverage, getPickTypeTarget('overall'));
 
   const bestMonth = [...monthsData].sort((a, b) => b.average - a.average)[0];
   const ytdTotalPick = monthsData.reduce((sum, d) => sum + d.totalPick, 0);
@@ -3025,8 +3067,8 @@ function renderMonthlyTab(payload) {
       </div>
       <div class="kpi-main-number" id="monthlyYtdAvg">${formatNumber(ytdAverage)}</div>
       <div class="kpi-main-sub">
-        <span>Target ≥ ${TARGETS.overall}</span>
-        <span>${getSimpleTargetDirection(ytdAverage, TARGETS.overall)}</span>
+        <span>Target ≥ ${getPickTypeTarget('overall')}</span>
+        <span>${getSimpleTargetDirection(ytdAverage, getPickTypeTarget('overall'))}</span>
       </div>
       <div class="progress-track">
         <div class="progress-fill" style="width: ${Math.min(ytdInfo.progress, 100)}%"></div>
@@ -3110,7 +3152,7 @@ function renderMonthlyTab(payload) {
     const worstMonthObj = sortedByAvg[sortedByAvg.length - 1];
     
     const latestMonth = monthsData[monthsData.length - 1];
-    const isLatestAboveTarget = latestMonth.average >= TARGETS.overall;
+    const isLatestAboveTarget = latestMonth.average >= getPickTypeTarget('overall');
     
     if (monthlyPresentHeadline) {
       monthlyPresentHeadline.textContent = isLatestAboveTarget
@@ -3124,7 +3166,7 @@ function renderMonthlyTab(payload) {
     const actions = [];
 
     highlights.push(`<strong>จุดเด่นภาพรวม</strong>: เดือน <strong>${bestMonthObj.labelThai}</strong> มีผลผลิตเฉลี่ยสูงสุดแตะ <strong>${formatProductivityValue(bestMonthObj.average)} Pick/Hr</strong> จากยอดหยิบรวม ${formatInteger(bestMonthObj.totalPick)} รายการ`);
-    risks.push(`<strong>จุดที่ต้องกู้คืน</strong>: เดือน <strong>${worstMonthObj.labelThai}</strong> ตกต่ำสุดเฉลี่ยที่ <strong>${formatProductivityValue(worstMonthObj.average)} Pick/Hr</strong> ต่ำกว่าเป้าภาพรวมอยู่ ${formatProductivityValue(TARGETS.overall - worstMonthObj.average)} Pick/Hr`);
+    risks.push(`<strong>จุดที่ต้องกู้คืน</strong>: เดือน <strong>${worstMonthObj.labelThai}</strong> ตกต่ำสุดเฉลี่ยที่ <strong>${formatProductivityValue(worstMonthObj.average)} Pick/Hr</strong> ต่ำกว่าเป้าภาพรวมอยู่ ${formatProductivityValue(getPickTypeTarget('overall') - worstMonthObj.average)} Pick/Hr`);
 
     if (monthsData.length >= 2) {
       const prevMonth = monthsData[monthsData.length - 2];
@@ -3166,7 +3208,7 @@ function renderMonthlyTab(payload) {
     }
 
     if (monthlyPresentNarrative) {
-      monthlyPresentNarrative.innerHTML = `รายงานสรุปผลงานระดับผู้บริหาร (Monthly Briefing) ในรอบช่วงเวลา <strong>${startMonth} - ${endMonth}</strong> มีผลผลิตเฉลี่ยสะสมรวม (YTD Avg) อยู่ที่ <strong>${formatProductivityValue(ytdAverage)} Pick/Hr</strong> (ต่ำกว่าเกณฑ์เป้าหมาย 170 อยู่ ${formatProductivityValue(TARGETS.overall - ytdAverage)} Pick/Hr). ${MoM_Sentence}. ข้อมูลชี้แนะจุดสำคัญที่ต้องวิเคราะห์ต่อดังนี้:`;
+      monthlyPresentNarrative.innerHTML = `รายงานสรุปผลงานระดับผู้บริหาร (Monthly Briefing) ในรอบช่วงเวลา <strong>${startMonth} - ${endMonth}</strong> มีผลผลิตเฉลี่ยสะสมรวม (YTD Avg) อยู่ที่ <strong>${formatProductivityValue(ytdAverage)} Pick/Hr</strong> (ต่ำกว่าเกณฑ์เป้าหมาย 170 อยู่ ${formatProductivityValue(getPickTypeTarget('overall') - ytdAverage)} Pick/Hr). ${MoM_Sentence}. ข้อมูลชี้แนะจุดสำคัญที่ต้องวิเคราะห์ต่อดังนี้:`;
     }
 
     actions.push(`<strong>ถอดบทเรียนช่วงพีคสูงสุด</strong>: นำรูปแบบการจัดการกะ และ Best Practice ของเดือน <strong>${bestMonthObj.labelThaiShort}</strong> มาใช้อ้างอิงเป็นมาตรฐานคลังและใช้อบรมพนักงานกลุ่มเป้าหมาย`);
@@ -3316,7 +3358,7 @@ function buildAffiliationTrendSvg(trendData, overallTrendData, metricLabel) {
   const allValues = [
     ...trendData.map(d => d.average),
     ...overallTrendData.map(d => d.average),
-    TARGETS.overall
+    getPickTypeTarget('overall')
   ];
   const maxValue = Math.max(...allValues, 1);
   const scaleMax = Math.ceil((maxValue * 1.12) / 10) * 10;
@@ -3342,7 +3384,7 @@ function buildAffiliationTrendSvg(trendData, overallTrendData, metricLabel) {
 
   const affPath = affPoints.map((p, idx) => `${idx ? "L" : "M"} ${p.x} ${p.y}`).join(" ");
   const overallPath = overallPoints.map((p, idx) => `${idx ? "L" : "M"} ${p.x} ${p.y}`).join(" ");
-  const targetY = yOf(TARGETS.overall);
+  const targetY = yOf(getPickTypeTarget('overall'));
 
   let areaPath = "";
   if (affPoints.length > 0) {
@@ -3363,7 +3405,7 @@ function buildAffiliationTrendSvg(trendData, overallTrendData, metricLabel) {
 
   const dots = affPoints.map((point) => {
     const d = point.d;
-    const isGood = d.average >= TARGETS.overall;
+    const isGood = d.average >= getPickTypeTarget('overall');
     const color = isGood ? "var(--good)" : "var(--warn)";
     const detailText = `Productivity เฉลี่ย: ${formatProductivityValue(d.average)} · ${formatInteger(d.activeDays)} รายการ`;
 
@@ -3400,7 +3442,7 @@ function buildAffiliationTrendSvg(trendData, overallTrendData, metricLabel) {
 
       <!-- Target Reference Line -->
       <line x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 5" style="opacity: 0.75;"></line>
-      <text x="${width - pad.right}" y="${targetY - 5}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${TARGETS.overall}</text>
+      <text x="${width - pad.right}" y="${targetY - 5}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${getPickTypeTarget('overall')}</text>
 
       <!-- Overall Average Line (Dashed) -->
       ${overallPath ? `<path d="${overallPath}" stroke="var(--text-muted)" stroke-width="2" stroke-dasharray="4 4" fill="none" style="opacity: 0.55;"></path>` : ""}
@@ -3434,7 +3476,7 @@ function buildAffiliationsComparisonSvg(affiliationsData, overallAvg) {
   const allValues = [
     ...affiliationsData.map(d => d.average),
     overallAvg,
-    TARGETS.overall
+    getPickTypeTarget('overall')
   ];
   const maxValue = Math.max(...allValues, 1);
   const scaleMax = Math.ceil((maxValue * 1.12) / 10) * 10;
@@ -3457,7 +3499,7 @@ function buildAffiliationsComparisonSvg(affiliationsData, overallAvg) {
     const x = pad.left + (i * step) + (step - barWidth) / 2;
     const y = yOf(d.average);
     const barHeight = Math.max(2, plotHeight - (y - pad.top));
-    const isGood = d.average >= TARGETS.overall;
+    const isGood = d.average >= getPickTypeTarget('overall');
     const gradId = isGood ? "barGoodGradAffComp" : "barWarnGradAffComp";
     const color = isGood ? "var(--good)" : "var(--warn)";
     const detailText = `ยอดหยิบรวม ${formatInteger(d.totalPick)} ชิ้น · ผู้ปฏิบัติงาน ${formatInteger(d.pickerCount)} คน`;
@@ -3480,7 +3522,7 @@ function buildAffiliationsComparisonSvg(affiliationsData, overallAvg) {
     return `<text class="monthly-chart-date" x="${x}" y="${height - 14}" text-anchor="middle" fill="var(--text-secondary)" style="font-family: var(--font-body); font-size: 10px;" title="${escapeHtml(d.name)}">${escapeHtml(displayName)}</text>`;
   }).join("");
 
-  const targetY = yOf(TARGETS.overall);
+  const targetY = yOf(getPickTypeTarget('overall'));
   const overallY = yOf(overallAvg);
 
   return `
@@ -3500,7 +3542,7 @@ function buildAffiliationsComparisonSvg(affiliationsData, overallAvg) {
 
       <!-- Target Reference Line -->
       <line x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 5" style="opacity: 0.65;"></line>
-      <text x="${pad.left + 5}" y="${targetY - 5}" text-anchor="start" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${TARGETS.overall}</text>
+      <text x="${pad.left + 5}" y="${targetY - 5}" text-anchor="start" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${getPickTypeTarget('overall')}</text>
 
       <!-- Overall Average Line -->
       <line x1="${pad.left}" y1="${overallY}" x2="${width - pad.right}" y2="${overallY}" stroke="var(--blue)" stroke-width="2" stroke-dasharray="4 4" style="opacity: 0.85;"></line>
@@ -3599,17 +3641,17 @@ function renderAffiliationTab(payload) {
       </div>
     </article>
 
-    <article class="kpi-main ${bestAff && bestAff.average >= TARGETS.overall ? "is-good" : "is-warning"}" id="bestAffCard">
+    <article class="kpi-main ${bestAff && bestAff.average >= getPickTypeTarget('overall') ? "is-good" : "is-warning"}" id="bestAffCard">
       <div class="kpi-main-head">
         <span class="kpi-main-label">สังกัดที่มีประสิทธิภาพดีที่สุด</span>
-        <span class="kpi-badge">${bestAff && bestAff.average >= TARGETS.overall ? "ผ่านเกณฑ์" : "ต่ำกว่าเกณฑ์"}</span>
+        <span class="kpi-badge">${bestAff && bestAff.average >= getPickTypeTarget('overall') ? "ผ่านเกณฑ์" : "ต่ำกว่าเกณฑ์"}</span>
       </div>
       <div class="kpi-main-number" style="font-size: 1.6rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${bestAff ? bestAff.name : "-"}">${bestAff ? bestAff.name : "-"}</div>
       <div class="kpi-main-sub">
         <span>Avg Pick/Hr: <strong>${bestAff ? formatProductivityValue(bestAff.average) : "-"}</strong></span>
       </div>
       <div class="progress-track">
-        <div class="progress-fill" style="width: ${bestAff ? Math.min((bestAff.average / TARGETS.overall) * 100, 100) : 0}%"></div>
+        <div class="progress-fill" style="width: ${bestAff ? Math.min((bestAff.average / getPickTypeTarget('overall')) * 100, 100) : 0}%"></div>
       </div>
     </article>
 
@@ -3624,7 +3666,7 @@ function renderAffiliationTab(payload) {
   `;
 
   tableBody.innerHTML = affiliationsData.map((d) => {
-    const info = getStatusInfo(d.average, TARGETS.overall);
+    const info = getStatusInfo(d.average, getPickTypeTarget('overall'));
     return `
       <tr>
         <td style="font-weight: 700; color: var(--text-primary);">${escapeHtml(d.name)}</td>
@@ -3663,7 +3705,7 @@ function renderAffiliationTab(payload) {
     const sortedGroupPickers = group.pickers.slice().sort((a, b) => b.average - a.average);
 
     pickerTableBody.innerHTML = sortedGroupPickers.map((p, index) => {
-      const info = getStatusInfo(p.average, TARGETS.overall);
+      const info = getStatusInfo(p.average, getPickTypeTarget('overall'));
       return `
         <tr>
           <td style="font-family: var(--font-mono); font-weight: 700;">#${index + 1}</td>
@@ -3696,7 +3738,7 @@ function renderAffiliationTab(payload) {
           currentValueEl.textContent = formatProductivityValue(current.average);
         }
 
-        const info = getStatusInfo(current.average, TARGETS.overall);
+        const info = getStatusInfo(current.average, getPickTypeTarget('overall'));
         if (trendBadge) {
           trendBadge.textContent = info.label;
           trendBadge.className = `status-pill ${info.className}`;
@@ -3755,7 +3797,7 @@ function renderAffiliationTab(payload) {
       if (detailsRow) detailsRow.style.display = "none";
       if (chartTitle) chartTitle.textContent = "เปรียบเทียบ Productivity ระหว่างสังกัด";
       
-      const overallInfo = getStatusInfo(overallAvg, TARGETS.overall);
+      const overallInfo = getStatusInfo(overallAvg, getPickTypeTarget('overall'));
       if (trendBadge) {
         trendBadge.textContent = "เฉลี่ยรวม: " + overallInfo.label;
         trendBadge.className = `status-pill ${overallInfo.className}`;
@@ -3820,7 +3862,7 @@ function renderShiftVisual(shifts) {
       .slice(0, 5)
       .map((shift) => {
         const average = Number(shift.average) || 0;
-        const target = Number(shift.target || TARGETS.overall);
+        const target = Number(shift.target || getPickTypeTarget('overall'));
         const info = getStatusInfo(average, target);
 
         return {
@@ -3913,23 +3955,23 @@ function getTrainingTrendInfo(item) {
     };
   }
 
-  if (average >= TARGETS.training) {
+  if (average >= getPickTypeTarget('training')) {
     return {
       key: "onTarget",
       label: "ผ่านเป้า Training",
       className: "is-good",
       short: "ผ่านเป้า",
-      message: `ค่าเฉลี่ย ${formatNumber(average)} ผ่าน Target Training ${TARGETS.training}`,
+      message: `ค่าเฉลี่ย ${formatNumber(average)} ผ่าน Target Training ${getPickTypeTarget('training')}`,
     };
   }
 
-  if (count > 0 && average < TARGETS.training) {
+  if (count > 0 && average < getPickTypeTarget('training')) {
     return {
       key: "belowTarget",
       label: "ต่ำกว่าเป้า Training",
       className: "is-danger",
       short: "ต่ำกว่าเป้า",
-      message: `ต่ำกว่า Target Training ${TARGETS.training} อยู่ ${formatNumber(TARGETS.training - average)} Pick/Hr`,
+      message: `ต่ำกว่า Target Training ${getPickTypeTarget('training')} อยู่ ${formatNumber(getPickTypeTarget('training') - average)} Pick/Hr`,
     };
   }
 
@@ -4080,7 +4122,7 @@ function getZoneInsightItems(zoneGroups) {
       title: zone.title || zone.label || "Zone",
       average: Number(zone.average || 0),
       count: Number(zone.count || 0),
-      target: Number(zone.target || group.target || TARGETS.overall),
+      target: Number(zone.target || group.target || getPickTypeTarget('overall')),
     })))
     .filter((zone) => zone.count > 0)
     .map((zone) => ({ ...zone, gap: zone.average - zone.target }));
@@ -4103,7 +4145,7 @@ function renderPresentSummary(payload) {
 
   const overall = payload.overall || {};
   const overallAverage = Number(overall.average || 0);
-  const overallInfo = getStatusInfo(overallAverage, TARGETS.overall);
+  const overallInfo = getStatusInfo(overallAverage, getPickTypeTarget('overall'));
   const categoryItems = getCategoryInsightItems(payload.categories || {});
   const categoriesWithData = categoryItems.filter((item) => item.count > 0);
   const weakestCategory = categoriesWithData.slice().sort((left, right) => left.gap - right.gap)[0] || categoryItems[0];
@@ -4119,17 +4161,17 @@ function renderPresentSummary(payload) {
   const focusBu = (Array.isArray(payload.bu) ? payload.bu : [])
     .filter((item) => item.focus && Number(item.count || 0) > 0)
     .sort((left, right) => Number(left.average || 0) - Number(right.average || 0))[0];
-  const pickToSortItem = categoryItems.find((item) => item.key === "pickToSort") || { label: "Pick to Sort", average: 0, count: 0, target: TARGETS.pickToSort, gap: -TARGETS.pickToSort };
-  const pickToSortInfo = getStatusInfo(pickToSortItem.average, TARGETS.pickToSort);
+  const pickToSortItem = categoryItems.find((item) => item.key === "pickToSort") || { label: "Pick to Sort", average: 0, count: 0, target: getPickTypeTarget('pickToSort'), gap: -getPickTypeTarget('pickToSort') };
+  const pickToSortInfo = getStatusInfo(pickToSortItem.average, getPickTypeTarget('pickToSort'));
   const presentRange = getPresentRangeLabel();
   const periodClass = getPresentPeriodClass();
-  const overallGapText = overallAverage >= TARGETS.overall
-    ? `สูงกว่า Target ${formatNumber(overallAverage - TARGETS.overall)} Pick/Hr`
-    : `ต่ำกว่า Target ${formatNumber(TARGETS.overall - overallAverage)} Pick/Hr`;
+  const overallGapText = overallAverage >= getPickTypeTarget('overall')
+    ? `สูงกว่า Target ${formatNumber(overallAverage - getPickTypeTarget('overall'))} Pick/Hr`
+    : `ต่ำกว่า Target ${formatNumber(getPickTypeTarget('overall') - overallAverage)} Pick/Hr`;
   const previousOverallAverage = Number(payload.previousPayload?.overall?.average || 0);
   const comparisonSentence = payload.previousPayload && previousOverallAverage > 0
-    ? `${getComparisonMeta(payload).label || "เทียบวันก่อน"}: ${formatCompareDelta(overallAverage - previousOverallAverage, "Pick/Hr")}${formatTargetContext(overallAverage, TARGETS.overall, "Pick/Hr")}`
-    : `${getComparisonMeta(payload).label || "เทียบวันก่อน"}: ยังไม่มีข้อมูลเทียบ${formatTargetContext(overallAverage, TARGETS.overall, "Pick/Hr")}`;
+    ? `${getComparisonMeta(payload).label || "เทียบวันก่อน"}: ${formatCompareDelta(overallAverage - previousOverallAverage, "Pick/Hr")}${formatTargetContext(overallAverage, getPickTypeTarget('overall'), "Pick/Hr")}`
+    : `${getComparisonMeta(payload).label || "เทียบวันก่อน"}: ยังไม่มีข้อมูลเทียบ${formatTargetContext(overallAverage, getPickTypeTarget('overall'), "Pick/Hr")}`;
   const mainFocus = weakestCategory
     ? `${weakestCategory.label} Avg ${formatNumber(weakestCategory.average)} / Target ${weakestCategory.target}`
     : "ยังไม่มีข้อมูลประเภทงาน";
@@ -4145,7 +4187,7 @@ function renderPresentSummary(payload) {
 
   setText(
     presentHeadline,
-    overallAverage >= TARGETS.overall
+    overallAverage >= getPickTypeTarget('overall')
       ? `${periodClass}: Productivity อยู่ในระดับผ่านเป้าภาพรวม`
       : `${periodClass}: Productivity ยังต่ำกว่าเป้าภาพรวม`
   );
@@ -4157,7 +4199,7 @@ function renderPresentSummary(payload) {
     ? `Training มี ${formatInteger(trainingPositive)} จาก ${formatInteger(trainingSummary.withData)} คนที่ดีขึ้นหรือผ่านเป้า (${trainingPositiveRate}%)`
     : "Training ยังไม่มีข้อมูลเพียงพอสำหรับสรุปเชิงแนวโน้ม";
   const pickToSortSentence = pickToSortItem.count > 0
-    ? `Pick to Sort Avg ${formatNumber(pickToSortItem.average)} เทียบ Target ${TARGETS.pickToSort} จาก ${formatInteger(pickToSortItem.count)} รายการ`
+    ? `Pick to Sort Avg ${formatNumber(pickToSortItem.average)} เทียบ Target ${getPickTypeTarget('pickToSort')} จาก ${formatInteger(pickToSortItem.count)} รายการ`
     : "Pick to Sort ยังไม่มีข้อมูลในช่วงที่เลือก";
 
   setText(
@@ -4168,10 +4210,10 @@ function renderPresentSummary(payload) {
   const kpiCards = [
     { label: "Overall", value: formatNumber(overallAverage), note: `${overallGapText} · ${comparisonSentence}`, className: overallInfo.className },
     { label: "ประเภทงานที่ควรโฟกัส", value: weakestCategory?.label || "-", note: weakestCategory ? `ต่ำ/สูงกว่าเป้า ${formatSignedNumber(weakestCategory.gap)}` : "ยังไม่มีข้อมูล", className: weakestCategory && weakestCategory.gap >= 0 ? "is-good" : "is-warning" },
-    { label: "Shift ที่ควรดู", value: weakestShift ? (weakestShift.label || weakestShift.title || "-") : "-", note: weakestShift ? `Avg ${formatNumber(weakestShift.average)} · ${formatInteger(weakestShift.count || 0)} รายการ` : "ยังไม่มีข้อมูล", className: weakestShift && Number(weakestShift.average || 0) >= TARGETS.overall ? "is-good" : "is-warning" },
+    { label: "Shift ที่ควรดู", value: weakestShift ? (weakestShift.label || weakestShift.title || "-") : "-", note: weakestShift ? `Avg ${formatNumber(weakestShift.average)} · ${formatInteger(weakestShift.count || 0)} รายการ` : "ยังไม่มีข้อมูล", className: weakestShift && Number(weakestShift.average || 0) >= getPickTypeTarget('overall') ? "is-good" : "is-warning" },
     { label: "Training ดีขึ้น/ผ่านเป้า", value: `${trainingPositiveRate}%`, note: `${formatInteger(trainingPositive)} จาก ${formatInteger(trainingSummary.withData)} คน`, className: trainingPositiveRate >= 60 ? "is-good" : trainingPositiveRate > 0 ? "is-warning" : "is-empty" },
     { label: "Zone ต่ำกว่าเป้า", value: formatInteger(weakZones.length), note: weakZones[0] ? `${weakZones[0].label} ต่ำสุด` : "ไม่มี Zone ต่ำกว่าเป้า", className: weakZones.length > 0 ? "is-warning" : "is-good" },
-    { label: "BU Focus", value: focusBu ? (focusBu.label || focusBu.title || "BU") : "-", note: focusBu ? `Avg ${formatNumber(focusBu.average)} · Share ${formatShare(focusBu.share || 0)}%` : "ยังไม่มีข้อมูล Punthai/Mart", className: focusBu && Number(focusBu.average || 0) >= TARGETS.overall ? "is-good" : "is-warning" },
+    { label: "BU Focus", value: focusBu ? (focusBu.label || focusBu.title || "BU") : "-", note: focusBu ? `Avg ${formatNumber(focusBu.average)} · Share ${formatShare(focusBu.share || 0)}%` : "ยังไม่มีข้อมูล Punthai/Mart", className: focusBu && Number(focusBu.average || 0) >= getPickTypeTarget('overall') ? "is-good" : "is-warning" },
     { label: "Pick to Sort", value: formatNumber(pickToSortItem.average), note: pickToSortItem.count > 0 ? `${pickToSortInfo.gapText} · ${formatInteger(pickToSortItem.count)} รายการ` : "ยังไม่มีข้อมูล Pick to Sort", className: pickToSortItem.count > 0 ? pickToSortInfo.className : "is-empty" },
   ];
 
@@ -4191,11 +4233,11 @@ function renderPresentSummary(payload) {
   ];
 
   const risks = [
-    overallAverage < TARGETS.overall ? `Overall ยังต่ำกว่า Target ${TARGETS.overall} อยู่ ${formatNumber(TARGETS.overall - overallAverage)} Pick/Hr` : "Overall ผ่าน Target ภาพรวมแล้ว ให้รักษาระดับและดูจุดย่อยต่อ",
+    overallAverage < getPickTypeTarget('overall') ? `Overall ยังต่ำกว่า Target ${getPickTypeTarget('overall')} อยู่ ${formatNumber(getPickTypeTarget('overall') - overallAverage)} Pick/Hr` : "Overall ผ่าน Target ภาพรวมแล้ว ให้รักษาระดับและดูจุดย่อยต่อ",
     weakestCategory && weakestCategory.gap < 0 ? `${weakestCategory.label} ต่ำกว่า Target มากสุดในกลุ่ม Rack / EA (${formatNumber(Math.abs(weakestCategory.gap))} Pick/Hr)` : "Rack / EA ไม่มีประเภทหลักที่ต่ำกว่าเป้าในช่วงนี้",
     weakZones.length > 0 ? `Zone ที่ควรดูแรกคือ ${weakZones[0].label} Avg ${formatNumber(weakZones[0].average)} ต่ำกว่า Target ${formatNumber(Math.abs(weakZones[0].gap))}` : "Zone ส่วนใหญ่ไม่มีสัญญาณต่ำกว่าเป้า",
-    trainingSummary.belowTarget > 0 ? `Training ต่ำกว่า Target ${TARGETS.training} จำนวน ${formatInteger(trainingSummary.belowTarget)} คน` : `Training ไม่มีคนที่ต่ำกว่า Target ${TARGETS.training} จากข้อมูลที่มี`,
-    pickToSortItem.count > 0 && pickToSortItem.average < TARGETS.pickToSort ? `Pick to Sort ต่ำกว่า Target ${TARGETS.pickToSort} อยู่ ${formatNumber(TARGETS.pickToSort - pickToSortItem.average)} Pick/Hr` : "Pick to Sort ไม่มีสัญญาณต่ำกว่าเป้าจากข้อมูลที่มี",
+    trainingSummary.belowTarget > 0 ? `Training ต่ำกว่า Target ${getPickTypeTarget('training')} จำนวน ${formatInteger(trainingSummary.belowTarget)} คน` : `Training ไม่มีคนที่ต่ำกว่า Target ${getPickTypeTarget('training')} จากข้อมูลที่มี`,
+    pickToSortItem.count > 0 && pickToSortItem.average < getPickTypeTarget('pickToSort') ? `Pick to Sort ต่ำกว่า Target ${getPickTypeTarget('pickToSort')} อยู่ ${formatNumber(getPickTypeTarget('pickToSort') - pickToSortItem.average)} Pick/Hr` : "Pick to Sort ไม่มีสัญญาณต่ำกว่าเป้าจากข้อมูลที่มี",
   ];
 
   const actions = [
@@ -4225,7 +4267,7 @@ function renderTrainingSummaryCards(trainingItems) {
     { label: "Training ทั้งหมด", value: formatInteger(summary.total), note: `${formatInteger(summary.withData)} คนมีข้อมูล`, className: "is-neutral" },
     { label: "ดีขึ้น / ผ่านเป้า", value: `${positiveRate}%`, note: `${formatInteger(positive)} คน`, className: positiveRate >= 60 ? "is-good" : "is-warning" },
     { label: "ลดลง", value: formatInteger(summary.declined), note: "ควรดูรายละเอียดก่อน", className: summary.declined > 0 ? "is-warning" : "is-good" },
-    { label: `ต่ำกว่า Target ${TARGETS.training}`, value: formatInteger(summary.belowTarget), note: "มีข้อมูลแล้วแต่ยังต่ำกว่าเป้า", className: summary.belowTarget > 0 ? "is-danger" : "is-good" },
+    { label: `ต่ำกว่า Target ${getPickTypeTarget('training')}`, value: formatInteger(summary.belowTarget), note: "มีข้อมูลแล้วแต่ยังต่ำกว่าเป้า", className: summary.belowTarget > 0 ? "is-danger" : "is-good" },
   ];
 
   trainingSummaryGrid.innerHTML = cards.map((card) => `
@@ -4246,7 +4288,7 @@ function renderTrainingTrendChart(trainingItems) {
     { key: "improved", label: "ดีขึ้น", value: summary.improved, className: "is-good" },
     { key: "onTarget", label: "ผ่านเป้า", value: summary.onTarget, className: "is-good-alt" },
     { key: "declined", label: "ลดลง", value: summary.declined, className: "is-warning" },
-    { key: "belowTarget", label: `ต่ำกว่า Target ${TARGETS.training}`, value: summary.belowTarget, className: "is-danger" },
+    { key: "belowTarget", label: `ต่ำกว่า Target ${getPickTypeTarget('training')}`, value: summary.belowTarget, className: "is-danger" },
     { key: "notEnough", label: "ข้อมูลยังไม่พอ", value: summary.notEnough, className: "is-empty" },
     { key: "noData", label: "ไม่มีข้อมูล", value: summary.noData, className: "is-muted" },
   ].filter((item) => item.value > 0);
@@ -4309,14 +4351,14 @@ function renderTrainingFocusList(trainingItems) {
   `).join("");
 }
 function renderOverall(summary, payload = {}) {
-  const info = getStatusInfo(summary.average, TARGETS.overall);
+  const info = getStatusInfo(summary.average, getPickTypeTarget('overall'));
 
   overallCard.classList.remove("is-good", "is-warning", "is-empty");
   overallCard.classList.add(info.className);
   // Animate Overall Average count
   animateValue(overallAverage, summary.average, formatNumber);
   overallStatus.textContent = info.label;
-  overallGap.textContent = getSimpleTargetDirection(summary.average, TARGETS.overall);
+  overallGap.textContent = getSimpleTargetDirection(summary.average, getPickTypeTarget('overall'));
   overallProgress.style.width = `${Math.min(info.progress, 100)}%`;
   const totalPickValue = Number(payload.totalPick || 0);
   // Animate Total Pick count
@@ -4327,16 +4369,16 @@ function renderOverall(summary, payload = {}) {
 
   const pickToSortSummary = payload.categories?.pickToSort || {};
   const pickToSortAverage = Number(pickToSortSummary.average || 0);
-  const pickToSortInfo = getStatusInfo(pickToSortAverage, TARGETS.pickToSort);
+  const pickToSortInfo = getStatusInfo(pickToSortAverage, getPickTypeTarget('pickToSort'));
   if (overviewPickToSortCard) {
     overviewPickToSortCard.classList.remove("is-good", "is-warning", "is-empty");
     overviewPickToSortCard.classList.add(pickToSortInfo.className);
   }
   if (overviewPickToSortAverage) animateValue(overviewPickToSortAverage, pickToSortAverage, formatNumber);
   if (overviewPickToSortNote) {
-    overviewPickToSortNote.innerHTML = `${pickToSortInfo.gapText} · ${formatInteger(pickToSortSummary.count || 0)} รายการ${getCompareNoteHtml(pickToSortAverage, payload.previousPayload?.categories?.pickToSort?.average, payload, "Pick/Hr", TARGETS.pickToSort)}`;
+    overviewPickToSortNote.innerHTML = `${pickToSortInfo.gapText} · ${formatInteger(pickToSortSummary.count || 0)} รายการ${getCompareNoteHtml(pickToSortAverage, payload.previousPayload?.categories?.pickToSort?.average, payload, "Pick/Hr", getPickTypeTarget('pickToSort'))}`;
   }
-  const overallCompare = getCompareNoteHtml(summary.average, payload.previousPayload?.overall?.average, payload, "Pick/Hr", TARGETS.overall);
+  const overallCompare = getCompareNoteHtml(summary.average, payload.previousPayload?.overall?.average, payload, "Pick/Hr", getPickTypeTarget('overall'));
   const existingOverallCompare = overallCard.querySelector(".compare-note");
   if (existingOverallCompare) existingOverallCompare.remove();
   overallCard.insertAdjacentHTML("beforeend", overallCompare);
@@ -4411,7 +4453,7 @@ function getPickToSortBuItems(payload, details) {
       focus: bu.focus,
       share: Number(p2s.count || 0),
       ...p2s,
-      target: TARGETS.pickToSort,
+      target: getPickTypeTarget('pickToSort'),
     };
   }).filter((item) => Number(item.count || 0) > 0);
   const totalCount = derived.reduce((sum, item) => sum + Number(item.count || 0), 0);
@@ -4432,7 +4474,7 @@ function renderPickToSortDashboard(payload = {}) {
   const average = Number(overall.average || 0);
   const count = Number(overall.count || 0);
   const totalPick = Number(details.totalPick || 0);
-  const info = getStatusInfo(average, TARGETS.pickToSort);
+  const info = getStatusInfo(average, getPickTypeTarget('pickToSort'));
   const buItems = getPickToSortBuItems(payload, details);
   const shiftItems = Array.isArray(details.shifts) ? details.shifts.filter((item) => Number(item.count || 0) > 0) : [];
   const pickerSummary = normalizePickerSummary(details.pickers);
@@ -4441,7 +4483,7 @@ function renderPickToSortDashboard(payload = {}) {
 
   const buHtml = buItems.length > 0
     ? buItems.map((item) => {
-      const itemInfo = getStatusInfo(item.average, TARGETS.pickToSort);
+      const itemInfo = getStatusInfo(item.average, getPickTypeTarget('pickToSort'));
       return `
         <article class="p2s-mini-card ${itemInfo.className}">
           <div>
@@ -4457,7 +4499,7 @@ function renderPickToSortDashboard(payload = {}) {
 
   const shiftHtml = shiftItems.length > 0
     ? shiftItems.map((item) => {
-      const itemInfo = getStatusInfo(item.average, TARGETS.pickToSort);
+      const itemInfo = getStatusInfo(item.average, getPickTypeTarget('pickToSort'));
       return `
         <article class="p2s-mini-card ${itemInfo.className}">
           <div>
@@ -4476,7 +4518,7 @@ function renderPickToSortDashboard(payload = {}) {
       <div>
         <p class="visual-card-eyebrow">PICK TO SORT AVG</p>
         <h2>${formatNumber(average)}</h2>
-        <span>Target ≥ ${TARGETS.pickToSort} · เริ่มนับ 8/6/2026</span>
+        <span>Target ≥ ${getPickTypeTarget('pickToSort')} · เริ่มนับ 8/6/2026</span>
       </div>
       <div class="p2s-hero-meta">
         <strong>${info.label}</strong>
@@ -4486,7 +4528,7 @@ function renderPickToSortDashboard(payload = {}) {
           <span>Total Pick เฉพาะ Pick to Sort</span>
           <strong>${formatInteger(totalPick)}</strong>
         </div>
-        ${getCompareNoteHtml(average, previousAverage, payload, "Pick/Hr", TARGETS.pickToSort)}
+        ${getCompareNoteHtml(average, previousAverage, payload, "Pick/Hr", getPickTypeTarget('pickToSort'))}
       </div>
     </section>
 
@@ -4525,7 +4567,7 @@ function renderShiftAffiliations(affiliations) {
   }
 
   const rows = affiliations.map((item) => {
-    const target = Number(item.target || TARGETS.overall);
+    const target = Number(item.target || getPickTypeTarget('overall'));
     const info = getStatusInfo(item.average, target);
 
     return `
@@ -4563,7 +4605,7 @@ function renderShiftBreakdown(shifts, payload = {}) {
   }
 
   shifts.forEach((item) => {
-    const target = Number(item.target || TARGETS.overall);
+    const target = Number(item.target || getPickTypeTarget('overall'));
     const info = getStatusInfo(item.average, target);
     const affiliationRows = renderShiftAffiliations(item.affiliations);
     const card = document.createElement("article");
@@ -4603,7 +4645,7 @@ function renderBuDetailRows(details) {
   }
 
   const rows = details.map((detail) => {
-    const target = Number(detail.target || TARGETS.overall);
+    const target = Number(detail.target || getPickTypeTarget('overall'));
     const info = getStatusInfo(detail.average, target);
     const weightText = typeof detail.mainKpi === "number" ? `${formatShare(detail.mainKpi)}%` : "-";
 
@@ -4642,7 +4684,7 @@ function renderBuBreakdown(buItems, payload = {}) {
   }
 
   buItems.forEach((item) => {
-    const target = Number(item.target || TARGETS.overall);
+    const target = Number(item.target || getPickTypeTarget('overall'));
     const info = getStatusInfo(item.average, target);
     const detailRows = renderBuDetailRows(item.details);
     const card = document.createElement("article");
@@ -4729,7 +4771,7 @@ function renderZoneBreakdown(zoneGroups, payload = {}) {
 
   // ── Summary bar ที่ด้านบน (ตัวเลขรวมทุก zone ในกลุ่ม) ──
   const allZones = zoneGroups.flatMap(g => Array.isArray(g.zones) ? g.zones : []);
-  const goodCount = allZones.filter(z => z.average >= (z.target || TARGETS.overall)).length;
+  const goodCount = allZones.filter(z => z.average >= (z.target || getPickTypeTarget('overall'))).length;
   const warnCount = allZones.length - goodCount;
 
   const summaryBar = document.createElement("div");
@@ -4800,7 +4842,7 @@ function renderZoneBreakdown(zoneGroups, payload = {}) {
     section.className = "zone-section";
 
     const zoneRows = Array.isArray(group.zones) ? group.zones : [];
-    const groupGood = zoneRows.filter(z => z.average >= (z.target || group.target || TARGETS.overall)).length;
+    const groupGood = zoneRows.filter(z => z.average >= (z.target || group.target || getPickTypeTarget('overall'))).length;
     const groupStatusClass = groupGood === zoneRows.length ? "all-good"
       : groupGood === 0 ? "all-warn" : "partial";
 
@@ -4898,7 +4940,7 @@ function renderZoneBreakdown(zoneGroups, payload = {}) {
 function renderPickerBoard(kind, title, subtitle, rows, emptyText, payload = {}) {
   const safeRows = Array.isArray(rows) ? rows : [];
   const isTopBoard = String(kind || "").toUpperCase().includes("TOP");
-  const maxAverage = Math.max(...safeRows.map((item) => Number(item.average || 0)), TARGETS.overall, 1);
+  const maxAverage = Math.max(...safeRows.map((item) => Number(item.average || 0)), getPickTypeTarget('overall'), 1);
 
   if (safeRows.length === 0) {
     return `
@@ -4916,7 +4958,7 @@ function renderPickerBoard(kind, title, subtitle, rows, emptyText, payload = {})
   }
 
   const rowsHtml = safeRows.map((item, index) => {
-    const target = Number(item.target || TARGETS.overall);
+    const target = Number(item.target || getPickTypeTarget('overall'));
     const info = getStatusInfo(item.average, target);
     const width = Math.min((Number(item.average || 0) / maxAverage) * 100, 100);
     const sampleClass = Number(item.count || 0) < 3 ? " is-low-sample" : "";
@@ -5011,7 +5053,7 @@ function renderTrainingDetailTable(trainingItems) {
   }
 
   trainingDetailTableBody.innerHTML = items.map((item) => {
-    const target = Number(item.target || TARGETS.training);
+    const target = Number(item.target || getPickTypeTarget('training'));
     const info = getStatusInfo(item.average, target);
     return `
       <tr>
@@ -5053,7 +5095,7 @@ function renderTrainingBreakdown(trainingItems, payload = {}) {
     const improvement = Number(item.improvement || 0);
     const firstAverage = Number(item.first30Average || 0);
     const secondAverage = Number(item.second30Average || 0);
-    const target = Number(item.target || TARGETS.training);
+    const target = Number(item.target || getPickTypeTarget('training'));
     const targetGap = Number(item.average || 0) - target;
     const targetInfo = getStatusInfo(item.average, target);
     const isBelowTrainingTarget = Number(item.count || 0) > 0 && targetGap < 0;
@@ -5239,7 +5281,7 @@ function topCountLabel(map, fallback) {
   })[0];
 }
 
-function finalizeRawPickers(rawPickers, target = TARGETS.overall) {
+function finalizeRawPickers(rawPickers, target = getPickTypeTarget('overall')) {
   const rows = Object.keys(rawPickers || {}).map((key) => {
     const item = rawPickers[key] || {};
     const count = Number(item.count || 0);
@@ -5429,7 +5471,7 @@ function finalizeDailyBu(rawBu) {
         ...finalizeRawBucket(rawBu[bu.key].details[detail.key], detail.target),
       }))
       : [],
-    ...finalizeRawBucket(rawBu[bu.key], TARGETS.overall),
+    ...finalizeRawBucket(rawBu[bu.key], getPickTypeTarget('overall')),
   }));
 }
 
@@ -5442,7 +5484,7 @@ function finalizeDailyPickToSortBu(rawBu) {
     label: bu.label,
     focus: bu.focus,
     share: totalCount > 0 ? round1((Number(rawBu[bu.key]?.count || 0) / totalCount) * 100) : 0,
-    ...finalizeRawBucket(rawBu[bu.key], TARGETS.pickToSort),
+    ...finalizeRawBucket(rawBu[bu.key], getPickTypeTarget('pickToSort')),
   }));
 }
 
@@ -5450,17 +5492,17 @@ function finalizeDailyPickToSortDetails(rawDetails) {
   const source = rawDetails || createRawPickToSortSummary();
 
   return {
-    overall: finalizeRawBucket(source.overall, TARGETS.pickToSort),
+    overall: finalizeRawBucket(source.overall, getPickTypeTarget('pickToSort')),
     totalPick: Math.round(Number(source.totalPick || 0)),
-    shifts: finalizeDailyShifts(source.shifts, TARGETS.pickToSort),
+    shifts: finalizeDailyShifts(source.shifts, getPickTypeTarget('pickToSort')),
     bu: finalizeDailyPickToSortBu(source.bu),
-    pickers: finalizeRawPickers(source.pickers, TARGETS.pickToSort),
+    pickers: finalizeRawPickers(source.pickers, getPickTypeTarget('pickToSort')),
     startDate: "08/06/2026",
     sourceColumn: "AK",
   };
 }
 
-function finalizeDailyShifts(rawShifts, target = TARGETS.overall) {
+function finalizeDailyShifts(rawShifts, target = getPickTypeTarget('overall')) {
   const shiftNames = Object.keys(rawShifts || {}).sort((left, right) => left.localeCompare(right, "th"));
   const totalCount = shiftNames.reduce((sum, shiftName) => sum + Number(rawShifts[shiftName].bucket?.count || 0), 0);
 
@@ -5880,7 +5922,7 @@ function addTenuredShiftContribution(rawShifts, shiftName, pickerKey, picker, we
   }
 }
 
-function finalizeTenuredShiftSummary(rawShifts, target = TARGETS.overall) {
+function finalizeTenuredShiftSummary(rawShifts, target = getPickTypeTarget('overall')) {
   const totalCount = Object.values(rawShifts || {}).reduce((sum, item) => sum + Number(item.count || 0), 0);
 
   return Object.keys(rawShifts || {}).map((shiftName) => {
@@ -5963,7 +6005,7 @@ function buildTenuredPickerBenchmark(indexPayload, selectedKeys, endDate = "") {
     });
   });
 
-  const rows = finalizeRawPickers(rawPickers, TARGETS.overall).all.map((item) => ({
+  const rows = finalizeRawPickers(rawPickers, getPickTypeTarget('overall')).all.map((item) => ({
     ...item,
     firstSeen: rawPickers[normalizePersonKey(item.userId || item.key)]?.firstSeen || "",
   }));
@@ -5981,9 +6023,9 @@ function buildTenuredPickerBenchmark(indexPayload, selectedKeys, endDate = "") {
     totalCount,
     totalPick,
     average: round1(totalWeightedAverage),
-    target: TARGETS.overall,
-    gap: round1(totalWeightedAverage - TARGETS.overall),
-    shiftSummary: finalizeTenuredShiftSummary(rawShifts, TARGETS.overall),
+    target: getPickTypeTarget('overall'),
+    gap: round1(totalWeightedAverage - getPickTypeTarget('overall')),
+    shiftSummary: finalizeTenuredShiftSummary(rawShifts, getPickTypeTarget('overall')),
   };
 }
 
@@ -6065,10 +6107,10 @@ function renderTenuredShiftBreakdown(shiftItems = []) {
     if (items.length === 0) {
       tenuredShiftChart.innerHTML = `<div class="training-empty-state">ยังไม่มีข้อมูลกะสำหรับพนักงานเกิน 3 เดือน</div>`;
     } else {
-      const maxAverage = Math.max(...items.map((item) => Number(item.average || 0)), TARGETS.overall, 1);
-      const targetLeft = Math.min((TARGETS.overall / maxAverage) * 100, 100);
+      const maxAverage = Math.max(...items.map((item) => Number(item.average || 0)), getPickTypeTarget('overall'), 1);
+      const targetLeft = Math.min((getPickTypeTarget('overall') / maxAverage) * 100, 100);
       tenuredShiftChart.innerHTML = items.map((item) => {
-        const info = getStatusInfo(item.average, TARGETS.overall);
+        const info = getStatusInfo(item.average, getPickTypeTarget('overall'));
         const width = Math.min((Number(item.average || 0) / maxAverage) * 100, 100);
         return `
           <div class="tenured-shift-row ${info.className}">
@@ -6102,7 +6144,7 @@ function renderTenuredShiftBreakdown(shiftItems = []) {
       `;
     } else {
       tenuredShiftTableBody.innerHTML = items.map((item) => {
-        const info = getStatusInfo(item.average, TARGETS.overall);
+        const info = getStatusInfo(item.average, getPickTypeTarget('overall'));
         return `
           <tr>
             <td><strong>${escapeHtml(formatShiftLabelForDisplay(item.label))}</strong></td>
@@ -6126,7 +6168,7 @@ function renderTenuredBenchmark(benchmark = {}) {
   }
 
   if (tenuredSummaryGrid) {
-    const info = getStatusInfo(benchmark.average, benchmark.target || TARGETS.overall);
+    const info = getStatusInfo(benchmark.average, benchmark.target || getPickTypeTarget('overall'));
     tenuredSummaryGrid.innerHTML = `
       <article class="training-summary-card ${info.className}">
         <span>Avg Pick/Hr</span>
@@ -6144,7 +6186,7 @@ function renderTenuredBenchmark(benchmark = {}) {
         <small>ยอดหยิบรวม ${formatInteger(benchmark.totalPick || 0)} รายการ</small>
       </article>
       <article class="training-summary-card ${info.className}">
-        <span>เทียบ Target ${TARGETS.overall}</span>
+        <span>เทียบ Target ${getPickTypeTarget('overall')}</span>
         <strong>${Number(benchmark.totalCount || 0) > 0 ? formatSignedNumber(benchmark.gap || 0) : "-"}</strong>
         <small>${info.label}</small>
       </article>
@@ -6166,7 +6208,7 @@ function renderTenuredBenchmark(benchmark = {}) {
   }
 
   tenuredTableBody.innerHTML = rows.map((item) => {
-    const info = getStatusInfo(item.average, TARGETS.overall);
+    const info = getStatusInfo(item.average, getPickTypeTarget('overall'));
     return `
       <tr>
         <td style="font-family: var(--font-mono); color: var(--text-muted);">${escapeHtml(item.userId || "-")}</td>
@@ -6398,13 +6440,13 @@ function buildDashboardFromDailyIndex(indexPayload, filterStartDate = null, filt
       startDate,
       endDate,
     },
-    overall: finalizeRawBucket(combined.overall, TARGETS.overall, combined.filteredRows, combined.excludedCount),
+    overall: finalizeRawBucket(combined.overall, getPickTypeTarget('overall'), combined.filteredRows, combined.excludedCount),
     categories: {
-      fullRack: finalizeRawBucket(combined.categories.fullRack, TARGETS.fullRack),
-      halfRack: finalizeRawBucket(combined.categories.halfRack, TARGETS.halfRack),
-      ea: finalizeRawBucket(combined.categories.ea, TARGETS.ea),
-      pickToSort: finalizeRawBucket(combined.categories.pickToSort, TARGETS.pickToSort),
-      mezzanine: finalizeRawBucket(combined.categories.mezzanine, TARGETS.mezzanine),
+      fullRack: finalizeRawBucket(combined.categories.fullRack, getPickTypeTarget('fullRack')),
+      halfRack: finalizeRawBucket(combined.categories.halfRack, getPickTypeTarget('halfRack')),
+      ea: finalizeRawBucket(combined.categories.ea, getPickTypeTarget('ea')),
+      pickToSort: finalizeRawBucket(combined.categories.pickToSort, getPickTypeTarget('pickToSort')),
+      mezzanine: finalizeRawBucket(combined.categories.mezzanine, getPickTypeTarget('mezzanine')),
     },
     zones: finalizeDailyZones(combined.zones),
     bu: finalizeDailyBu(combined.bu),
@@ -6547,7 +6589,7 @@ function getDashboardStatusText(payload, sourceLabel) {
     ? ` | Training ${trainingDebug.trainingMatchedCount || 0}/${trainingDebug.trainingUserCount || 0}`
     : "";
 
-  const targetText = ` | Target ${TARGETS.overall}/${TARGETS.fullRack}/${TARGETS.halfRack}/${TARGETS.ea}/T${TARGETS.training}`;
+  const targetText = ` | Target ${getPickTypeTarget('overall')}/${getPickTypeTarget('fullRack')}/${getPickTypeTarget('halfRack')}/${getPickTypeTarget('ea')}/T${getPickTypeTarget('training')}`;
   return `ข้อมูล ${generatedAt}${rangeText}${noMatchText}`;
 }
 

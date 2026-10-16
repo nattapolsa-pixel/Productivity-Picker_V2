@@ -136,16 +136,17 @@ Efficiency (%) = Productivity ÷ Target × 100
 Gap = Productivity − Target
 ```
 
-Target Zone ใช้ **ค่าเฉลี่ย Productivity ของเดือนปฏิทินก่อนหน้า แยกตาม Zone** เป็นลำดับแรก; ค่า Target Zone ในชีต/ไฟล์ตั้งค่าเป็น fallback สำหรับ Zone ที่ไม่มีข้อมูลในเดือนก่อนหน้า ส่วน Target ระดับ Type, Overall, Shift และ BU ยังคงอ่านจากค่าทีม/ค่า fallback ตามระบบเดิม กลุ่ม Unknown ใช้ Overall Target ในหน้าที่รองรับ Unknown คนหนึ่งคนในหน้าไม่ถึงเป้าถูกจัดเข้ากลุ่มตามโซนหลักที่มีแถวเข้าเฉลี่ยมากที่สุด
+Target กลุ่ม **Overall / Shift / BU, Full Rack, Half Rack, Micro Rack และ Pick to Sort** ใช้ค่าเฉลี่ย Productivity ของเดือนปฏิทินก่อนหน้าเป็น Target; Target Zone ใช้ค่าเฉลี่ยแยกตาม Zone เช่นกัน ส่วน Training ยังคงใช้ Target คงที่จากค่าทีม/ค่า fallback และ Mezzanine ไม่มี Target ในหน้าตั้งค่าแล้ว กลุ่ม Unknown ใช้ Overall Target ในหน้าที่รองรับ Unknown คนหนึ่งคนในหน้าไม่ถึงเป้าถูกจัดเข้ากลุ่มตามโซนหลักที่มีแถวเข้าเฉลี่ยมากที่สุด
 
-หลักคำนวณ Target Zone:
+หลักคำนวณ Target รายเดือน:
 
-- ใช้แถว Productivity (AF) ที่มากกว่า 0 ของเดือนก่อนหน้าทั้งเดือน เช่น ตุลาคมใช้ 1–30 กันยายน; เฉลี่ยแบบเลขคณิตของแถวที่เข้าเกณฑ์ใน Zone นั้น และคงทศนิยมไว้ในค่าคำนวณ
+- ใช้ข้อมูลเดือนก่อนหน้าทั้งเดือน เช่น ตุลาคมใช้ 1–30 กันยายน; เป้าแต่ละกลุ่มคำนวณจากค่าเฉลี่ยเลขคณิตของจุด Productivity ที่เข้าเกณฑ์ และคงทศนิยมไว้ในค่าคำนวณ
+- Overall / Shift / BU ใช้ค่าเฉลี่ยรวมของจุด Productivity ที่เข้าเกณฑ์ทุกประเภทงาน; Full Rack, Half Rack และ Micro Rack แยกตามประเภท; Pick to Sort แยกจากกลุ่มอื่น; Target Zone แยกตาม Zone
 - คิดจากทุก Owner และทุกกะโดยไม่ขึ้นกับ Filter วันที่, Shift, Owner, ระบบ หรือโหมด Weight% ที่ผู้ใช้เลือกอยู่
-- โซน BE ไม่อ่าน `Results Master`: ใช้ Productivity รายคน/วัน/กะจาก `Sort_Data` เมื่อมีข้อมูลและเข้าเกณฑ์เดิม (ชั่วโมงมากกว่า 3, Productivity มากกว่า 0 และน้อยกว่า 1,000); ถ้าไม่มี `Sort_Data` ของวันนั้นจึงใช้ค่าเฉลี่ยกะจาก `V3 History` หากมี split หรือใช้ค่า Productivity สรุปรายวันเมื่อไม่มี split
-- ถ้า Zone ไม่มีข้อมูลที่ใช้ได้ในเดือนก่อนหน้า จะใช้ Target Zone fallback ที่โหลดจาก `V3 Target`, `data/targets.json` หรือ IndexedDB ตามลำดับเดิม; ค่าเฉลี่ยรายเดือนคำนวณใหม่เมื่อชุดข้อมูลโหลด/รีเฟรช และไม่เขียนทับค่า Target ที่บันทึกในชีต
+- Pick to Sort / Zone BE ไม่อ่าน `Results Master`: ใช้ Productivity รายคน/วัน/กะจาก `Sort_Data` เมื่อมีข้อมูลและเข้าเกณฑ์เดิม (ชั่วโมงมากกว่า 3, Productivity มากกว่า 0 และน้อยกว่า 1,000); ถ้าไม่มี `Sort_Data` ของวันนั้นจึงใช้ค่าเฉลี่ยกะจาก `V3 History` หากมี split หรือใช้ค่า Productivity สรุปรายวันเมื่อไม่มี split
+- ถ้ากลุ่มหรือ Zone ไม่มีข้อมูลที่ใช้ได้ในเดือนก่อนหน้า จะใช้ค่า fallback ที่โหลดจาก `V3 Target`, `data/targets.json` หรือ IndexedDB ตามลำดับเดิม; ค่าเฉลี่ยรายเดือนคำนวณใหม่เมื่อชุดข้อมูลโหลด/รีเฟรช และไม่เขียนทับค่า Target ที่บันทึกในชีต
 
-ค่า Target ใน `data/targets.json` เป็น **ค่าตั้งต้นสำรองใน repository** ไม่ยืนยันว่าเป็นค่าปัจจุบันจากชีตทีม; Target Zone ด้านล่างเป็น fallback เท่านั้นเมื่อเดือนก่อนหน้าไม่มีข้อมูล:
+ค่า Target ใน `data/targets.json` เป็น **ค่าตั้งต้นสำรองใน repository** ไม่ยืนยันว่าเป็นค่าปัจจุบันจากชีตทีม; Target กลุ่มและ Target Zone ด้านล่างเป็น fallback เท่านั้นเมื่อเดือนก่อนหน้าไม่มีข้อมูล:
 
 | กลุ่ม | Target กลุ่ม | Target ย่อย |
 |---|---:|---|
@@ -154,10 +155,9 @@ Target Zone ใช้ **ค่าเฉลี่ย Productivity ของเด
 | Half Rack | 170 | AF 170 · AJ-AK 150 · AN-CA-BN-DA 140 · BG-BH 100 · BI-BK 120 · CB-DB-DC-CC 140 · CD-CE 150 · DD-DE 150 · CF-DF 150 |
 | Micro Rack | 180 | EA 180 · FA 150 |
 | Pick to Sort | 200 | BE 200 |
-| Mezzanine | 1 | ไม่มีโซน Mezzanine ในผังที่แสดงปัจจุบัน |
 | Training | 100 | — |
 
-ระบบโหลด Target จากแท็บ `V3 Target` ก่อน แล้วใช้ `data/targets.json` เป็น fallback; IndexedDB เป็นทางถอยเมื่ออ่านทั้งสองแหล่งไม่ได้ การปรับในเครื่องมีผลเฉพาะเครื่องจนกดบันทึกเป็นค่าทีม Target Zone ที่คำนวณจากเดือนก่อนหน้าใช้เฉพาะในหน้าเว็บและไม่แก้ค่า fallback เหล่านี้
+ระบบโหลด Target จากแท็บ `V3 Target` ก่อน แล้วใช้ `data/targets.json` เป็น fallback; IndexedDB เป็นทางถอยเมื่ออ่านทั้งสองแหล่งไม่ได้ การปรับในเครื่องมีผลเฉพาะเครื่องจนกดบันทึกเป็นค่าทีม Target กลุ่มและ Target Zone ที่คำนวณจากเดือนก่อนหน้าใช้เฉพาะในหน้าเว็บและไม่แก้ค่า fallback เหล่านี้
 
 ## ข้อยกเว้น Pick to Sort โซน BE
 

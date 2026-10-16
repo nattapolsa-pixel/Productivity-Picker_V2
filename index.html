@@ -905,7 +905,7 @@
       </div>
 
       <p class="target-dialog-desc">
-        เปลี่ยนค่า Target แล้ว Dashboard จะคำนวณสี สถานะ และคำสรุปใหม่ทันที
+        Target หลักใช้ค่าเฉลี่ยของเดือนก่อนหน้า · Training ยังคง Target แบบเดิม
       </p>
       <!-- บอกแค่วันที่อัปเดตของค่าชุดที่กำลังใช้ ไม่มีขั้นตอนให้ผู้ใช้ทำต่อ
            อยู่นอก <form> เพื่อไม่ให้อะไรในนี้ไปกระตุ้น submit ของฟอร์มตั้งค่า -->
@@ -913,38 +913,32 @@
 
       <form id="targetSettingsForm" class="target-form">
         <label class="target-field">
-          <span>Overall / Shift / BU</span>
-          <input type="number" min="1" step="1" data-target-input="overall" inputmode="numeric">
-        </label>
-        <label class="target-field">
-          <span>Full Rack</span>
-          <input type="number" min="1" step="1" data-target-input="fullRack" inputmode="numeric">
-        </label>
-        <label class="target-field">
-          <span>Half Rack</span>
-          <input type="number" min="1" step="1" data-target-input="halfRack" inputmode="numeric">
-        </label>
-        <label class="target-field">
-          <span>Micro Rack</span>
-          <input type="number" min="1" step="1" data-target-input="ea" inputmode="numeric">
-        </label>
-        <label class="target-field">
-          <span>Pick to Sort</span>
-          <input type="number" min="1" step="1" data-target-input="pickToSort" inputmode="numeric">
-        </label>
-        <label class="target-field">
-          <span>Mezzanine</span>
-          <input type="number" min="1" step="1" data-target-input="mezzanine" inputmode="numeric">
-        </label>
-        <label class="target-field">
           <span>Training</span>
           <input type="number" min="1" step="1" data-target-input="training" inputmode="numeric">
         </label>
 
         <details open class="target-zone-average-panel">
-          <summary>Target ที่ใช้จริง · ค่าเฉลี่ยเดือนก่อนหน้า</summary>
+          <summary>Target กลุ่มหลักที่ใช้จริง · ค่าเฉลี่ยเดือนก่อนหน้า</summary>
+          <div id="monthlyCategoryTargetsPreview" class="zone-target-average-grid">
+            <div class="zone-target-average-empty">กำลังอ่านค่าเฉลี่ยของเดือนก่อนหน้า…</div>
+          </div>
+        </details>
+
+        <details open class="target-zone-average-panel">
+          <summary>Target Zone ที่ใช้จริง · ค่าเฉลี่ยเดือนก่อนหน้า</summary>
           <div id="monthlyZoneTargetsPreview" class="zone-target-average-grid">
             <div class="zone-target-average-empty">กำลังอ่านค่าเฉลี่ยของเดือนก่อนหน้า…</div>
+          </div>
+        </details>
+
+        <details class="target-zone-fallback-panel">
+          <summary>ตั้งค่า Fallback กลุ่มหลัก (ใช้เมื่อไม่มีค่าเฉลี่ยเดือนก่อน)</summary>
+          <div style="display:grid;gap:.7rem;margin-top:.85rem;">
+            <label class="target-field"><span>Overall / Shift / BU</span><input type="number" min="1" step="1" data-target-input="overall" inputmode="numeric"></label>
+            <label class="target-field"><span>Full Rack</span><input type="number" min="1" step="1" data-target-input="fullRack" inputmode="numeric"></label>
+            <label class="target-field"><span>Half Rack</span><input type="number" min="1" step="1" data-target-input="halfRack" inputmode="numeric"></label>
+            <label class="target-field"><span>Micro Rack</span><input type="number" min="1" step="1" data-target-input="ea" inputmode="numeric"></label>
+            <label class="target-field"><span>Pick to Sort</span><input type="number" min="1" step="1" data-target-input="pickToSort" inputmode="numeric"></label>
           </div>
         </details>
 
@@ -1042,15 +1036,15 @@
 
   <script src="js/data-client.js?v=20261015-be-shift-source-1"></script>
   <script src="js/metrics.js?v=20261015-be-shift-source-1"></script>
-  <script src="js/script.js?v=20261016-zone-target-preview-1"></script>
-  <script src="js/insights.js?v=20261015-monthly-zone-target-1"></script>
-  <script src="js/v2-shell.js?v=20261015-menu-merge-1"></script>
-  <script src="js/v2-views.js?v=20261015-menu-merge-1"></script>
+  <script src="js/script.js?v=20261016-monthly-category-target-1"></script>
+  <script src="js/insights.js?v=20261016-monthly-category-target-1"></script>
+  <script src="js/v2-shell.js?v=20261016-monthly-category-target-1"></script>
+  <script src="js/v2-views.js?v=20261016-monthly-category-target-1"></script>
   <script src="js/v2-roster-write.js?v=20260918-2"></script>
-  <script src="js/v2-staff.js?v=20261015-menu-merge-1"></script>
-  <script src="js/v2-efficiency.js?v=20261015-monthly-zone-target-1"></script>
-  <script src="js/v2-individual.js?v=20261015-monthly-zone-target-1"></script>
-  <script src="js/v2-monthly.js?v=20261015-menu-merge-1"></script>
+  <script src="js/v2-staff.js?v=20261016-monthly-category-target-1"></script>
+  <script src="js/v2-efficiency.js?v=20261016-monthly-category-target-1"></script>
+  <script src="js/v2-individual.js?v=20261016-monthly-category-target-1"></script>
+  <script src="js/v2-monthly.js?v=20261016-monthly-category-target-1"></script>
   <script src="js/v2-duplicate.js?v=20260918-1"></script>
   <script src="js/v2-guide.js?v=20261015-menu-merge-1"></script>
 </body>

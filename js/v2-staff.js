@@ -228,7 +228,7 @@
   }
 
   function target() {
-    return (window.TARGETS && Number(window.TARGETS.overall)) || 170;
+    return (window.getEffectiveTarget ? window.getEffectiveTarget("overall") : window.TARGETS && Number(window.TARGETS.overall)) || 170;
   }
 
   function draw(id, config) {
