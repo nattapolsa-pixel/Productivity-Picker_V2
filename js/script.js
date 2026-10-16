@@ -163,7 +163,7 @@ function readStoredTargets() {
 
     return Object.keys(DEFAULT_TARGETS).reduce((config, key) => {
       const value = Number(saved[key]);
-      config[key] = Number.isFinite(value) && value > 0 ? Math.round(value) : DEFAULT_TARGETS[key];
+      config[key] = Number.isFinite(value) && value > 0 ? value : DEFAULT_TARGETS[key];
       return config;
     }, {});
   } catch (error) {
@@ -204,7 +204,7 @@ function sanitizeTargetSet(raw) {
   if (!raw || typeof raw !== "object") return null;
   return Object.keys(DEFAULT_TARGETS).reduce((out, key) => {
     const value = Number(raw[key]);
-    out[key] = Number.isFinite(value) && value > 0 ? Math.round(value) : DEFAULT_TARGETS[key];
+    out[key] = Number.isFinite(value) && value > 0 ? value : DEFAULT_TARGETS[key];
     return out;
   }, {});
 }
@@ -259,7 +259,7 @@ async function fetchTargetsFromSheet(tabName, sheetId) {
     if (!key || !(key in DEFAULT_TARGETS)) return;   // ข้ามหัวตารางและคีย์แปลกปลอม
     const value = Number(cells[1]);
     if (!Number.isFinite(value) || value <= 0) return;
-    raw[key] = Math.round(value);
+    raw[key] = value;
     if (!updatedAt && cells[2]) updatedAt = cells[2];
     if (!updatedBy && cells[3]) updatedBy = cells[3];
   });
@@ -1990,7 +1990,7 @@ function setTargetFormValues() {
 function getTargetFormValues() {
   return Array.from(targetInputs).reduce((values, input) => {
     const key = input.dataset.targetInput;
-    const value = Math.round(Number(input.value));
+    const value = Number(input.value);
 
     if (key && Number.isFinite(value) && value > 0) {
       values[key] = value;
@@ -2126,7 +2126,7 @@ function closeTargetSettings() {
 function updateTargets(nextTargets, sourceLabel, options = {}) {
   Object.keys(DEFAULT_TARGETS).forEach((key) => {
     const value = Number(nextTargets[key]);
-    TARGETS[key] = Number.isFinite(value) && value > 0 ? Math.round(value) : DEFAULT_TARGETS[key];
+    TARGETS[key] = Number.isFinite(value) && value > 0 ? value : DEFAULT_TARGETS[key];
   });
 
   // ทุกทางที่ปรับ Target วิ่งผ่านที่นี่ (หน้าต่างตั้งค่า, ช่องบนแถบตัวกรอง, v2-shell.js)
@@ -7330,8 +7330,8 @@ async function loadStoredTargetsIdb() {
       let changed = false;
       Object.keys(DEFAULT_TARGETS).forEach((key) => {
         const val = Number(saved[key]);
-        if (Number.isFinite(val) && val > 0 && Math.round(val) !== TARGETS[key]) {
-          TARGETS[key] = Math.round(val);
+        if (Number.isFinite(val) && val > 0 && val !== TARGETS[key]) {
+          TARGETS[key] = val;
           changed = true;
         }
       });

@@ -191,7 +191,7 @@
 
         <span class="lab">🎯 เป้า Target:</span>
         <div class="datebar" style="padding:3px 6px; display:inline-flex; align-items:center; gap:4px;">
-          <input type="number" id="prodTargetInput" value="170" min="1" max="1000"
+          <input type="number" id="prodTargetInput" value="170" min="1" max="1000" step="any"
             aria-label="เป้า Target ภาพรวม" style="width:55px; font-weight:700; text-align:center;">
           <span style="font-size:11px; color:#64748b; font-weight:600; margin-right:4px;">หยิบ/ชม.</span>
           <button id="targetSettingsButton" type="button" aria-haspopup="dialog"
@@ -914,7 +914,7 @@
       <form id="targetSettingsForm" class="target-form">
         <label class="target-field">
           <span>Training</span>
-          <input type="number" min="1" step="1" data-target-input="training" inputmode="numeric">
+          <input type="number" min="1" step="any" data-target-input="training" inputmode="decimal">
         </label>
 
         <details open class="target-zone-average-panel">
@@ -934,11 +934,11 @@
         <details class="target-zone-fallback-panel">
           <summary>ตั้งค่า Fallback กลุ่มหลัก (ใช้เมื่อไม่มีค่าเฉลี่ยเดือนก่อน)</summary>
           <div style="display:grid;gap:.7rem;margin-top:.85rem;">
-            <label class="target-field"><span>Overall / Shift / BU</span><input type="number" min="1" step="1" data-target-input="overall" inputmode="numeric"></label>
-            <label class="target-field"><span>Full Rack</span><input type="number" min="1" step="1" data-target-input="fullRack" inputmode="numeric"></label>
-            <label class="target-field"><span>Half Rack</span><input type="number" min="1" step="1" data-target-input="halfRack" inputmode="numeric"></label>
-            <label class="target-field"><span>Micro Rack</span><input type="number" min="1" step="1" data-target-input="ea" inputmode="numeric"></label>
-            <label class="target-field"><span>Pick to Sort</span><input type="number" min="1" step="1" data-target-input="pickToSort" inputmode="numeric"></label>
+            <label class="target-field"><span>Overall / Shift / BU</span><input type="number" min="1" step="any" data-target-input="overall" inputmode="decimal"></label>
+            <label class="target-field"><span>Full Rack</span><input type="number" min="1" step="any" data-target-input="fullRack" inputmode="decimal"></label>
+            <label class="target-field"><span>Half Rack</span><input type="number" min="1" step="any" data-target-input="halfRack" inputmode="decimal"></label>
+            <label class="target-field"><span>Micro Rack</span><input type="number" min="1" step="any" data-target-input="ea" inputmode="decimal"></label>
+            <label class="target-field"><span>Pick to Sort</span><input type="number" min="1" step="any" data-target-input="pickToSort" inputmode="decimal"></label>
           </div>
         </details>
 
@@ -946,24 +946,24 @@
           <summary>ตั้งค่า Fallback แยก Zone (ใช้เฉพาะโซนที่ไม่มีค่าเฉลี่ยเดือนก่อน)</summary>
           <div style="display:grid;gap:.7rem;margin-top:.85rem;">
             <strong style="color:var(--text-accent);font-size:.82rem;">Full Rack</strong>
-            <label class="target-field"><span>Zone AH-AI</span><input type="number" min="1" step="1" data-target-input="fullRackAhAi" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone AL-BL-BM-AM</span><input type="number" min="1" step="1" data-target-input="fullRackAlBlBmAm" inputmode="numeric"></label>
+            <label class="target-field"><span>Zone AH-AI</span><input type="number" min="1" step="any" data-target-input="fullRackAhAi" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone AL-BL-BM-AM</span><input type="number" min="1" step="any" data-target-input="fullRackAlBlBmAm" inputmode="decimal"></label>
 
             <strong style="color:var(--text-accent);font-size:.82rem;margin-top:.25rem;">Half Rack</strong>
-            <label class="target-field"><span>Zone AF</span><input type="number" min="1" step="1" data-target-input="halfRackAf" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone AJ-AK</span><input type="number" min="1" step="1" data-target-input="halfRackAjAk" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone AN-CA-BN-DA <small>(Max mart)</small></span><input type="number" min="1" step="1" data-target-input="halfRackAnCaBnDa" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone BG-BH</span><input type="number" min="1" step="1" data-target-input="halfRackBgBh" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone BI-BK</span><input type="number" min="1" step="1" data-target-input="halfRackBiBk" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone CB-DB-DC-CC</span><input type="number" min="1" step="1" data-target-input="halfRackCbDbDcCc" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone CD-CE</span><input type="number" min="1" step="1" data-target-input="halfRackCdCe" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone DD-DE</span><input type="number" min="1" step="1" data-target-input="halfRackDdDe" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone CF-DF</span><input type="number" min="1" step="1" data-target-input="halfRackCfDf" inputmode="numeric"></label>
+            <label class="target-field"><span>Zone AF</span><input type="number" min="1" step="any" data-target-input="halfRackAf" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone AJ-AK</span><input type="number" min="1" step="any" data-target-input="halfRackAjAk" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone AN-CA-BN-DA <small>(Max mart)</small></span><input type="number" min="1" step="any" data-target-input="halfRackAnCaBnDa" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone BG-BH</span><input type="number" min="1" step="any" data-target-input="halfRackBgBh" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone BI-BK</span><input type="number" min="1" step="any" data-target-input="halfRackBiBk" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone CB-DB-DC-CC</span><input type="number" min="1" step="any" data-target-input="halfRackCbDbDcCc" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone CD-CE</span><input type="number" min="1" step="any" data-target-input="halfRackCdCe" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone DD-DE</span><input type="number" min="1" step="any" data-target-input="halfRackDdDe" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone CF-DF</span><input type="number" min="1" step="any" data-target-input="halfRackCfDf" inputmode="decimal"></label>
 
             <strong style="color:var(--text-accent);font-size:.82rem;margin-top:.25rem;">Micro Rack / Pick to Sort</strong>
-            <label class="target-field"><span>Zone EA</span><input type="number" min="1" step="1" data-target-input="microEa" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone FA</span><input type="number" min="1" step="1" data-target-input="microFa" inputmode="numeric"></label>
-            <label class="target-field"><span>Zone BE</span><input type="number" min="1" step="1" data-target-input="pickToSortBe" inputmode="numeric"></label>
+            <label class="target-field"><span>Zone EA</span><input type="number" min="1" step="any" data-target-input="microEa" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone FA</span><input type="number" min="1" step="any" data-target-input="microFa" inputmode="decimal"></label>
+            <label class="target-field"><span>Zone BE</span><input type="number" min="1" step="any" data-target-input="pickToSortBe" inputmode="decimal"></label>
           </div>
         </details>
         <div class="target-form-note" id="zoneTargetExplanation">

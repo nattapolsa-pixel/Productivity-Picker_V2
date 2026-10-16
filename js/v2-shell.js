@@ -280,9 +280,9 @@
         return;
       }
       if (typeof window.updateTargets !== 'function' || !window.TARGETS) return;
-      if (Math.round(value) === currentTarget()) return;
+      if (value === currentTarget()) return;
       window.updateTargets(
-        Object.assign({}, window.TARGETS, { overall: Math.round(value) }),
+        Object.assign({}, window.TARGETS, { overall: value }),
         'ตั้งเป้า Target จากแถบตัวกรอง'
       );
     };

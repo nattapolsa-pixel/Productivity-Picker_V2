@@ -2461,7 +2461,7 @@ function writeTargetsV3_(values, updatedBy) {
   const book = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = book.getSheetByName('V3 Target') || book.insertSheet('V3 Target');
   const stamp = new Date(), rows = [['คีย์','ค่า','อัปเดตเมื่อ','โดย']];
-  V3_TARGET_KEYS_.forEach((key) => { const value = Number(values[key]); if (!isFinite(value) || value < 1 || value > 1000) throw new Error('invalid target '+key); rows.push([key,Math.round(value),stamp,updatedBy || 'V3']); });
+  V3_TARGET_KEYS_.forEach((key) => { const value = Number(values[key]); if (!isFinite(value) || value < 1 || value > 1000) throw new Error('invalid target '+key); rows.push([key,value,stamp,updatedBy || 'V3']); });
   sheet.clearContents();
   sheet.getRange(1,1,rows.length,4).setValues(rows);
   return jsonOutput_({ok:true,updatedAt:stamp.toISOString(),updatedBy:updatedBy || 'V3',targets:values});
