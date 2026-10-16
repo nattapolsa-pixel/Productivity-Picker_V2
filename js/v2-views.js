@@ -621,7 +621,7 @@
           },
           {
             type: 'line',
-            label: `Target ${target}`,
+            label: `Target ${fmt(target)}`,
             data: labels.map(() => target),
             borderColor: 'rgba(245,158,11,.9)',
             borderWidth: 2,
@@ -985,7 +985,7 @@
             callbacks: {
               afterBody: (items) => {
                 const e = entries[items[0].dataIndex];
-                return `${fmt(e.stats.people)} คน · ${fmt(e.stats.count)} แถวเข้าเฉลี่ย · Target ${target}`;
+                return `${fmt(e.stats.people)} คน · ${fmt(e.stats.count)} แถวเข้าเฉลี่ย · Target ${fmt(target)}`;
               }
             }
           }

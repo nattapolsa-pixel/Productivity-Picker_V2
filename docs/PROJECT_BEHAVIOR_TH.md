@@ -141,6 +141,7 @@ Target กลุ่ม **Overall / Shift / BU, Full Rack, Half Rack, Micro Rack 
 หลักคำนวณ Target รายเดือน:
 
 - ใช้ข้อมูลเดือนก่อนหน้าทั้งเดือน เช่น ตุลาคมใช้ 1–30 กันยายน; เป้าแต่ละกลุ่มคำนวณจากค่าเฉลี่ยเลขคณิตของจุด Productivity ที่เข้าเกณฑ์ และคงทศนิยมไว้ในค่าคำนวณ
+- Target ที่คำนวณได้ยังเก็บทศนิยมจริงไว้เทียบกับ Productivity; ตอนแสดงผลใช้รูปแบบเดิมคือจำนวนเต็มและปัด .5 ขึ้น โดย `Productivity >= Target` ถือว่าผ่านและเท่ากับเป้านับว่าผ่าน
 - Overall / Shift / BU ใช้ค่าเฉลี่ยรวมของจุด Productivity ที่เข้าเกณฑ์ทุกประเภทงาน; Full Rack, Half Rack และ Micro Rack แยกตามประเภท; Pick to Sort แยกจากกลุ่มอื่น; Target Zone แยกตาม Zone
 - คิดจากทุก Owner และทุกกะโดยไม่ขึ้นกับ Filter วันที่, Shift, Owner, ระบบ หรือโหมด Weight% ที่ผู้ใช้เลือกอยู่
 - Pick to Sort / Zone BE ไม่อ่าน `Results Master`: ใช้ Productivity รายคน/วัน/กะจาก `Sort_Data` เมื่อมีข้อมูลและเข้าเกณฑ์เดิม (ชั่วโมงมากกว่า 3, Productivity มากกว่า 0 และน้อยกว่า 1,000); ถ้าไม่มี `Sort_Data` ของวันนั้นจึงใช้ค่าเฉลี่ยกะจาก `V3 History` หากมี split หรือใช้ค่า Productivity สรุปรายวันเมื่อไม่มี split

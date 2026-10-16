@@ -1455,6 +1455,10 @@ function formatProductivityValue(value) {
   }).format(number);
 }
 
+function formatTargetValue(value) {
+  return formatProductivityValue(value);
+}
+
 function formatInteger(value) {
   return new Intl.NumberFormat("th-TH").format(Number(value) || 0);
 }
@@ -1839,10 +1843,10 @@ function updateStaticTargetLabels() {
   targetLabels.forEach((element) => {
     const key = element.dataset.targetLabel;
     const value = getPickTypeTarget(key) || getPickTypeTarget("overall");
-    element.textContent = `Target ≥ ${value}`;
+    element.textContent = `Target ≥ ${formatTargetValue(value)}`;
   });
 
-  setText(gaugeTargetText, `Target ≥ ${getPickTypeTarget("overall")}`);
+  setText(gaugeTargetText, `Target ≥ ${formatTargetValue(getPickTypeTarget("overall"))}`);
 
   const hasMonthlyZoneTargets = Object.keys(monthlyZoneTargets).length > 0;
   document.querySelectorAll(".zoneTargetSourceLabel").forEach((zoneSource) => {
@@ -1875,7 +1879,7 @@ function updateStaticTargetLabels() {
         : `ไม่มีค่า Avg ${monthLabel} · ใช้ Fallback`;
       return `<article class="zone-target-average-card ${hasAverage ? "has-average" : "uses-fallback"}">
         <span class="zone-target-average-name">${label}</span>
-        <strong class="zone-target-average-value">${formatShare(target)} <small>หยิบ/ชม.</small></strong>
+        <strong class="zone-target-average-value">${formatTargetValue(target)} <small>หยิบ/ชม.</small></strong>
         <span class="zone-target-average-source">${source}</span>
       </article>`;
     }).join("");
@@ -1894,7 +1898,7 @@ function updateStaticTargetLabels() {
         : `ไม่มีค่า Avg ${monthLabel} · ใช้ Fallback`;
       return `<article class="zone-target-average-card ${hasAverage ? "has-average" : "uses-fallback"}">
         <span class="zone-target-average-name">Zone ${zone.label}</span>
-        <strong class="zone-target-average-value">${formatShare(target)} <small>หยิบ/ชม.</small></strong>
+        <strong class="zone-target-average-value">${formatTargetValue(target)} <small>หยิบ/ชม.</small></strong>
         <span class="zone-target-average-source">${source}</span>
       </article>`;
     })).join("");
@@ -2355,7 +2359,7 @@ function buildMonthlyProductivitySvg(days, metricLabel) {
       
       <!-- Target Reference Line -->
       <line class="monthly-chart-target" x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="6 6" style="opacity: 0.85;"></line>
-      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${getPickTypeTarget('overall')}</text>
+      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${formatTargetValue(getPickTypeTarget('overall'))}</text>
       
       <!-- Gradient Bars -->
       ${bars}
@@ -2980,7 +2984,7 @@ function buildYearlyProductivitySvg(monthsData, metricLabel, displayMode = "affi
       
       <!-- Target Reference Line -->
       <line class="monthly-chart-target" x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="2" stroke-dasharray="6 6" style="opacity: 0.85;"></line>
-      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${getPickTypeTarget('overall')}</text>
+      <text class="monthly-chart-target-label" x="${width - pad.right}" y="${targetY - 8}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 11px;">Target ${formatTargetValue(getPickTypeTarget('overall'))}</text>
       
       <!-- Gradient Bars -->
       ${bars}
@@ -3067,7 +3071,7 @@ function renderMonthlyTab(payload) {
       </div>
       <div class="kpi-main-number" id="monthlyYtdAvg">${formatNumber(ytdAverage)}</div>
       <div class="kpi-main-sub">
-        <span>Target ≥ ${getPickTypeTarget('overall')}</span>
+        <span>Target ≥ ${formatTargetValue(getPickTypeTarget('overall'))}</span>
         <span>${getSimpleTargetDirection(ytdAverage, getPickTypeTarget('overall'))}</span>
       </div>
       <div class="progress-track">
@@ -3208,7 +3212,7 @@ function renderMonthlyTab(payload) {
     }
 
     if (monthlyPresentNarrative) {
-      monthlyPresentNarrative.innerHTML = `รายงานสรุปผลงานระดับผู้บริหาร (Monthly Briefing) ในรอบช่วงเวลา <strong>${startMonth} - ${endMonth}</strong> มีผลผลิตเฉลี่ยสะสมรวม (YTD Avg) อยู่ที่ <strong>${formatProductivityValue(ytdAverage)} Pick/Hr</strong> (ต่ำกว่าเกณฑ์เป้าหมาย 170 อยู่ ${formatProductivityValue(getPickTypeTarget('overall') - ytdAverage)} Pick/Hr). ${MoM_Sentence}. ข้อมูลชี้แนะจุดสำคัญที่ต้องวิเคราะห์ต่อดังนี้:`;
+      monthlyPresentNarrative.innerHTML = `รายงานสรุปผลงานระดับผู้บริหาร (Monthly Briefing) ในรอบช่วงเวลา <strong>${startMonth} - ${endMonth}</strong> มีผลผลิตเฉลี่ยสะสมรวม (YTD Avg) อยู่ที่ <strong>${formatProductivityValue(ytdAverage)} Pick/Hr</strong> (ต่ำกว่า Target ${formatTargetValue(getPickTypeTarget('overall'))} อยู่ ${formatProductivityValue(getPickTypeTarget('overall') - ytdAverage)} Pick/Hr). ${MoM_Sentence}. ข้อมูลชี้แนะจุดสำคัญที่ต้องวิเคราะห์ต่อดังนี้:`;
     }
 
     actions.push(`<strong>ถอดบทเรียนช่วงพีคสูงสุด</strong>: นำรูปแบบการจัดการกะ และ Best Practice ของเดือน <strong>${bestMonthObj.labelThaiShort}</strong> มาใช้อ้างอิงเป็นมาตรฐานคลังและใช้อบรมพนักงานกลุ่มเป้าหมาย`);
@@ -3442,7 +3446,7 @@ function buildAffiliationTrendSvg(trendData, overallTrendData, metricLabel) {
 
       <!-- Target Reference Line -->
       <line x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 5" style="opacity: 0.75;"></line>
-      <text x="${width - pad.right}" y="${targetY - 5}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${getPickTypeTarget('overall')}</text>
+      <text x="${width - pad.right}" y="${targetY - 5}" text-anchor="end" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${formatTargetValue(getPickTypeTarget('overall'))}</text>
 
       <!-- Overall Average Line (Dashed) -->
       ${overallPath ? `<path d="${overallPath}" stroke="var(--text-muted)" stroke-width="2" stroke-dasharray="4 4" fill="none" style="opacity: 0.55;"></path>` : ""}
@@ -3542,7 +3546,7 @@ function buildAffiliationsComparisonSvg(affiliationsData, overallAvg) {
 
       <!-- Target Reference Line -->
       <line x1="${pad.left}" y1="${targetY}" x2="${width - pad.right}" y2="${targetY}" stroke="var(--warn)" stroke-width="1.5" stroke-dasharray="5 5" style="opacity: 0.65;"></line>
-      <text x="${pad.left + 5}" y="${targetY - 5}" text-anchor="start" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${getPickTypeTarget('overall')}</text>
+      <text x="${pad.left + 5}" y="${targetY - 5}" text-anchor="start" fill="var(--warn)" style="font-family: var(--font-body); font-weight: 700; font-size: 10px;">Target ${formatTargetValue(getPickTypeTarget('overall'))}</text>
 
       <!-- Overall Average Line -->
       <line x1="${pad.left}" y1="${overallY}" x2="${width - pad.right}" y2="${overallY}" stroke="var(--blue)" stroke-width="2" stroke-dasharray="4 4" style="opacity: 0.85;"></line>
@@ -3847,7 +3851,7 @@ function renderCategoryVisual(categories) {
       className: info.className,
       progress: info.progress,
       targetMark: 100,
-      note: `Target ≥ ${config.target} | Main KPI ${config.mainKpi}`,
+      note: `Target ≥ ${formatTargetValue(config.target)} | Main KPI ${config.mainKpi}`,
     };
   });
 
@@ -3872,7 +3876,7 @@ function renderShiftVisual(shifts) {
           className: info.className,
           progress: info.progress,
           targetMark: 100,
-          note: `Target ≥ ${target} | Share ${formatShare(shift.share || 0)}%`,
+          note: `Target ≥ ${formatTargetValue(target)} | Share ${formatShare(shift.share || 0)}%`,
         };
       })
     : [];
@@ -3961,7 +3965,7 @@ function getTrainingTrendInfo(item) {
       label: "ผ่านเป้า Training",
       className: "is-good",
       short: "ผ่านเป้า",
-      message: `ค่าเฉลี่ย ${formatNumber(average)} ผ่าน Target Training ${getPickTypeTarget('training')}`,
+      message: `ค่าเฉลี่ย ${formatNumber(average)} ผ่าน Target Training ${formatTargetValue(getPickTypeTarget('training'))}`,
     };
   }
 
@@ -3971,7 +3975,7 @@ function getTrainingTrendInfo(item) {
       label: "ต่ำกว่าเป้า Training",
       className: "is-danger",
       short: "ต่ำกว่าเป้า",
-      message: `ต่ำกว่า Target Training ${getPickTypeTarget('training')} อยู่ ${formatNumber(getPickTypeTarget('training') - average)} Pick/Hr`,
+      message: `ต่ำกว่า Target Training ${formatTargetValue(getPickTypeTarget('training'))} อยู่ ${formatNumber(getPickTypeTarget('training') - average)} Pick/Hr`,
     };
   }
 
@@ -4173,7 +4177,7 @@ function renderPresentSummary(payload) {
     ? `${getComparisonMeta(payload).label || "เทียบวันก่อน"}: ${formatCompareDelta(overallAverage - previousOverallAverage, "Pick/Hr")}${formatTargetContext(overallAverage, getPickTypeTarget('overall'), "Pick/Hr")}`
     : `${getComparisonMeta(payload).label || "เทียบวันก่อน"}: ยังไม่มีข้อมูลเทียบ${formatTargetContext(overallAverage, getPickTypeTarget('overall'), "Pick/Hr")}`;
   const mainFocus = weakestCategory
-    ? `${weakestCategory.label} Avg ${formatNumber(weakestCategory.average)} / Target ${weakestCategory.target}`
+    ? `${weakestCategory.label} Avg ${formatNumber(weakestCategory.average)} / Target ${formatTargetValue(weakestCategory.target)}`
     : "ยังไม่มีข้อมูลประเภทงาน";
 
   setText(presentPeriodLabel, presentRange);
@@ -4199,7 +4203,7 @@ function renderPresentSummary(payload) {
     ? `Training มี ${formatInteger(trainingPositive)} จาก ${formatInteger(trainingSummary.withData)} คนที่ดีขึ้นหรือผ่านเป้า (${trainingPositiveRate}%)`
     : "Training ยังไม่มีข้อมูลเพียงพอสำหรับสรุปเชิงแนวโน้ม";
   const pickToSortSentence = pickToSortItem.count > 0
-    ? `Pick to Sort Avg ${formatNumber(pickToSortItem.average)} เทียบ Target ${getPickTypeTarget('pickToSort')} จาก ${formatInteger(pickToSortItem.count)} รายการ`
+    ? `Pick to Sort Avg ${formatNumber(pickToSortItem.average)} เทียบ Target ${formatTargetValue(getPickTypeTarget('pickToSort'))} จาก ${formatInteger(pickToSortItem.count)} รายการ`
     : "Pick to Sort ยังไม่มีข้อมูลในช่วงที่เลือก";
 
   setText(
@@ -4226,18 +4230,18 @@ function renderPresentSummary(payload) {
   `).join("");
 
   const highlights = [
-    bestCategory ? `${bestCategory.label} ทำได้ดีที่สุดใน Rack / EA: Avg ${formatNumber(bestCategory.average)} เทียบ Target ${bestCategory.target}` : "ยังไม่มีข้อมูล Rack / EA ที่นำมาจัดอันดับ",
+    bestCategory ? `${bestCategory.label} ทำได้ดีที่สุดใน Rack / EA: Avg ${formatNumber(bestCategory.average)} เทียบ Target ${formatTargetValue(bestCategory.target)}` : "ยังไม่มีข้อมูล Rack / EA ที่นำมาจัดอันดับ",
     bestShift ? `${bestShift.label || bestShift.title || "Shift"} เป็นกะที่ทำได้ดีที่สุด: Avg ${formatNumber(bestShift.average)}` : "ยังไม่มีข้อมูล Shift ที่นำมาจัดอันดับ",
     trainingSummary.withData > 0 ? `Training ที่ดีขึ้นหรือผ่านเป้าอยู่ที่ ${trainingPositiveRate}% ของคนที่มีข้อมูล` : "Training ยังต้องรอข้อมูลเพิ่ม",
     pickToSortItem.count > 0 ? `Pick to Sort อยู่ที่ Avg ${formatNumber(pickToSortItem.average)} จาก ${formatInteger(pickToSortItem.count)} รายการ` : "Pick to Sort ยังไม่มีข้อมูลในช่วงที่เลือก",
   ];
 
   const risks = [
-    overallAverage < getPickTypeTarget('overall') ? `Overall ยังต่ำกว่า Target ${getPickTypeTarget('overall')} อยู่ ${formatNumber(getPickTypeTarget('overall') - overallAverage)} Pick/Hr` : "Overall ผ่าน Target ภาพรวมแล้ว ให้รักษาระดับและดูจุดย่อยต่อ",
+    overallAverage < getPickTypeTarget('overall') ? `Overall ยังต่ำกว่า Target ${formatTargetValue(getPickTypeTarget('overall'))} อยู่ ${formatNumber(getPickTypeTarget('overall') - overallAverage)} Pick/Hr` : "Overall ผ่าน Target ภาพรวมแล้ว ให้รักษาระดับและดูจุดย่อยต่อ",
     weakestCategory && weakestCategory.gap < 0 ? `${weakestCategory.label} ต่ำกว่า Target มากสุดในกลุ่ม Rack / EA (${formatNumber(Math.abs(weakestCategory.gap))} Pick/Hr)` : "Rack / EA ไม่มีประเภทหลักที่ต่ำกว่าเป้าในช่วงนี้",
     weakZones.length > 0 ? `Zone ที่ควรดูแรกคือ ${weakZones[0].label} Avg ${formatNumber(weakZones[0].average)} ต่ำกว่า Target ${formatNumber(Math.abs(weakZones[0].gap))}` : "Zone ส่วนใหญ่ไม่มีสัญญาณต่ำกว่าเป้า",
-    trainingSummary.belowTarget > 0 ? `Training ต่ำกว่า Target ${getPickTypeTarget('training')} จำนวน ${formatInteger(trainingSummary.belowTarget)} คน` : `Training ไม่มีคนที่ต่ำกว่า Target ${getPickTypeTarget('training')} จากข้อมูลที่มี`,
-    pickToSortItem.count > 0 && pickToSortItem.average < getPickTypeTarget('pickToSort') ? `Pick to Sort ต่ำกว่า Target ${getPickTypeTarget('pickToSort')} อยู่ ${formatNumber(getPickTypeTarget('pickToSort') - pickToSortItem.average)} Pick/Hr` : "Pick to Sort ไม่มีสัญญาณต่ำกว่าเป้าจากข้อมูลที่มี",
+    trainingSummary.belowTarget > 0 ? `Training ต่ำกว่า Target ${formatTargetValue(getPickTypeTarget('training'))} จำนวน ${formatInteger(trainingSummary.belowTarget)} คน` : `Training ไม่มีคนที่ต่ำกว่า Target ${formatTargetValue(getPickTypeTarget('training'))} จากข้อมูลที่มี`,
+    pickToSortItem.count > 0 && pickToSortItem.average < getPickTypeTarget('pickToSort') ? `Pick to Sort ต่ำกว่า Target ${formatTargetValue(getPickTypeTarget('pickToSort'))} อยู่ ${formatNumber(getPickTypeTarget('pickToSort') - pickToSortItem.average)} Pick/Hr` : "Pick to Sort ไม่มีสัญญาณต่ำกว่าเป้าจากข้อมูลที่มี",
   ];
 
   const actions = [
@@ -4420,7 +4424,7 @@ function renderCategoryCards(categories, payload = {}) {
       <div class="category-value">-</div>
       <div class="category-meta">
         <span>${mixLabel}${coverageLabel}</span>
-        <span>Target ≥ ${config.target}</span>
+        <span>Target ≥ ${formatTargetValue(config.target)}</span>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${Math.min(info.progress, 100)}%"></div></div>
       <div class="category-foot">
@@ -4518,7 +4522,7 @@ function renderPickToSortDashboard(payload = {}) {
       <div>
         <p class="visual-card-eyebrow">PICK TO SORT AVG</p>
         <h2>${formatNumber(average)}</h2>
-        <span>Target ≥ ${getPickTypeTarget('pickToSort')} · เริ่มนับ 8/6/2026</span>
+        <span>Target ≥ ${formatTargetValue(getPickTypeTarget('pickToSort'))} · เริ่มนับ 8/6/2026</span>
       </div>
       <div class="p2s-hero-meta">
         <strong>${info.label}</strong>
@@ -4574,7 +4578,7 @@ function renderShiftAffiliations(affiliations) {
       <div class="shift-affiliation-row ${info.className}">
         <div class="shift-affiliation-main">
           <strong>${item.title || item.label || "ไม่ระบุสังกัด"}</strong>
-          <span>Target ≥ ${target}</span>
+          <span>Target ≥ ${formatTargetValue(target)}</span>
         </div>
         <div class="shift-affiliation-value">${formatNumber(item.average)}</div>
         <div class="shift-affiliation-foot">
@@ -4620,7 +4624,7 @@ function renderShiftBreakdown(shifts, payload = {}) {
       </div>
       <div class="shift-value">-</div>
       <div class="shift-meta">
-        <span>Target ≥ ${target}</span>
+        <span>Target ≥ ${formatTargetValue(target)}</span>
         <span>Share ${formatShare(item.share || 0)}%</span>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${Math.min(info.progress, 100)}%"></div></div>
@@ -4653,7 +4657,7 @@ function renderBuDetailRows(details) {
       <div class="bu-detail-row ${info.className}">
         <div class="bu-detail-main">
           <strong>${detail.title || detail.label || "Pick Type"}</strong>
-          <span>Actual Pick ${weightText} | Target ≥ ${target}</span>
+          <span>Actual Pick ${weightText} | Target ≥ ${formatTargetValue(target)}</span>
         </div>
         <div class="bu-detail-value">${formatNumber(detail.average)}</div>
         <div class="bu-detail-foot">
@@ -4699,7 +4703,7 @@ function renderBuBreakdown(buItems, payload = {}) {
       </div>
       <div class="bu-value">-</div>
       <div class="bu-meta">
-        <span>Target ≥ ${target}</span>
+        <span>Target ≥ ${formatTargetValue(target)}</span>
         <span>Share ${formatShare(item.share || 0)}%</span>
       </div>
       <div class="progress-track"><div class="progress-fill" style="width:${Math.min(info.progress, 100)}%"></div></div>
@@ -4901,7 +4905,7 @@ function renderZoneBreakdown(zoneGroups, payload = {}) {
           </div>
           <div class="zone-card-bar-labels">
             <span>0</span>
-            <span>Target ${zone.target || group.target}</span>
+            <span>Target ${formatTargetValue(zone.target || group.target)}</span>
           </div>
         </div>
 
@@ -5121,12 +5125,12 @@ function renderTrainingBreakdown(trainingItems, payload = {}) {
           <strong>${formatNumber(item.average)}</strong>
         </div>
         <div class="${isBelowTrainingTarget ? "is-danger-box" : ""}">
-          <span>Target ${target}</span>
+          <span>Target ${formatTargetValue(target)}</span>
           <strong>${Number(item.count || 0) > 0 ? formatSignedNumber(targetGap) : "-"}</strong>
         </div>
       </div>
 
-      ${isBelowTrainingTarget ? `<div class="training-alert">ต่ำกว่า Target Training ${target} · ควรโฟกัส/ติดตามเพิ่ม</div>` : ""}
+      ${isBelowTrainingTarget ? `<div class="training-alert">ต่ำกว่า Target Training ${formatTargetValue(target)} · ควรโฟกัส/ติดตามเพิ่ม</div>` : ""}
 
       <div class="training-meta">
         <span>${item.startDate || "-"} ถึง ${item.trainingEndDate || "-"}</span>
@@ -6186,7 +6190,7 @@ function renderTenuredBenchmark(benchmark = {}) {
         <small>ยอดหยิบรวม ${formatInteger(benchmark.totalPick || 0)} รายการ</small>
       </article>
       <article class="training-summary-card ${info.className}">
-        <span>เทียบ Target ${getPickTypeTarget('overall')}</span>
+        <span>เทียบ Target ${formatTargetValue(getPickTypeTarget('overall'))}</span>
         <strong>${Number(benchmark.totalCount || 0) > 0 ? formatSignedNumber(benchmark.gap || 0) : "-"}</strong>
         <small>${info.label}</small>
       </article>
@@ -6589,7 +6593,7 @@ function getDashboardStatusText(payload, sourceLabel) {
     ? ` | Training ${trainingDebug.trainingMatchedCount || 0}/${trainingDebug.trainingUserCount || 0}`
     : "";
 
-  const targetText = ` | Target ${getPickTypeTarget('overall')}/${getPickTypeTarget('fullRack')}/${getPickTypeTarget('halfRack')}/${getPickTypeTarget('ea')}/T${getPickTypeTarget('training')}`;
+  const targetText = ` | Target ${formatTargetValue(getPickTypeTarget('overall'))}/${formatTargetValue(getPickTypeTarget('fullRack'))}/${formatTargetValue(getPickTypeTarget('halfRack'))}/${formatTargetValue(getPickTypeTarget('ea'))}/T${formatTargetValue(getPickTypeTarget('training'))}`;
   return `ข้อมูล ${generatedAt}${rangeText}${noMatchText}`;
 }
 
