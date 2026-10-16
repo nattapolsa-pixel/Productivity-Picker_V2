@@ -252,7 +252,7 @@
     {title:'BU',value:r=>r[35]||'Not Found'}, {title:'Type Pick',value:r=>r[36]||'Not Found'},
     {title:'Total Pick',value:r=>M.number(r[4]),num:true,html:r=>fmt(M.number(r[4]))},
     {title:'ชั่วโมงทำงาน',value:r=>M.number(r[6]),num:true,html:r=>fmt(M.number(r[6]),1)},
-    {title:'ค่าเฉลี่ย/ชม.',value:r=>r[31]||'ว่าง',num:true},
+    {title:'ค่าเฉลี่ย/ชม.',value:r=>r[31]||'ว่าง',num:true,html:r=>{const value=M.number(r[31]);return value>0?fmt(Math.round(value)):esc(r[31]||'ว่าง');}},
     {title:'สถานะ',value:r=>M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย',html:r=>`<span class="pill v3-pill ${M.number(r[31])>0?'good':'warn'}">${M.number(r[31])>0?'เข้าเฉลี่ย':'ไม่เข้าเฉลี่ย'}</span>`}
   ];
   function recordsPage(){if(!$('v3Records'))return;const data=visible();$('v3Records').innerHTML=stats(data)+'<div id="v3RecordsTable"></div>';table($('v3RecordsTable'),'records',data,recordColumns,{valid:r=>M.number(r[31])>0});}
