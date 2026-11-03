@@ -19,7 +19,7 @@ const DEFAULT_TARGETS = Object.freeze({
   fullRackAhAi: 170,
   fullRackAlBlBmAm: 170,
   halfRackAf: 200,
-  halfRackAjAk: 170, // ย้ายมาจาก Full Rack - คง Target 170 ไว้ (ไม่ใช่ 200 ตาม Zone อื่นในกลุ่ม Half Rack)
+  halfRackAjAk: 150, // Half Rack ตาม Zone_V2; fallback ตรงกับ data/targets.json
   halfRackAnCaBnDa: 200, // AN, CA, BN, DA เป็นโซนเดียวกัน (Half Rack ของ Max mart) รวมจากเดิมที่แยกเป็น AN-CA กับ BN-DA
   halfRackBgBh: 200,
   halfRackBiBk: 200,
@@ -704,7 +704,7 @@ const ZONE_GROUPS = [
     target: getPickTypeTarget('halfRack'),
     zones: [
       { key: "halfRackAf", title: "Picking Productivity - Zone AF", label: "AF" },
-      // AJ-AK ย้ายมาจากกลุ่ม Full Rack - legacySource ไว้อ่าน payload จาก Apps Script รุ่นก่อนย้าย (ลบออกได้หลัง deploy .gs ใหม่แล้ว)
+      // AJ-AK เป็น Half Rack ตาม Zone_V2; legacySource อ่าน payload จาก Apps Script รุ่นก่อนเปลี่ยนคีย์
       { key: "halfRackAjAk", title: "Picking Productivity - Zone AJ-AK", label: "AJ-AK", legacySource: { groupKey: "fullRack", zoneKey: "fullRackAjAk" } },
       /* AN, CA, BN, DA เป็นโซนเดียวกัน (Half Rack ของ Max mart) ตามข้อมูลหลังบ้านที่แก้ใหม่ 21/09/2569
          v1-engine.js เป็น read-only จึงยังส่งมาแยกเป็น halfRackAnCa กับ halfRackBnDa
