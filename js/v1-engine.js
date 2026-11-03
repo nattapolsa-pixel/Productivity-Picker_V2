@@ -109,7 +109,7 @@ const ZONE_GROUPS = [
     target: TARGETS.halfRack,
     zones: [
       { key: "halfRackAf", title: "Picking Productivity - Zone AF", label: "AF", codes: ["AF"] },
-      // AJ-AK ย้ายมาจากกลุ่ม Full Rack (Target ยังคงเป็น 170 ไม่ใช่ 200 ตามกลุ่ม Half Rack)
+      // AJ-AK เป็น Half Rack ตาม Zone_V2; Target fallback อยู่ที่ halfRackAjAk ใน data/targets.json
       { key: "halfRackAjAk", title: "Picking Productivity - Zone AJ-AK", label: "AJ-AK", codes: ["AJ", "AK"] },
       { key: "halfRackAnCa", title: "Picking Productivity - Zone AN-CA", label: "AN-CA", codes: ["AN", "CA"] },
       { key: "halfRackBnDa", title: "Picking Productivity - Zone BN-DA", label: "BN-DA", codes: ["BN", "DA"] },

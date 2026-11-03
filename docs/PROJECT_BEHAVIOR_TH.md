@@ -269,10 +269,10 @@ Target กลุ่ม **Overall / Shift / BU, Full Rack, Half Rack, Micro Rack 
 
 ## จุดที่ต้องตัดสินให้ตรงกันก่อนเปลี่ยนกติกา
 
-1. README บางส่วนยังอธิบายระบบก่อนมี Owner/Weight% และระบุ Target 24 keys; config ปัจจุบันมี Target 21 keys และ Weight 18 keys
+1. README ระบุลำดับแหล่ง Target ตามโค้ดแล้ว: แท็บ `V3 Target` ที่ครบ 21 คีย์ → JSON fallback → IndexedDB; Weight ปัจจุบันมี 18 คีย์ ต้องรักษาจำนวนและชื่อคีย์ให้ตรงกันทุกจุด
 2. Target/Weight tabs ไม่อยู่ใน metadata สด จึงใช้ค่าจาก `data/targets.json`; ถ้าสร้าง/เริ่มใช้แท็บทีม ให้ตรวจว่ามีครบทุก key ก่อนคาดหวังว่าค่านั้นจะทับ JSON
-3. `Zone_V2!A:C` ระบุ AJ-AK เป็น Full Rack ของ Punthai แต่ `script.js`/`v1-engine.js` จัดโซน AJ-AK ไว้ใน Half Rack; ดังนั้น Pick Type ที่มาจาก `2ND!K` กับ Zone breakdown อาจจัดคนละ Type/Target ต้องตกลงว่าจะยึดข้อมูลทะเบียนหรือผังหน้าเว็บ
-4. `Zone_V2!F:H` ยังมีแถว AA-AF แบบเก่า; V1 engine และ `metrics.js` ยังยอมรับรหัส AA-AE/HB ในบางเส้นทาง แต่ผังโซนหน้าเว็บปัจจุบันซ่อน AA-AE และถอด HB ออกจากกลุ่มโซน
+3. ข้อมูล `Zone_V2` ล่าสุดระบุ AJ-AK เป็น Half Rack / Punthai ทั้งใน `A:C` และ mapping รหัส AJ/AK ใน `F:H`; ผังเว็บและ `2ND!K` จึงคงการจัดกลุ่ม Half Rack ให้ตรงกันแล้ว snapshot ที่เก็บใน repo มาจาก 30 ก.ย. 2569 โดย sync เฉพาะ mapping AJ-AK ให้ตรงกับชีตล่าสุด ส่วนข้อมูลอื่นยังเป็น snapshot ตามวันดังกล่าว Target fallback `halfRackAjAk` ใช้ 150 ตาม `data/targets.json` และค่าเริ่มต้นใน `script.js`; Target จากแท็บทีมหรือค่าเฉลี่ยเดือนก่อนหน้าสามารถทับ fallback ได้
+4. `Zone_V2!F:H` ยังมีแถว AA-AF แบบเก่า; V1 engine และ `metrics.js` ยังยอมรับรหัส AA-AE/HB ในบางเส้นทาง แต่ active zone map ซ่อน AA-AE และ HB. แถวเก่าจึงอาจมีผลต่อค่าเฉลี่ยบางเส้นทาง แม้ไม่เป็น Zone tile ปัจจุบัน; วัดผลก่อนเปลี่ยน allowlist เพราะจะกระทบการอ่านย้อนหลัง
 5. หน้าไม่ถึงเป้าไม่นำ `M.isValidZoneRow()` มาคัด AF ก่อนรวม แต่หน้าหลักและ `metrics.aggregate()` มีเงื่อนไข Zone; AF>0 กับ Position ที่จับคู่ไม่ได้จึงอาจปรากฏเป็น Unknown ในหน้าไม่ถึงเป้า แต่ไม่เข้าค่าเฉลี่ยอีกเส้นทาง
 6. สถานะเป้าบน Dashboard ถูกคำนวณจาก average ที่ปัดเป็นทศนิยม 1 ตำแหน่งแล้ว ส่วนหน้าแถวดิบบางหน้าตัดสินจากค่าไม่ปัด จึงต่างกันได้ใกล้ Target
 7. V3 History เก็บสรุป BE ล่าสุดถึง 14 ต.ค. 2569 และมี split SHIFT A/B จาก Sort_Data; หาก source ดิบหรือแถว History ถูกลบ ข้อมูลระดับรายการจะกู้คืนไม่ได้
